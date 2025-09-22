@@ -21,7 +21,9 @@ export function readSupabaseConfig(): ConfigResult {
     return { ok: false, missing };
   }
 
-  return { ok: true, config: { url, anonKey } };
+  const safeUrl = url!;
+  const safeAnonKey = anonKey!;
+  return { ok: true, config: { url: safeUrl, anonKey: safeAnonKey } };
 }
 
 export function opsConsoleOfflineModeEnabled(): boolean {
