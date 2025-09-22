@@ -15,3 +15,16 @@ build/
 .next/
 **/.next/
 .supabase/
+# Supabase local artifacts
+.supabase/
+supabase/.branches/
+supabase/.temp/
+
+# Env & logs
+.env
+.env.*
+*.log
+
+# Misc
+*.swp
+supabase/config.toml.bak

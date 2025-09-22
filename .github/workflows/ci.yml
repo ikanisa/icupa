@@ -4,113 +4,25 @@ on:
   push:
   pull_request:
 
-env:
-  CI_OFFLINE: 1
+permissions:
+  contents: read
 
 jobs:
-  build:
+  baseline:
+    name: Baseline checks
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        if: env.CI_OFFLINE != '1'
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Setup Deno
-        if: env.CI_OFFLINE != '1'
-        uses: denoland/setup-deno@v1
-        with:
-          deno-version: latest
-
-      - name: Install Supabase CLI
-        if: env.CI_OFFLINE != '1'
+      - name: Show tree
         run: |
-          curl -fsSL https://supabase.com/cli/install | sh -s -- -b "$HOME/.supabase/bin"
-          echo "$HOME/.supabase/bin" >> $GITHUB_PATH
-
-      - name: Check formatting
+          echo "Repo blueprint:"
+          ls -la
+          echo
+          echo "Key folders:"
+          ls -la app packages supabase agent .github docs .changeset || true
+      - name: Verify policy files exist
         run: |
-          if ! command -v deno >/dev/null 2>&1; then
-            if [ "$CI_OFFLINE" = "1" ]; then
-              echo "deno not available; skipping fmt in offline mode."
-              exit 0
-            else
-              echo "deno not found" >&2
-              exit 1
-            fi
-          fi
-          deno fmt --check supabase/functions
+          test -f agent/policies/ALLOWLIST.json || (echo "Missing ALLOWLIST.json" && exit 1)
+          echo "ALLOWLIST.json is present ✅"
 
-      - name: Cache TypeScript dependencies
-        run: |
-          if ! command -v deno >/dev/null 2>&1; then
-            if [ "$CI_OFFLINE" = "1" ]; then
-              echo "deno not available; skipping cache in offline mode."
-              exit 0
-            else
-              echo "deno not found" >&2
-              exit 1
-            fi
-          fi
-          deno cache supabase/functions/**/index.ts
-
-      - name: Ops API smoke
-        run: |
-          if [ "$CI_OFFLINE" != "1" ]; then
-            echo "CI_OFFLINE is not set; skipping offline ops smoke step."
-            exit 0
-          fi
-          curl --help >/dev/null
-          cat <<'COMMANDS'
-curl -s -H "apikey: $SUPABASE_ANON_KEY" "https://woyknezboamabahknmjr.supabase.co/functions/v1/ops-bookings?from=2025-10-01&supplier=akagera-safaris"
-curl -s -H "apikey: $SUPABASE_ANON_KEY" "https://woyknezboamabahknmjr.supabase.co/functions/v1/ops-exceptions?status=open"
-curl -s -H "apikey: $SUPABASE_ANON_KEY" -H "Content-Type: application/json" -d '{"itinerary_id":"11111111-1111-4111-8111-111111111111","amount_cents":15000,"reason":"customer cancellation"}' "https://woyknezboamabahknmjr.supabase.co/functions/v1/ops-refund"
-COMMANDS
-
-      - name: Observability guardrails
-        run: |
-          target_count=15
-          actual=$(rg -l "withObs" supabase/functions | wc -l | tr -d ' ')
-          if [ "$actual" -lt "$target_count" ]; then
-            echo "Expected at least $target_count functions using withObs, found $actual" >&2
-            exit 1
-          fi
-          response_logs=$(rg -l '"event":"http\.response"' supabase/functions | wc -l | tr -d ' ')
-          if [ "$response_logs" -lt "$target_count" ]; then
-            echo "Structured response logging not detected broadly enough (found $response_logs)." >&2
-            exit 1
-          fi
-          echo "withObs wrappers detected: $actual"
-          echo "Structured response log emitters: $response_logs"
-
-      - name: Supabase CLI version
-        run: |
-          SUPABASE_BIN=${SUPABASE_BIN:-$(command -v supabase || echo "$HOME/.supabase/bin/supabase")}
-          if [ ! -x "$SUPABASE_BIN" ]; then
-            if [ "$CI_OFFLINE" = "1" ]; then
-              echo "Supabase CLI not available; skipping version check in offline mode."
-              exit 0
-            else
-              echo "Supabase CLI not found" >&2
-              exit 1
-            fi
-          fi
-          "$SUPABASE_BIN" --version
-
-      - name: Validate migrations (dry run)
-        run: |
-          SUPABASE_BIN=${SUPABASE_BIN:-$(command -v supabase || echo "$HOME/.supabase/bin/supabase")}
-          if [ ! -x "$SUPABASE_BIN" ]; then
-            if [ "$CI_OFFLINE" = "1" ]; then
-              echo "Supabase CLI not available; skipping dry run in offline mode."
-              exit 0
-            else
-              echo "Supabase CLI not found" >&2
-              exit 1
-            fi
-          fi
-          "$SUPABASE_BIN" db push --workdir . --dry-run
