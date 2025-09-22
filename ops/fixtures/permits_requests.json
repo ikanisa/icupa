@@ -1,0 +1,29 @@
+[
+  {
+    "id": "perm-1000",
+    "user_id": "user-123",
+    "park": "Volcanoes",
+    "visit_date": "2025-12-12",
+    "pax_count": 2,
+    "status": "pending",
+    "note": "Awaiting quota confirmation"
+  },
+  {
+    "id": "perm-1001",
+    "user_id": "user-124",
+    "park": "Nyungwe",
+    "visit_date": "2025-11-08",
+    "pax_count": 4,
+    "status": "approved",
+    "note": "Approved by ops on 2025-09-10"
+  },
+  {
+    "id": "perm-1002",
+    "user_id": "user-125",
+    "park": "Akagera",
+    "visit_date": "2025-10-20",
+    "pax_count": 1,
+    "status": "rejected",
+    "note": "Rejected - permit quota exceeded"
+  }
+]

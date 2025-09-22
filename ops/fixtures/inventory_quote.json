@@ -1,0 +1,13 @@
+{
+  "supplier": "HBX",
+  "supplier_hotel_id": "HBX-001",
+  "plan_id": "STD-ROOM-BB",
+  "currency": "USD",
+  "nightly": [
+    { "date": "2025-10-01", "cents": 12000 },
+    { "date": "2025-10-02", "cents": 12000 }
+  ],
+  "total_cents": 24000,
+  "refundable": true,
+  "hold_supported": true
+}

@@ -1,0 +1,11 @@
+{
+  "name": "ecotrips",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*", "services/*", "ops/*"],
+  "scripts": {
+    "db:migrate": "supabase migration up",
+    "db:new": "supabase migration new",
+    "format": "deno fmt supabase/functions/**/index.ts",
+    "typecheck": "echo 'Add TS checks later'"
+  }
+}

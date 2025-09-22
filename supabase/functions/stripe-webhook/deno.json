@@ -1,0 +1,9 @@
+{
+  "tasks": {
+    "start": "deno run -A --watch=static/,routes/ index.ts"
+  },
+  "compilerOptions": {
+    "strict": true
+  },
+  "importMap": "./import_map.json"
+}

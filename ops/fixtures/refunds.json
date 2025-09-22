@@ -1,0 +1,32 @@
+[
+  {
+    "id": "refund-2001",
+    "itinerary_id": "11111111-1111-4111-8111-111111111111",
+    "amount_cents": 15000,
+    "currency": "USD",
+    "status": "processing",
+    "reason": "customer cancellation - lodge upgrade",
+    "requested_at": "2025-09-10T10:12:00Z",
+    "processed_at": null
+  },
+  {
+    "id": "refund-2002",
+    "itinerary_id": "22222222-2222-4222-8222-222222222222",
+    "amount_cents": 8200,
+    "currency": "USD",
+    "status": "succeeded",
+    "reason": "rain-out credit promise",
+    "requested_at": "2025-09-08T08:05:00Z",
+    "processed_at": "2025-09-09T14:25:00Z"
+  },
+  {
+    "id": "refund-2003",
+    "itinerary_id": "33333333-3333-4333-8333-333333333333",
+    "amount_cents": 4500,
+    "currency": "USD",
+    "status": "failed",
+    "reason": "card declined on retry",
+    "requested_at": "2025-09-05T16:45:00Z",
+    "processed_at": null
+  }
+]

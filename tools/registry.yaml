@@ -1,0 +1,414 @@
+- key: quote.search
+  description: Search partner inventory and return priced options for hotels and activities.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/bff-quote
+  method: POST
+  auth: user_jwt
+  required:
+    - destination
+    - start_date
+    - end_date
+    - party
+  input_schema: |
+    type: object
+    required: [destination, start_date, end_date, party]
+    properties:
+      destination: { type: string }
+      start_date: { type: string, format: date }
+      end_date: { type: string, format: date }
+      party:
+        type: object
+        required: [adults]
+        properties:
+          adults: { type: integer, minimum: 1 }
+          children: { type: integer, minimum: 0 }
+      budget_hint: { type: string, enum: [value, balanced, premium] }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      items:
+        type: array
+        items:
+          type: object
+          required: [id, name, price_cents, currency]
+          properties:
+            id: { type: string }
+            name: { type: string }
+            price_cents: { type: integer }
+            currency: { type: string }
+            supplier: { type: string }
+            expires_at: { type: string, format: date-time }
+  idempotency:
+    key_field: request_id
+  rate_limit:
+    calls_per_minute: 6
+- key: checkout.intent
+  description: Create or update a Stripe Payment Intent for the selected itinerary.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/bff-checkout
+  method: POST
+  auth: user_jwt
+  required:
+    - quote_id
+    - amount_cents
+    - currency
+    - idempotency_key
+  input_schema: |
+    type: object
+    required: [quote_id, amount_cents, currency]
+    properties:
+      quote_id: { type: string }
+      amount_cents: { type: integer, minimum: 0 }
+      currency: { type: string }
+      idempotency_key: { type: string }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      payment_intent_id: { type: string }
+      client_secret: { type: string }
+  idempotency:
+    key_field: idempotency_key
+  rate_limit:
+    calls_per_minute: 4
+- key: webhook.stripe
+  description: Reconcile Stripe webhook payloads or trigger manual status polling.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/stripe-webhook
+  method: POST
+  auth: service_role
+  input_schema: |
+    type: object
+    properties:
+      event_type: { type: string }
+      payload: { type: object }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+  rate_limit:
+    calls_per_minute: 20
+- key: ops.bookings
+  description: Retrieve bookings dashboard data or fixtures for offline analysis.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/ops-bookings
+  method: GET
+  auth: service_role
+  input_schema: |
+    type: object
+    properties:
+      from: { type: string, format: date }
+      to: { type: string, format: date }
+      supplier: { type: string }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      data: { type: array, items: { type: object } }
+  rate_limit:
+    calls_per_minute: 10
+- key: ops.exceptions
+  description: Inspect or triage exception queue items for supplier follow-up.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/ops-exceptions
+  method: GET
+  auth: service_role
+  input_schema: |
+    type: object
+    properties:
+      status: { type: string, enum: [open, retrying, resolved] }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      data: { type: array, items: { type: object } }
+  rate_limit:
+    calls_per_minute: 10
+- key: ops.refund
+  description: Submit a refund request for operator review (mock flow).
+  endpoint: https://{project_ref}.supabase.co/functions/v1/ops-refund
+  method: POST
+  auth: service_role
+  required:
+    - itinerary_id
+    - amount_cents
+    - reason
+  input_schema: |
+    type: object
+    required: [itinerary_id, amount_cents, reason]
+    properties:
+      itinerary_id: { type: string, format: uuid }
+      amount_cents: { type: integer, minimum: 1 }
+      reason: { type: string, minLength: 1, maxLength: 200 }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      request_id: { type: string }
+  rate_limit:
+    calls_per_minute: 3
+- key: groups.create_escrow
+  description: Create a new split-pay escrow for a traveler group.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/groups-create-escrow
+  method: POST
+  auth: user_jwt
+  required:
+    - group_id
+    - target_cents
+    - min_members
+    - deadline
+  input_schema: |
+    type: object
+    required: [group_id, target_cents, min_members, deadline]
+    properties:
+      group_id: { type: string, format: uuid }
+      itinerary_id: { type: string, format: uuid }
+      currency: { type: string, default: USD }
+      target_cents: { type: integer, minimum: 100 }
+      min_members: { type: integer, minimum: 1 }
+      deadline: { type: string, format: date-time }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      escrow_id: { type: string }
+      status: { type: string }
+  rate_limit:
+    calls_per_minute: 6
+- key: groups.join
+  description: Join an existing group as a member.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/groups-join
+  method: POST
+  auth: user_jwt
+  required:
+    - group_id
+  input_schema: |
+    type: object
+    required: [group_id]
+    properties:
+      group_id: { type: string, format: uuid }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      member_id: { type: string }
+      status: { type: string }
+  rate_limit:
+    calls_per_minute: 10
+- key: groups.contribute
+  description: Record a contribution into an escrow with payment linkage.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/groups-contribute
+  method: POST
+  auth: user_jwt
+  required:
+    - escrow_id
+    - amount_cents
+    - currency
+  input_schema: |
+    type: object
+    required: [escrow_id, amount_cents, currency]
+    properties:
+      escrow_id: { type: string, format: uuid }
+      member_id: { type: string, format: uuid }
+      amount_cents: { type: integer, minimum: 100 }
+      currency: { type: string }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      contribution_id: { type: string }
+      escrow_status: { type: string }
+  rate_limit:
+    calls_per_minute: 10
+- key: groups.payout_now
+  description: Trigger a manual payout evaluation for a specific escrow.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/groups-ops-payout-now
+  method: POST
+  auth: service_role
+  required:
+    - escrow_id
+  input_schema: |
+    type: object
+    required: [escrow_id]
+    properties:
+      escrow_id: { type: string, format: uuid }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      payout_id: { type: string }
+      payout_status: { type: string }
+      total_cents: { type: integer }
+  rate_limit:
+    calls_per_minute: 5
+- key: groups.payouts_report
+  description: Generate payout reconciliation summary for a date window.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/groups-payouts-report
+  method: GET
+  auth: service_role
+  input_schema: |
+    type: object
+    properties:
+      from: { type: string, format: date-time }
+      to: { type: string, format: date-time }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      counts: { type: array, items: { type: object } }
+      recent: { type: array, items: { type: object } }
+  rate_limit:
+    calls_per_minute: 3
+- key: permits.request
+  description: Submit a traveler permit request for review.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/permits-request
+  method: POST
+  auth: user_jwt
+  required:
+    - park
+    - visit_date
+    - pax_count
+  input_schema: |
+    type: object
+    required: [park, visit_date, pax_count]
+    properties:
+      park: { type: string }
+      visit_date: { type: string, format: date }
+      pax_count: { type: integer, minimum: 1 }
+      note: { type: string }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      request_id: { type: string }
+      status: { type: string }
+  rate_limit:
+    calls_per_minute: 5
+- key: permits.ops_approve
+  description: Approve a pending permit with operator persona.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/permits-ops-approve
+  method: POST
+  auth: service_role
+  required:
+    - request_id
+  input_schema: |
+    type: object
+    required: [request_id]
+    properties:
+      request_id: { type: string, format: uuid }
+      note: { type: string }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      status: { type: string }
+  rate_limit:
+    calls_per_minute: 3
+- key: permits.ops_reject
+  description: Reject a pending permit with operator context.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/permits-ops-reject
+  method: POST
+  auth: service_role
+  required:
+    - request_id
+    - note
+  input_schema: |
+    type: object
+    required: [request_id, note]
+    properties:
+      request_id: { type: string, format: uuid }
+      note: { type: string, minLength: 1 }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      status: { type: string }
+  rate_limit:
+    calls_per_minute: 3
+- key: map.route
+  description: Stub: calculate multi-leg route with travel times and daylight warnings.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/map-route
+  method: POST
+  auth: service_role
+  required:
+    - origin
+    - destination
+  input_schema: |
+    type: object
+    required: [origin, destination]
+    properties:
+      origin: { type: string }
+      destination: { type: string }
+      departure_time: { type: string, format: date-time }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      legs: { type: array, items: { type: object } }
+  implementation_status: planned
+  rate_limit:
+    calls_per_minute: 30
+- key: map.nearby
+  description: Stub: fetch nearby points of interest filtered by category and safety rating.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/map-nearby
+  method: POST
+  auth: service_role
+  required:
+    - location
+    - category
+  input_schema: |
+    type: object
+    required: [location, category]
+    properties:
+      location: { type: object, properties: { lat: { type: number }, lng: { type: number } } }
+      category: { type: string }
+      radius_meters: { type: integer }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      results: { type: array, items: { type: object } }
+  implementation_status: planned
+  rate_limit:
+    calls_per_minute: 30
+- key: notify.whatsapp_send
+  description: Stub: send templated or free-form WhatsApp messages via Business API.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/notify-whatsapp-send
+  method: POST
+  auth: service_role
+  required:
+    - to
+    - template
+  input_schema: |
+    type: object
+    required: [to, template]
+    properties:
+      to: { type: string }
+      template: { type: string }
+      variables: { type: object }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      message_id: { type: string }
+  implementation_status: planned
+  rate_limit:
+    calls_per_minute: 60
+- key: agent.log_goal
+  description: Record conversational goals for analytics; returns ack payload.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/agent-log-goal
+  method: POST
+  auth: service_role
+  input_schema: |
+    type: object
+    properties:
+      goal: { type: string }
+      user_wa: { type: string }
+      message: { type: string }
+      request_id: { type: string }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      logged: { type: boolean }
+      goal: { type: string }
+      user_wa: { type: string }
+  implementation_status: experimental
+  rate_limit:
+    calls_per_minute: 120

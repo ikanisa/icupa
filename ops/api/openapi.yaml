@@ -1,0 +1,139 @@
+openapi: 3.1.0
+info:
+  title: ecoTrips Ops API (Mock)
+  version: 0.1.0
+  description: Read-only endpoints for the Ops Console while running in offline mode.
+servers:
+  - url: https://woyknezboamabahknmjr.supabase.co/functions/v1
+paths:
+  /ops-bookings:
+    get:
+      summary: List booking manifests
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+          description: ISO date (inclusive) lower bound for booking start_date.
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+          description: ISO date (inclusive) upper bound for booking start_date.
+        - name: supplier
+          in: query
+          schema:
+            type: string
+          description: Filter bookings by supplier code.
+      responses:
+        '200':
+          description: Filtered booking manifests.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Booking'
+  /ops-exceptions:
+    get:
+      summary: List exception queue items
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [open, in_progress, resolved]
+          description: Optional status filter.
+      responses:
+        '200':
+          description: Exception queue snapshot.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Exception'
+  /ops-refund:
+    post:
+      summary: Request a refund or credit note
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefundRequest'
+      responses:
+        '200':
+          description: Accepted refund request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  request_id:
+                    type: string
+components:
+  schemas:
+    Booking:
+      type: object
+      properties:
+        id:
+          type: string
+        itinerary_id:
+          type: string
+        supplier:
+          type: string
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        traveler:
+          type: string
+        status:
+          type: string
+    Exception:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+        status:
+          type: string
+        supplier:
+          type: string
+        last_error:
+          type: string
+        occurred_at:
+          type: string
+          format: date-time
+    RefundRequest:
+      type: object
+      required:
+        - itinerary_id
+        - amount_cents
+        - reason
+      properties:
+        itinerary_id:
+          type: string
+        amount_cents:
+          type: integer
+          minimum: 1
+        reason:
+          type: string

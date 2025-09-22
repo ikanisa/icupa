@@ -1,0 +1,3 @@
+{"agent":"PlannerCoPilot","input":"Provide two mid-range hotel quotes for Kigali","tool_call":{"key":"quote.search","input":{"destination":"Kigali","start_date":"2025-10-01","end_date":"2025-10-05","party":{"adults":2}}},"expected":{"planned_tool":{"key":"quote.search"}}}
+{"agent":"ConciergeGuide","input":"Send day brief for gorilla trek","tool_call":{"key":"map.route","input":{"origin":"Sabyinyo Silverback Lodge","destination":"Kigali Marriott","departure_time":"2025-10-02T15:00:00Z"}},"expected":{"planned_tool":{"key":"map.route"}}}
+{"agent":"GroupBuilder","input":"Review escrow G1","tool_call":{"key":"groups.payouts_report","input":{"from":"2025-09-01T00:00:00Z","to":"2025-09-30T23:59:59Z"}},"expected":{"planned_tool":{"key":"groups.payouts_report"}}}

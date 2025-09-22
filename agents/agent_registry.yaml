@@ -1,0 +1,235 @@
+project_ref: woyknezboamabahknmjr
+channels:
+  primary:
+    - whatsapp
+  voice:
+    status: planned
+    provider: openai_realtime
+memory_store:
+  type: pgvector
+  long_term_disabled: false
+  retention:
+    short_term_turns: 40
+    working_plan_ttl_hours: 48
+observability:
+  traces: otel
+  events:
+    - AUDIT
+    - INFO
+    - WARN
+    - ERROR
+defaults:
+  risk_apetite: balanced
+  ai_usage: heavy
+  tool_timeout_ms: 15000
+memory_scopes:
+  short_term:
+    description: Rolling conversation buffer covering the last 40 user+agent turns.
+    retention: 40_turns
+  working_plan:
+    description: Structured JSON itinerary under construction (days, holds, budget, unresolved tasks).
+    schema_hint: itinerary_plan_v1
+  long_term:
+    description: Embeddings stored in pgvector keyed by user_id with tags (places_liked, pace, diet, language, issues).
+    refresh: nightly
+  team_memory:
+    description: Shared learnings for ops/finops (supplier scores, refund causes, policy updates).
+    governance: ops_review
+agents:
+  - name: PlannerCoPilot
+    role: trip_planner
+    goals:
+      - Convert fuzzy traveler intent into 7-14 day itineraries across budget tiers.
+      - Maintain price integrity, daylight transfers, and target decision time under 20 minutes.
+      - Capture traveler preferences into long-term memory for future reuse.
+    tools:
+      - quote.search
+      - checkout.intent
+      - webhook.stripe
+      - permits.request
+      - map.route
+      - notify.whatsapp_send
+      - agent.log_goal
+    memory_scopes:
+      - short_term
+      - working_plan
+      - long_term
+    guardrails:
+      - No checkout or payment intent without explicit traveler confirmation and idempotency key.
+      - Flag itinerary segments that violate daylight/safety heuristics before presenting.
+    hitl_triggers:
+      - Manual override of permit feasibility outcomes.
+      - High-value booking (> $10k) before confirming payment.
+    kpis:
+      itinerary_to_checkout_conversion: "+5% MoM"
+      average_time_to_decision_minutes: "<= 20"
+  - name: ConciergeGuide
+    role: in_trip_companion
+    goals:
+      - Deliver daily briefings with time windows, contact info, and navigation hints.
+      - Detect delays and provide proactive reroutes or supplier nudges.
+      - Surface safety advisories (weather, night travel) in real time.
+    tools:
+      - map.route
+      - map.nearby
+      - notify.whatsapp_send
+      - ops.bookings
+    memory_scopes:
+      - short_term
+      - working_plan
+      - long_term
+    guardrails:
+      - Do not send directions without confirming supplier schedule and traveler location window.
+      - Always include emergency fallback when advising night travel.
+    hitl_triggers:
+      - Emergency escalation or medical assistance requests.
+      - Supplier no-show reports requiring compensation commitments.
+    kpis:
+      on_time_arrival_rate: ">= 90%"
+      first_message_resolution_rate: ">= 80%"
+  - name: GroupBuilder
+    role: social_savings_orchestrator
+    goals:
+      - Help travelers spin up savings escrows and recruit members until thresholds met.
+      - Track contribution progress and send reminders before deadlines.
+      - Ensure fairness in split-pay allocations and transparency on payout outcomes.
+    tools:
+      - groups.create_escrow
+      - groups.join
+      - groups.contribute
+      - groups.payout_now
+      - groups.payouts_report
+      - notify.whatsapp_send
+    memory_scopes:
+      - short_term
+      - working_plan
+      - long_term
+    guardrails:
+      - Never auto-contribute on behalf of a user; require explicit confirmation per payment.
+      - Highlight currency, target, and refund rules in every escrow summary.
+    hitl_triggers:
+      - Manual payout retries or adjustments outside automated flow.
+      - Escrows flagged for fraud or dispute signals.
+    kpis:
+      escrows_met_rate: ">= 65%"
+      avg_contributors_per_escrow: ">= 3"
+  - name: SupportCopilot
+    role: post_booking_support
+    goals:
+      - Triage inbound issues, retrieve bookings, and gather context fast.
+      - Recommend safe remediation (refund, rebook) while logging audit trails.
+      - Escalate to ops with structured summaries when automation confidence is low.
+    tools:
+      - ops.bookings
+      - ops.exceptions
+      - ops.refund
+      - groups.payout_now
+      - checkout.intent
+      - notify.whatsapp_send
+    memory_scopes:
+      - short_term
+      - team_memory
+    guardrails:
+      - No refunds, credits, or rebooks without HITL approval and idempotent tokens.
+      - Redact payment identifiers in user-facing messages.
+    hitl_triggers:
+      - Refund or credit issuance.
+      - Rebookings that incur surcharges or supplier penalties.
+    kpis:
+      average_time_to_resolution_minutes: "<= 30"
+      reopen_rate: "< 10%"
+  - name: SupplierOpsAgent
+    role: supplier_operations
+    goals:
+      - Monitor confirmations and SLA compliance across suppliers.
+      - Chase pending exceptions and auto-initiate retries where safe.
+      - Surface supplier performance insights to team memory.
+    tools:
+      - ops.bookings
+      - ops.exceptions
+      - ops.refund
+      - webhook.stripe
+      - groups.payout_now
+    memory_scopes:
+      - team_memory
+      - long_term
+    guardrails:
+      - Do not auto-cancel supplier bookings; require ops approval.
+      - Respect supplier contact windows and rate limits.
+    hitl_triggers:
+      - Supplier substitution that changes price or category.
+      - Any manual payout adjustment beyond automated rules.
+    kpis:
+      confirmation_sla_met_rate: ">= 95%"
+      exception_backlog_count: "<= 10"
+  - name: FinOpsAgent
+    role: finance_operations
+    goals:
+      - Reconcile payment intents, payouts, and ledger balances daily.
+      - Detect anomalies (duplicate charges, provider mismatch) and escalate.
+      - Produce daily close snapshot for accounting handoff.
+    tools:
+      - checkout.intent
+      - webhook.stripe
+      - groups.payouts_report
+      - ops.refund
+      - groups.payout_now
+    memory_scopes:
+      - team_memory
+      - long_term
+    guardrails:
+      - Never trigger refunds or payouts without dual control confirmation.
+      - Mask financial identifiers in logs except secure sinks.
+    hitl_triggers:
+      - Chargeback response or manual payout overrides.
+      - Ledger adjustments that impact revenue recognition.
+    kpis:
+      approval_ratio: ">= 98%"
+      d_plus_one_reconciliation_match: ">= 99%"
+  - name: ContentMarketingAgent
+    role: marketing_storyteller
+    goals:
+      - Generate itinerary cards, SEO snippets, and post-trip highlights that match brand voice.
+      - Experiment with subject lines and creatives while logging performance.
+      - Coordinate with Planner to ensure content reflects accurate availability.
+    tools:
+      - content.generate_card
+      - map.route
+      - notify.whatsapp_send
+      - quote.search
+    memory_scopes:
+      - long_term
+      - team_memory
+    guardrails:
+      - Do not fabricate availability or prices; cite data sources.
+      - Avoid collecting PII in generated assets.
+    hitl_triggers:
+      - Campaigns featuring new suppliers without QA review.
+      - Any external publication mentioning safety incidents.
+    kpis:
+      creative_ctr: ">= 8%"
+      itinerary_card_accuracy_rate: ">= 99%"
+  - name: SafetyAgent
+    role: safety_monitor
+    goals:
+      - Monitor itineraries for late-night travel, risky routes, or weather alerts.
+      - Provide nearest help locations and emergency contacts instantly.
+      - Coordinate with Concierge and Support for escalations.
+    tools:
+      - map.route
+      - map.nearby
+      - notify.whatsapp_send
+      - ops.bookings
+    memory_scopes:
+      - short_term
+      - long_term
+      - team_memory
+    guardrails:
+      - Always disclose uncertainty; avoid definitive medical/legal advice.
+      - Escalate to human ops for high-risk scenarios.
+    hitl_triggers:
+      - Emergency services contact initiation.
+      - Route recommendations that conflict with local advisories.
+    kpis:
+      safety_alert_response_time_seconds: "<= 120"
+      incident_close_rate: ">= 95%"

@@ -1,0 +1,32 @@
+[
+  {
+    "id": "booking-1001",
+    "itinerary_id": "itn-901",
+    "supplier": "akagera-safaris",
+    "start_date": "2025-10-02",
+    "end_date": "2025-10-05",
+    "traveler": "Alice N.",
+    "status": "confirmed",
+    "inventory_note": "HBX Kigali Superior (2 adults, BB) held until 2025-09-25"
+  },
+  {
+    "id": "booking-1002",
+    "itinerary_id": "itn-902",
+    "supplier": "lake-kivu-lodge",
+    "start_date": "2025-10-04",
+    "end_date": "2025-10-07",
+    "traveler": "Brian K.",
+    "status": "pending",
+    "inventory_note": "Awaiting supplier confirmation for Lakeside Suite"
+  },
+  {
+    "id": "booking-1003",
+    "itinerary_id": "itn-903",
+    "supplier": "nyungwe-treks",
+    "start_date": "2025-10-10",
+    "end_date": "2025-10-12",
+    "traveler": "Carla M.",
+    "status": "confirmed",
+    "inventory_note": "Trail permits reserved (4 pax)"
+  }
+]
