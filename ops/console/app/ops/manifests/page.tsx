@@ -85,7 +85,7 @@ export default function ManifestsPage({
 
       <FilterControls filters={filters} />
       <Suspense fallback={<p>Loading manifests…</p>}>
-        {/* @ts-expect-error Async Server Component */}
+        {/* @ts-ignore -- Async Server Component */}
         <ManifestsData filters={filters} selectedId={selectedId} />
       </Suspense>
     </section>

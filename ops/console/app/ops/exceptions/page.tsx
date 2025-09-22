@@ -78,7 +78,7 @@ export default function ExceptionsPage({
 
       <FilterControls filters={filters} />
       <Suspense fallback={<p>Loading exceptions…</p>}>
-        {/* @ts-expect-error Async Server Component */}
+        {/* @ts-ignore -- Async Server Component */}
         <ExceptionsData filters={filters} selectedId={selectedId} />
       </Suspense>
     </section>
