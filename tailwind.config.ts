@@ -22,6 +22,7 @@ export default {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+          glow: "hsl(var(--primary-glow))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -30,6 +31,14 @@ export default {
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
+        },
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
         },
         muted: {
           DEFAULT: "hsl(var(--muted))",
@@ -47,6 +56,17 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        aurora: {
+          primary: "hsl(var(--aurora-primary))",
+          secondary: "hsl(var(--aurora-secondary))",
+          accent: "hsl(var(--aurora-accent))",
+          glow: "hsl(var(--aurora-glow))",
+        },
+        glass: {
+          bg: "hsl(var(--glass-bg))",
+          border: "hsl(var(--glass-border))",
+          shadow: "hsl(var(--glass-shadow))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -57,6 +77,21 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+      },
+      backgroundImage: {
+        'aurora': 'var(--gradient-aurora)',
+        'glass': 'var(--gradient-glass)',
+        'primary-gradient': 'var(--gradient-primary)',
+        'accent-gradient': 'var(--gradient-accent)',
+      },
+      boxShadow: {
+        'glass': 'var(--shadow-glass)',
+        'glow': 'var(--shadow-glow)',
+        'aurora': 'var(--shadow-aurora)',
+      },
+      transitionTimingFunction: {
+        'glass': 'cubic-bezier(0.4, 0, 0.2, 1)',
+        'aurora': 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -80,10 +115,25 @@ export default {
             height: "0",
           },
         },
+        "aurora-float": {
+          "0%, 100%": { transform: "translateY(0px) rotate(0deg)" },
+          "50%": { transform: "translateY(-20px) rotate(1deg)" },
+        },
+        "aurora-pulse": {
+          "0%, 100%": { opacity: "0.8" },
+          "50%": { opacity: "1" },
+        },
+        "glass-shimmer": {
+          "0%": { backgroundPosition: "-200% 0" },
+          "100%": { backgroundPosition: "200% 0" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "aurora-float": "aurora-float 6s ease-in-out infinite",
+        "aurora-pulse": "aurora-pulse 8s ease-in-out infinite",
+        "glass-shimmer": "glass-shimmer 2s linear infinite",
       },
     },
   },
