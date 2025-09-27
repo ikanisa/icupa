@@ -44,7 +44,7 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 const SUPABASE_FUNCTIONS_URL = (() => {
   const explicit = Deno.env.get("SUPABASE_FUNCTIONS_URL");
   if (explicit) {
-    return explicit.replace(/\/+$, "");
+    return explicit.replace(/\/+$/, "");
   }
 
   if (!SUPABASE_URL) {

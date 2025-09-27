@@ -5,66 +5,51 @@ export interface StoredTableSession {
   expiresAt: string;
 }
 
-const STORAGE_KEY = "icupa.table_session";
-
-function isExpired(expiresAt: string): boolean {
-  const expiry = new Date(expiresAt);
-  if (Number.isNaN(expiry.getTime())) {
-    return true;
-  }
-  return expiry.getTime() <= Date.now();
-}
-
-function safeParse(raw: string | null): StoredTableSession | null {
-  if (!raw) {
-    return null;
-  }
-  try {
-    const parsed = JSON.parse(raw) as StoredTableSession;
-    if (!parsed.id || !parsed.expiresAt) {
-      return null;
-    }
-    if (isExpired(parsed.expiresAt)) {
-      return null;
-    }
-    return {
-      id: parsed.id,
-      tableId: parsed.tableId ?? "",
-      locationId: parsed.locationId ?? null,
-      expiresAt: parsed.expiresAt,
-    };
-  } catch (_error) {
-    return null;
-  }
-}
+const STORAGE_KEY = 'icupa_table_session';
 
 export function getStoredTableSession(): StoredTableSession | null {
-  if (typeof window === "undefined") {
+  if (typeof window === 'undefined') {
     return null;
   }
-  const value = window.localStorage.getItem(STORAGE_KEY);
-  const session = safeParse(value);
-  if (!session && value) {
-    window.localStorage.removeItem(STORAGE_KEY);
+  
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) {
+      return null;
+    }
+    
+    const session = JSON.parse(stored) as StoredTableSession;
+    const expiresAt = new Date(session.expiresAt);
+    
+    if (expiresAt.getTime() < Date.now()) {
+      localStorage.removeItem(STORAGE_KEY);
+      return null;
+    }
+    
+    return session;
+  } catch {
+    localStorage.removeItem(STORAGE_KEY);
+    return null;
   }
-  return session;
 }
 
 export function storeTableSession(session: StoredTableSession): void {
-  if (typeof window === "undefined") {
+  if (typeof window === 'undefined') {
     return;
   }
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+  
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
 }
 
 export function clearTableSession(): void {
-  if (typeof window === "undefined") {
+  if (typeof window === 'undefined') {
     return;
   }
-  window.localStorage.removeItem(STORAGE_KEY);
+  
+  localStorage.removeItem(STORAGE_KEY);
 }
 
-export function getTableSessionHeader(): string {
+export function getTableSessionHeader(): string | null {
   const session = getStoredTableSession();
-  return session?.id ?? "";
+  return session?.id || null;
 }

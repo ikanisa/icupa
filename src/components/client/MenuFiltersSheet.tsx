@@ -8,9 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { AllergenCode } from "@/data/menu";
 
+type DietaryTag = "vegan" | "vegetarian" | "gluten-free" | "dairy-free" | "halal" | "spicy" | "contains-alcohol";
+
 export interface MenuFilters {
   excludedAllergens: AllergenCode[];
-  dietaryTags: string[];
+  dietaryTags: DietaryTag[];
   availableOnly: boolean;
   maxPrepMinutes?: number;
 }
@@ -20,7 +22,7 @@ interface MenuFiltersSheetProps {
   filters: MenuFilters;
   onChange: (filters: MenuFilters) => void;
   allergenOptions: { code: AllergenCode; label: string }[];
-  dietaryOptions: readonly string[];
+  dietaryOptions: readonly DietaryTag[];
 }
 
 export function MenuFiltersSheet({ trigger, filters, onChange, allergenOptions, dietaryOptions }: MenuFiltersSheetProps) {
@@ -40,7 +42,7 @@ export function MenuFiltersSheet({ trigger, filters, onChange, allergenOptions, 
     onChange({ ...filters, excludedAllergens: next });
   };
 
-  const handleDietaryToggle = (tag: string, checked: boolean) => {
+  const handleDietaryToggle = (tag: DietaryTag, checked: boolean) => {
     const next = checked ? [...filters.dietaryTags, tag] : filters.dietaryTags.filter((item) => item !== tag);
     onChange({ ...filters, dietaryTags: next });
   };
@@ -109,7 +111,7 @@ export function MenuFiltersSheet({ trigger, filters, onChange, allergenOptions, 
             <h3 className="text-sm font-medium mb-3">Dietary preferences</h3>
             <div className="flex flex-wrap gap-2">
               {dietaryOptions.map((tag) => {
-                const checked = filters.dietaryTags.includes(tag);
+                const checked = filters.dietaryTags.includes(tag as DietaryTag);
                 return (
                   <Badge
                     key={tag}
@@ -118,7 +120,7 @@ export function MenuFiltersSheet({ trigger, filters, onChange, allergenOptions, 
                       "cursor-pointer text-xs capitalize px-3 py-1 rounded-xl",
                       checked ? "bg-primary text-primary-foreground" : "hover:bg-primary/10"
                     )}
-                    onClick={() => handleDietaryToggle(tag, !checked)}
+                    onClick={() => handleDietaryToggle(tag as DietaryTag, !checked)}
                   >
                     {tag.replace("-", " ")}
                   </Badge>
