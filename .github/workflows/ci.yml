@@ -4,13 +4,15 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
 jobs:
-  build:
+  baseline:
+    name: Baseline checks
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -90,3 +92,14 @@ jobs:
             exit 1
           fi
           "$SUPABASE_BIN" db push --workdir . --dry-run
+      - name: Show tree
+        run: |
+          echo "Repo blueprint:"
+          ls -la
+          echo
+          echo "Key folders:"
+          ls -la app packages supabase agent .github docs .changeset || true
+      - name: Verify policy files exist
+        run: |
+          test -f agent/policies/ALLOWLIST.json || (echo "Missing ALLOWLIST.json" && exit 1)
+          echo "ALLOWLIST.json is present ✅"

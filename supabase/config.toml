@@ -1,0 +1,33 @@
+project_id = "ecoTrips"
+
+[api]
+# PostgREST (API) port
+port = 55321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+# 👇 Move DB off the default to avoid your conflict
+port = 55327
+# Shadow DB used by migrations / db diff. Pick a nearby free port.
+shadow_port = 56433
+major_version = 15
+
+[studio]
+# Supabase Studio UI
+port = 54323
+
+[inbucket]
+# Local email testing
+port = 54324
+
+[storage]
+# Max file size (bytes)
+file_size_limit = 52428800
+
+[auth]
+site_url = "http://localhost:55321"
+additional_redirect_urls = []
+jwt_expiry = 3600
+
