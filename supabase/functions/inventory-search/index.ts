@@ -17,6 +17,11 @@ const HBX_API_KEY = Deno.env.get("HBX_API_KEY") ?? "";
 const HBX_API_SECRET = Deno.env.get("HBX_API_SECRET") ?? "";
 const HBX_SIGNATURE_MOCK = Deno.env.get("HBX_SIGNATURE_MOCK") === "1";
 const INVENTORY_OFFLINE = Deno.env.get("INVENTORY_OFFLINE") === "1";
+if (!INVENTORY_OFFLINE && (!HBX_API_KEY || !HBX_API_SECRET)) {
+  throw new Error(
+    "HBX_API_KEY and HBX_API_SECRET are required for inventory-search. Set INVENTORY_OFFLINE=1 to rely on fixtures.",
+  );
+}
 const INVENTORY_CACHE_TTL_SECONDS = Number(
   Deno.env.get("INVENTORY_CACHE_TTL_SECONDS") ?? "600",
 );

@@ -9,6 +9,12 @@ const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE") ??
 const STRIPE_WEBHOOK_SECRET = Deno.env.get("STRIPE_WEBHOOK_SECRET") ?? "";
 const MOCK_SIGNATURE_OK = Deno.env.get("MOCK_SIGNATURE_OK") === "1";
 
+if (!STRIPE_WEBHOOK_SECRET && !MOCK_SIGNATURE_OK) {
+  throw new Error(
+    "STRIPE_WEBHOOK_SECRET is required for stripe-webhook. Set MOCK_SIGNATURE_OK=1 only in non-production environments.",
+  );
+}
+
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ALLOWED_TYPES = new Set([

@@ -4,9 +4,6 @@ on:
   push:
   pull_request:
 
-env:
-  CI_OFFLINE: 1
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -15,61 +12,50 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Node.js
-        if: env.CI_OFFLINE != '1'
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
 
       - name: Setup Deno
-        if: env.CI_OFFLINE != '1'
         uses: denoland/setup-deno@v1
         with:
           deno-version: latest
 
       - name: Install Supabase CLI
-        if: env.CI_OFFLINE != '1'
         run: |
           curl -fsSL https://supabase.com/cli/install | sh -s -- -b "$HOME/.supabase/bin"
           echo "$HOME/.supabase/bin" >> $GITHUB_PATH
 
+      - name: Install npm dependencies
+        run: npm install
+
       - name: Check formatting
         run: |
-          if ! command -v deno >/dev/null 2>&1; then
-            if [ "$CI_OFFLINE" = "1" ]; then
-              echo "deno not available; skipping fmt in offline mode."
-              exit 0
-            else
-              echo "deno not found" >&2
-              exit 1
-            fi
-          fi
           deno fmt --check supabase/functions
 
       - name: Cache TypeScript dependencies
         run: |
-          if ! command -v deno >/dev/null 2>&1; then
-            if [ "$CI_OFFLINE" = "1" ]; then
-              echo "deno not available; skipping cache in offline mode."
-              exit 0
-            else
-              echo "deno not found" >&2
-              exit 1
-            fi
-          fi
           deno cache supabase/functions/**/index.ts
 
-      - name: Ops API smoke
-        run: |
-          if [ "$CI_OFFLINE" != "1" ]; then
-            echo "CI_OFFLINE is not set; skipping offline ops smoke step."
-            exit 0
-          fi
-          curl --help >/dev/null
-          cat <<'COMMANDS'
-curl -s -H "apikey: $SUPABASE_ANON_KEY" "https://woyknezboamabahknmjr.supabase.co/functions/v1/ops-bookings?from=2025-10-01&supplier=akagera-safaris"
-curl -s -H "apikey: $SUPABASE_ANON_KEY" "https://woyknezboamabahknmjr.supabase.co/functions/v1/ops-exceptions?status=open"
-curl -s -H "apikey: $SUPABASE_ANON_KEY" -H "Content-Type: application/json" -d '{"itinerary_id":"11111111-1111-4111-8111-111111111111","amount_cents":15000,"reason":"customer cancellation"}' "https://woyknezboamabahknmjr.supabase.co/functions/v1/ops-refund"
-COMMANDS
+      - name: Build Ops Console
+        run: npm run build --workspace ops/console
+
+      - name: Lint Ops Console
+        run: npm run lint --workspace ops/console
+
+      - name: Contract smoke tests
+        env:
+          SUPABASE_TEST_URL: ${{ secrets.SUPABASE_TEST_URL }}
+          SUPABASE_TEST_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_TEST_SERVICE_ROLE_KEY }}
+          SUPABASE_TEST_ANON_KEY: ${{ secrets.SUPABASE_TEST_ANON_KEY }}
+        run: npm run test:contracts
+
+      - name: Observability probe
+        env:
+          SUPABASE_TEST_URL: ${{ secrets.SUPABASE_TEST_URL }}
+          SUPABASE_TEST_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_TEST_SERVICE_ROLE_KEY }}
+        run: npm run test:observability
 
       - name: Observability guardrails
         run: |
@@ -91,13 +77,8 @@ COMMANDS
         run: |
           SUPABASE_BIN=${SUPABASE_BIN:-$(command -v supabase || echo "$HOME/.supabase/bin/supabase")}
           if [ ! -x "$SUPABASE_BIN" ]; then
-            if [ "$CI_OFFLINE" = "1" ]; then
-              echo "Supabase CLI not available; skipping version check in offline mode."
-              exit 0
-            else
-              echo "Supabase CLI not found" >&2
-              exit 1
-            fi
+            echo "Supabase CLI not found" >&2
+            exit 1
           fi
           "$SUPABASE_BIN" --version
 
@@ -105,12 +86,7 @@ COMMANDS
         run: |
           SUPABASE_BIN=${SUPABASE_BIN:-$(command -v supabase || echo "$HOME/.supabase/bin/supabase")}
           if [ ! -x "$SUPABASE_BIN" ]; then
-            if [ "$CI_OFFLINE" = "1" ]; then
-              echo "Supabase CLI not available; skipping dry run in offline mode."
-              exit 0
-            else
-              echo "Supabase CLI not found" >&2
-              exit 1
-            fi
+            echo "Supabase CLI not found" >&2
+            exit 1
           fi
           "$SUPABASE_BIN" db push --workdir . --dry-run

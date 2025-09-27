@@ -9,6 +9,16 @@ const STRIPE_API_BASE = "https://api.stripe.com/v1";
 const STRIPE_TIMEOUT_MS = Number(Deno.env.get("STRIPE_TIMEOUT_MS") ?? "15000");
 const MOCK_STRIPE_MODE = Deno.env.get("STRIPE_MOCK_MODE") === "1";
 
+if (!REFUND_AUTH_TOKEN) {
+  throw new Error("REFUND_AUTH_TOKEN is required for payments-refund");
+}
+
+if (!MOCK_STRIPE_MODE && !STRIPE_SECRET_KEY) {
+  throw new Error(
+    "STRIPE_SECRET_KEY is required for payments-refund. Set STRIPE_MOCK_MODE=1 to allow mock refunds.",
+  );
+}
+
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 

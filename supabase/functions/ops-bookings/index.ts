@@ -25,7 +25,7 @@ type BookingViewRow = {
   primary_supplier: string | null;
 };
 
-const USE_FIXTURES = (Deno.env.get("USE_FIXTURES") ?? "1") !== "0";
+const USE_FIXTURES = (Deno.env.get("USE_FIXTURES") ?? "0") === "1";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE") ??
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");

@@ -76,7 +76,7 @@ curl -s \
    - Use the `payment_id` and `requestId` to reconcile database status with logs.
 
 ## Switching data source
-- The Ops Edge Functions default to fixture data (`USE_FIXTURES=1`).
+- The Ops Edge Functions serve live data by default. Set `USE_FIXTURES=1` when you need offline fixtures.
 - To use live Supabase views, run:
   ```sh
   supabase secrets set USE_FIXTURES=0 --project-ref woyknezboamabahknmjr
@@ -212,7 +212,7 @@ curl -s \
 
 5. **Data sources**
    - Live views (`ops.v_bookings`, `ops.v_exceptions`) remain controlled by `sec.is_ops`.
-   - Fixtures remain available when `USE_FIXTURES=1` (default offline mode).
+   - Fixtures remain available when `USE_FIXTURES=1` is enabled.
 
 ## Groups & Split-Pay (v1)
 1. **Create escrow (owner or ops)**

@@ -10,6 +10,16 @@ if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
   throw new Error("Supabase configuration missing for wa-send");
 }
 
+const WA_OFFLINE = Deno.env.get("WA_OFFLINE") === "1";
+const WA_ACCESS_TOKEN = Deno.env.get("WA_ACCESS_TOKEN") ?? "";
+const WA_PHONE_ID = Deno.env.get("WA_PHONE_ID") ?? "";
+
+if (!WA_OFFLINE && (!WA_ACCESS_TOKEN || !WA_PHONE_ID)) {
+  throw new Error(
+    "WA_ACCESS_TOKEN and WA_PHONE_ID are required for wa-send. Set WA_OFFLINE=1 to use mock delivery.",
+  );
+}
+
 const handler = withObs(async (req) => {
   const requestId = getRequestId(req) ?? crypto.randomUUID();
   const url = new URL(req.url);
