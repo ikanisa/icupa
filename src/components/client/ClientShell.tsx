@@ -50,6 +50,8 @@ export function ClientShell() {
   const [filters, setFilters] = useState<MenuFilters>(DEFAULT_FILTERS);
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
+  const [ageGateChoice, setAgeGateChoice] = useState<"unknown" | "verified" | "declined">("unknown");
+  const [hasLoadedAgeGate, setHasLoadedAgeGate] = useState(false);
   const { session: tableSession, status: tableSessionStatus } = useTableSession();
   useBackgroundSyncToast();
   useReceiptNotifications({
@@ -120,6 +122,43 @@ export function ClientShell() {
     tenantId: null,
   });
 
+  const requiredAge = selectedLocation?.region === "EU" ? 17 : 18;
+  const isAgeVerified = ageGateChoice === "verified";
+  const shouldShowAgeDialog = hasLoadedAgeGate && ageGateChoice === "unknown";
+
+  const handleAgeConfirm = () => {
+    setAgeGateChoice("verified");
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.setItem("icupa_age_gate_choice", "verified");
+      } catch (_error) {
+        // ignore storage failures
+      }
+    }
+  };
+
+  const handleAgeDecline = () => {
+    setAgeGateChoice("declined");
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.setItem("icupa_age_gate_choice", "declined");
+      } catch (_error) {
+        // ignore storage failures
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const stored = window.localStorage.getItem("icupa_age_gate_choice");
+    if (stored === "verified" || stored === "declined") {
+      setAgeGateChoice(stored);
+    }
+    setHasLoadedAgeGate(true);
+  }, []);
+
   const shouldShowPushCard =
     pushSubscription.canSubscribe &&
     !pushSubscription.isSubscribed &&
@@ -181,6 +220,7 @@ export function ClientShell() {
     const base = locationItems
       .filter((item) => (activeCategory === "all" ? true : item.categoryId === activeCategory))
       .filter((item) => (filters.availableOnly ? item.isAvailable : true))
+      .filter((item) => (ageGateChoice === "declined" ? !item.containsAlcohol : true))
       .filter((item) =>
         filters.maxPrepMinutes ? item.preparationMinutes <= filters.maxPrepMinutes : true
       )
@@ -278,6 +318,31 @@ export function ClientShell() {
         <div className="aurora-float absolute top-40 right-20 w-24 h-24 bg-aurora-secondary/20 rounded-full blur-xl" style={{ animationDelay: "2s" }} />
         <div className="aurora-float absolute bottom-40 left-1/3 w-20 h-20 bg-aurora-accent/20 rounded-full blur-xl" style={{ animationDelay: "4s" }} />
       </div>
+
+      {shouldShowAgeDialog && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur">
+          <div
+            className="glass-card w-full max-w-md rounded-3xl border border-white/20 bg-background/80 p-6 text-center shadow-xl"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Age verification"
+          >
+            <h2 className="text-lg font-semibold">Confirm your legal drinking age</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Local regulations require guests in this venue to be at least {requiredAge}+ to view or order alcoholic
+              beverages. Confirm your age to see the full menu, or continue with the non-alcoholic experience.
+            </p>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <Button onClick={handleAgeConfirm} className="flex-1">
+                I am {requiredAge}+ and understand the policy
+              </Button>
+              <Button variant="outline" onClick={handleAgeDecline} className="flex-1">
+                Show non-alcoholic options
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="relative z-10 flex flex-col min-h-screen">
         <SkipNavLink />
@@ -405,6 +470,21 @@ export function ClientShell() {
         </motion.header>
 
         <main id="main-content" className="flex-1 flex flex-col focus:outline-none" tabIndex={-1} role="main">
+          {ageGateChoice === "declined" && (
+            <motion.div
+              initial={prefersReducedMotion ? undefined : { opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mx-4 mt-3"
+            >
+              <div className="glass-card rounded-2xl border border-amber-400/40 bg-amber-500/10 p-4" role="status">
+                <p className="text-sm font-semibold text-amber-100">Serving non-alcoholic experience</p>
+                <p className="text-xs text-amber-100/80">
+                  Alcoholic items are hidden until a manager verifies the table. Ask staff if you need assistance.
+                </p>
+              </div>
+            </motion.div>
+          )}
+
           {shouldShowInstallBanner && (
             <motion.div
               initial={prefersReducedMotion ? undefined : { opacity: 0, y: -10 }}
@@ -611,7 +691,29 @@ export function ClientShell() {
                   isOffline={!isOnline}
                 />
               )}
-              {activeTab === "icupa" && <AIChatScreen />}
+              {activeTab === "icupa" && (
+                <AIChatScreen
+                  tableSessionId={tableSession?.id}
+                  tenantId={selectedLocation.tenantId}
+                  locationId={selectedLocation.id}
+                  locale={selectedLocation.locale}
+                  allergies={filters.excludedAllergens}
+                  ageVerified={ageGateChoice === "verified"}
+                  cartItems={cartItems.map((item) => ({
+                    id: item.id,
+                    name: item.name,
+                    priceCents: item.priceCents,
+                    quantity: item.quantity,
+                  }))}
+                  onAddToCart={({ id, name, priceCents }) =>
+                    addItemToCart({
+                      id,
+                      name,
+                      priceCents,
+                    })
+                  }
+                />
+              )}
             </motion.div>
           </AnimatePresence>
 

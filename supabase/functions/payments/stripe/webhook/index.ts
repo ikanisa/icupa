@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import Stripe from "npm:stripe@12.18.0";
 import {
   createServiceRoleClient,
@@ -6,6 +5,9 @@ import {
   jsonResponse,
   markPaymentCaptured,
   markPaymentFailed,
+  markWebhookEventStatus,
+  recordWebhookEvent,
+  startEdgeTrace,
 } from "../../../_shared/payments.ts";
 
 const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
@@ -16,7 +18,7 @@ const stripe = STRIPE_SECRET_KEY
   ? new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2023-10-16", stripeAccount: STRIPE_ACCOUNT })
   : null;
 
-serve(async (req) => {
+export async function handleStripeWebhook(req: Request): Promise<Response> {
   if (req.method !== "POST") {
     return errorResponse(405, "method_not_allowed", "Only POST requests are supported");
   }
@@ -40,7 +42,20 @@ serve(async (req) => {
     return errorResponse(400, "invalid_signature", "Webhook signature verification failed");
   }
 
+  const span = startEdgeTrace('payments.stripe.webhook');
   const client = createServiceRoleClient();
+
+  const { alreadyProcessed } = await recordWebhookEvent(
+    client,
+    "stripe",
+    event.id,
+    event as unknown as Record<string, unknown>,
+    signature,
+  );
+
+  if (alreadyProcessed) {
+    return jsonResponse({ received: true, duplicate: true });
+  }
 
   try {
     switch (event.type) {
@@ -62,6 +77,7 @@ serve(async (req) => {
             captureAmountCents: session.amount_total ?? undefined,
           });
         }
+        await markWebhookEventStatus(client, "stripe", event.id, "captured");
         break;
       }
       case "payment_intent.succeeded": {
@@ -70,11 +86,13 @@ serve(async (req) => {
           providerRef: intent.id,
           captureAmountCents: intent.amount_received ?? intent.amount ?? undefined,
         });
+        await markWebhookEventStatus(client, "stripe", event.id, "captured");
         break;
       }
       case "payment_intent.payment_failed": {
         const failedIntent = event.data.object as Stripe.PaymentIntent;
         await markPaymentFailed(client, failedIntent.id, failedIntent.last_payment_error?.message);
+        await markWebhookEventStatus(client, "stripe", event.id, "failed");
         break;
       }
       case "charge.refunded": {
@@ -82,16 +100,29 @@ serve(async (req) => {
         if (typeof charge.payment_intent === "string") {
           await markPaymentFailed(client, charge.payment_intent, "Refunded via Stripe");
         }
+        await markWebhookEventStatus(client, "stripe", event.id, "refunded");
         break;
       }
       default: {
         console.log("Stripe webhook received", event.type);
+        await markWebhookEventStatus(client, "stripe", event.id, event.type);
       }
     }
+    await span.end(client, {
+      status: 'success',
+      attributes: { event_type: event.type },
+    });
   } catch (error) {
     console.error("Stripe webhook processing failed", error, { type: event.type });
+    await span.end(client, {
+      status: 'error',
+      attributes: { event_type: event.type },
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
     return errorResponse(500, "webhook_processing_failed", "Failed to process Stripe webhook");
   }
 
   return jsonResponse({ received: true });
-});
+}
+
+export default handleStripeWebhook;

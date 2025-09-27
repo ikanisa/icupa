@@ -50,6 +50,24 @@ export interface SimulatedReceiptResult {
   };
 }
 
+const RRA_EBM_ENDPOINT = Deno.env.get("RRA_EBM_ENDPOINT") ?? "";
+const RRA_EBM_API_KEY = Deno.env.get("RRA_EBM_API_KEY") ?? "";
+const RRA_EBM_USERNAME = Deno.env.get("RRA_EBM_USERNAME") ?? "";
+const RRA_EBM_PASSWORD = Deno.env.get("RRA_EBM_PASSWORD") ?? "";
+
+const MALTA_FISCAL_ENDPOINT = Deno.env.get("MALTA_FISCAL_ENDPOINT") ?? "";
+const MALTA_FISCAL_API_KEY = Deno.env.get("MALTA_FISCAL_API_KEY") ?? "";
+
+function buildAuthHeaders(apiKey: string, username: string, password: string) {
+  if (apiKey) {
+    return { Authorization: `Bearer ${apiKey}` };
+  }
+  if (username && password) {
+    return { Authorization: `Basic ${btoa(`${username}:${password}`)}` };
+  }
+  return {} as Record<string, string>;
+}
+
 const toLineItemPayload = (items: ReceiptLineItemInput[]) =>
   items.map((item) => ({
     ...item,
@@ -182,4 +200,135 @@ export function simulateMaltaReceipt(context: ReceiptContextInput): SimulatedRec
       escalationContact: "Commissioner for Revenue Helpdesk",
     },
   } satisfies SimulatedReceiptResult;
+}
+
+export async function issueRwandaFiscalReceipt(context: ReceiptContextInput): Promise<SimulatedReceiptResult> {
+  if (!RRA_EBM_ENDPOINT) {
+    return simulateRwandaReceipt(context);
+  }
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...buildAuthHeaders(RRA_EBM_API_KEY, RRA_EBM_USERNAME, RRA_EBM_PASSWORD),
+  };
+
+  const response = await fetch(RRA_EBM_ENDPOINT, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      order_id: context.orderId,
+      payment_id: context.paymentId,
+      total_cents: context.totalCents,
+      currency: context.currency,
+      subtotal_cents: context.subtotalCents,
+      tax_cents: context.taxCents,
+      service_cents: context.serviceCents,
+      provider_ref: context.providerRef,
+      line_items: context.lineItems,
+      tenant_id: context.tenantId,
+      location_id: context.locationId,
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`RRA EBM endpoint error (${response.status}): ${text}`);
+  }
+
+  const payload = await response.json() as Record<string, unknown>;
+  const summary: SimulatedReceiptSummary = {
+    fiscalId: (payload["invoice_number"] as string) ?? (payload["fiscal_id"] as string) ?? `EBM-${context.orderId}`,
+    issuedAtIso: (payload["issued_at"] as string) ?? new Date().toISOString(),
+    region: "RW",
+    url: (payload["receipt_url"] as string) ?? buildReceiptUrl("RW", context.orderId),
+    qrCodeData: payload["qr_code"] as string | undefined,
+    signaturePlaceholder: undefined,
+    totals: {
+      subtotalCents: context.subtotalCents,
+      taxCents: context.taxCents,
+      serviceCents: context.serviceCents,
+      totalCents: context.totalCents,
+      currency: context.currency,
+    },
+    lineItems: toLineItemPayload(context.lineItems),
+    providerReference: context.providerRef ?? null,
+  };
+
+  return {
+    summary,
+    payload,
+    integrationNotes: {
+      steps: ["Receipt issued via live RRA EBM API"],
+      retrySeconds: [30, 90, 180],
+      auditLog: "Persist API request/response as provided by RRA EBM.",
+      escalationContact: "RRA EBM Service Desk",
+    },
+  };
+}
+
+export async function issueMaltaFiscalReceipt(context: ReceiptContextInput): Promise<SimulatedReceiptResult> {
+  if (!MALTA_FISCAL_ENDPOINT) {
+    return simulateMaltaReceipt(context);
+  }
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (MALTA_FISCAL_API_KEY) {
+    headers.Authorization = `Bearer ${MALTA_FISCAL_API_KEY}`;
+  }
+
+  const response = await fetch(MALTA_FISCAL_ENDPOINT, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      order_id: context.orderId,
+      payment_id: context.paymentId,
+      tenant_id: context.tenantId,
+      location_id: context.locationId,
+      totals: {
+        subtotal_cents: context.subtotalCents,
+        tax_cents: context.taxCents,
+        service_cents: context.serviceCents,
+        total_cents: context.totalCents,
+        currency: context.currency,
+      },
+      line_items: context.lineItems,
+      provider_ref: context.providerRef,
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Malta fiscal endpoint error (${response.status}): ${text}`);
+  }
+
+  const payload = await response.json() as Record<string, unknown>;
+  const summary: SimulatedReceiptSummary = {
+    fiscalId: (payload["receipt_number"] as string) ?? `MT-${context.orderId}`,
+    issuedAtIso: (payload["issued_at"] as string) ?? new Date().toISOString(),
+    region: "EU",
+    url: (payload["receipt_url"] as string) ?? buildReceiptUrl("EU", context.orderId),
+    signaturePlaceholder: (payload["signature"] as string) ?? undefined,
+    totals: {
+      subtotalCents: context.subtotalCents,
+      taxCents: context.taxCents,
+      serviceCents: context.serviceCents,
+      totalCents: context.totalCents,
+      currency: context.currency,
+    },
+    lineItems: toLineItemPayload(context.lineItems),
+    providerReference: context.providerRef ?? null,
+  };
+
+  return {
+    summary,
+    payload,
+    integrationNotes: {
+      steps: ["Receipt issued via Malta fiscal endpoint"],
+      retrySeconds: [20, 60, 180],
+      auditLog: "Persist signed fiscal payload as provided by Malta service.",
+      escalationContact: "Commissioner for Revenue Helpdesk",
+    },
+  };
 }

@@ -1,0 +1,12 @@
+{
+  "name": "@icupa/ingestion-utils",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./schema": "./src/schema.ts",
+    "./merge": "./src/merge.ts",
+    "./pricing": "./src/pricing.ts",
+    "./types": "./src/types.ts"
+  }
+}

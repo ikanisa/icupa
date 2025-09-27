@@ -8,6 +8,8 @@ export interface ServiceConfig {
     apiKey: string;
     baseUrl?: string;
     defaultModel: string;
+    lowCostModel: string;
+    failoverModel: string;
     responsesApi: boolean;
     vectorStoreIds: string[];
   };
@@ -28,6 +30,8 @@ const DEFAULT_PORT = 8787;
 const MIN_PORT = 1;
 const MAX_PORT = 65535;
 const DEFAULT_MODEL = 'gpt-4.1';
+const DEFAULT_LOW_COST_MODEL = 'gpt-4o-mini';
+const DEFAULT_FAILOVER_MODEL = 'gpt-4o-mini';
 const DEFAULT_SESSION_BUDGET_USD = 0.75;
 const DEFAULT_DAILY_BUDGET_USD = 50;
 const RETRIEVAL_TTL_MS = 5 * 60 * 1000; // five minutes
@@ -58,6 +62,8 @@ const envSchema = z.object({
   OPENAI_API_KEY: z.string().min(1, 'OPENAI_API_KEY is required'),
   OPENAI_BASE_URL: z.string().url().optional(),
   OPENAI_DEFAULT_MODEL: z.string().optional(),
+  OPENAI_LOW_COST_MODEL: z.string().optional(),
+  OPENAI_FAILOVER_MODEL: z.string().optional(),
   OPENAI_USE_RESPONSES_API: z
     .string()
     .optional()
@@ -102,8 +108,17 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServiceConfig 
     region: parsed.ICUPA_REGION,
     openai: {
       apiKey: parsed.OPENAI_API_KEY,
-      baseUrl: parsed.OPENAI_BASE_URL,
-      defaultModel: parsed.OPENAI_DEFAULT_MODEL?.trim() || DEFAULT_MODEL,
+    baseUrl: parsed.OPENAI_BASE_URL,
+    defaultModel: parsed.OPENAI_DEFAULT_MODEL?.trim() || DEFAULT_MODEL,
+    lowCostModel:
+      parsed.OPENAI_LOW_COST_MODEL?.trim() ||
+      parsed.OPENAI_DEFAULT_MODEL?.trim() ||
+      DEFAULT_LOW_COST_MODEL,
+    failoverModel:
+      parsed.OPENAI_FAILOVER_MODEL?.trim() ||
+      parsed.OPENAI_LOW_COST_MODEL?.trim() ||
+      parsed.OPENAI_DEFAULT_MODEL?.trim() ||
+      DEFAULT_FAILOVER_MODEL,
       responsesApi: parsed.OPENAI_USE_RESPONSES_API ?? true,
       vectorStoreIds
     },

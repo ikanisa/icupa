@@ -1,0 +1,10 @@
+{
+  "name": "@icupa/config",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "tailwind-preset.ts",
+  "exports": {
+    "./tailwind-preset": "./tailwind-preset.ts"
+  }
+}

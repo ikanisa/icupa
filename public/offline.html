@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ICUPA — Offline</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: radial-gradient(circle at top, rgba(99, 102, 241, 0.25), transparent 55%),
+          radial-gradient(circle at bottom, rgba(56, 189, 248, 0.2), transparent 50%),
+          #050816;
+        color: #f8f9ff;
+        text-align: center;
+        padding: 2rem;
+      }
+      h1 {
+        font-size: 1.5rem;
+        margin-bottom: 0.75rem;
+      }
+      p {
+        margin: 0.5rem 0;
+        color: rgba(248, 249, 255, 0.75);
+      }
+      .card {
+        max-width: 420px;
+        border-radius: 24px;
+        padding: 2rem;
+        backdrop-filter: blur(24px);
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.05));
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow: 0 24px 80px rgba(12, 8, 32, 0.28);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>You're offline</h1>
+      <p>The latest menu and updates require a connection. We'll sync automatically once you're back online.</p>
+      <p>Reconnect to continue ordering, or ask a team member for assistance.</p>
+    </div>
+  </body>
+</html>

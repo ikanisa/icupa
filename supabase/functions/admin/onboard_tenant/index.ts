@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 interface OnboardRequest {
@@ -57,7 +56,7 @@ function sanitizeText(value: string | undefined | null, fallback: string): strin
   return trimmed.length > 0 ? trimmed : fallback;
 }
 
-serve(async (req) => {
+export async function handleOnboardTenant(req: Request): Promise<Response> {
   try {
     if (req.method !== "POST") {
       return jsonResponse({ message: "Only POST requests are supported" }, 405);
@@ -337,4 +336,6 @@ serve(async (req) => {
     console.error("Unexpected error in onboard_tenant", error);
     return jsonResponse({ message: "Unexpected error" }, 500);
   }
-});
+}
+
+export default handleOnboardTenant;

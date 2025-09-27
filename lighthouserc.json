@@ -1,0 +1,21 @@
+{
+  "ci": {
+    "collect": {
+      "staticDistDir": "./dist",
+      "numberOfRuns": 2,
+      "isSinglePageApplication": true
+    },
+    "assert": {
+      "assertions": {
+        "categories:performance": ["error", { "minScore": 0.85 }],
+        "largest-contentful-paint": [
+          "error",
+          { "maxNumericValue": 2500, "aggregationMethod": "optimistic" }
+        ],
+        "total-blocking-time": ["error", { "maxNumericValue": 200 }],
+        "first-contentful-paint": ["error", { "maxNumericValue": 2000 }],
+        "speed-index": ["error", { "maxNumericValue": 3000 }]
+      }
+    }
+  }
+}

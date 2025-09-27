@@ -1,14 +1,16 @@
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import {
   createServiceRoleClient,
   errorResponse,
   jsonResponse,
+  startEdgeTrace,
 } from "../../_shared/payments.ts";
 import {
   ReceiptContextInput,
+  issueMaltaFiscalReceipt,
+  issueRwandaFiscalReceipt,
+  RegionCode,
   simulateMaltaReceipt,
   simulateRwandaReceipt,
-  RegionCode,
 } from "../../_shared/receipts.ts";
 
 interface FiscalizationJobRow {
@@ -81,13 +83,14 @@ const fetchJob = async () => {
   return { client, job: data[0]! } as const;
 };
 
-serve(async (req) => {
+export async function handleProcessQueue(req: Request): Promise<Response> {
   if (req.method !== "POST") {
     return errorResponse(405, "method_not_allowed", "Only POST is supported");
   }
 
   let client;
   let job: FiscalizationJobRow | null = null;
+  const span = startEdgeTrace('receipts.process_queue');
 
   try {
     const dequeueResult = await fetchJob();
@@ -95,10 +98,23 @@ serve(async (req) => {
     job = dequeueResult.job;
   } catch (error) {
     console.error("Fiscalisation queue dequeue failed", error);
+    try {
+      const telemetryClient = createServiceRoleClient();
+      await span.end(telemetryClient, {
+        status: 'error',
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+    } catch (_telemetryError) {
+      // ignore if telemetry client cannot be created
+    }
     return errorResponse(500, "queue_unavailable", "Unable to read fiscalisation queue");
   }
 
   if (!job) {
+    await span.end(client, {
+      status: 'success',
+      attributes: { state: 'empty' },
+    });
     return jsonResponse({ status: "empty" }, 204);
   }
 
@@ -184,19 +200,27 @@ serve(async (req) => {
       lineItems: mapLineItems(orderItems ?? []),
     };
 
-    const simulated = region === "RW" ? simulateRwandaReceipt(context) : simulateMaltaReceipt(context);
+    let receiptResult;
+    try {
+      receiptResult = region === "RW"
+        ? await issueRwandaFiscalReceipt(context)
+        : await issueMaltaFiscalReceipt(context);
+    } catch (error) {
+      console.error("Fiscal endpoint failure, using simulation", error, { region, job });
+      receiptResult = region === "RW" ? simulateRwandaReceipt(context) : simulateMaltaReceipt(context);
+    }
 
     const { data: receiptInsert, error: receiptError } = await client
       .from("receipts")
       .insert({
         order_id: order.id,
         region,
-        fiscal_id: simulated.summary.fiscalId,
-        url: simulated.summary.url,
+        fiscal_id: receiptResult.summary.fiscalId,
+        url: receiptResult.summary.url,
         payload: {
-          summary: simulated.summary,
-          integration_notes: simulated.integrationNotes,
-          raw: simulated.payload,
+          summary: receiptResult.summary,
+          integration_notes: receiptResult.integrationNotes,
+          raw: receiptResult.payload,
         },
       })
       .select("id, created_at")
@@ -216,9 +240,9 @@ serve(async (req) => {
           receipt_id: receiptInsert.id,
           order_id: order.id,
           payment_id: payment.id,
-          fiscal_id: simulated.summary.fiscalId,
+          fiscal_id: receiptResult.summary.fiscalId,
           region,
-          url: simulated.summary.url,
+          url: receiptResult.summary.url,
         },
       });
     } catch (eventError) {
@@ -227,14 +251,36 @@ serve(async (req) => {
 
     await deleteJob();
 
+    await span.end(client, {
+      status: 'success',
+      tenantId: order.tenant_id,
+      locationId: order.location_id,
+      tableSessionId: order.table_session_id,
+      attributes: {
+        order_id: order.id,
+        payment_id: payment.id,
+        region,
+      },
+    });
+
     return jsonResponse({
       status: "processed",
       receipt_id: receiptInsert.id,
-      fiscal_id: simulated.summary.fiscalId,
+      fiscal_id: receiptResult.summary.fiscalId,
       region,
     });
   } catch (error) {
     console.error("Fiscalisation job processing failed", error, { job });
+    await span.end(client, {
+      status: 'error',
+      attributes: {
+        order_id: job?.order_id,
+        payment_id: job?.payment_id,
+      },
+      errorMessage: error instanceof Error ? error.message : String(error),
+    });
     return errorResponse(500, "receipt_generation_failed", "Unable to generate receipt right now");
   }
-});
+}
+
+export default handleProcessQueue;

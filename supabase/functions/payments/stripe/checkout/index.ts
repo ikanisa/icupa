@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import Stripe from "npm:stripe@12.18.0";
 import {
   calculateTotals,
@@ -7,6 +6,7 @@ import {
   errorResponse,
   jsonResponse,
   resolveSessionContext,
+  startEdgeTrace,
   type PaymentCartItem,
 } from "../../../_shared/payments.ts";
 
@@ -26,7 +26,11 @@ interface StripeCheckoutRequest {
 const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
 const STRIPE_ACCOUNT = Deno.env.get("STRIPE_ACCOUNT_ID") ?? undefined;
 
-serve(async (req) => {
+export async function handleStripeCheckout(req: Request): Promise<Response> {
+  const span = startEdgeTrace('payments.stripe.checkout');
+  let client;
+  let sessionContext;
+
   try {
     if (req.method !== "POST") {
       return errorResponse(405, "method_not_allowed", "Only POST requests are supported");
@@ -55,8 +59,8 @@ serve(async (req) => {
       return errorResponse(401, "missing_session", "x-icupa-session header is required");
     }
 
-    const client = createServiceRoleClient();
-    const sessionContext = await resolveSessionContext(client, tableSessionId);
+    client = createServiceRoleClient();
+    sessionContext = await resolveSessionContext(client, tableSessionId);
 
     const requestedCurrency = (payload.currency ?? sessionContext.currency ?? "EUR").toUpperCase();
     if (requestedCurrency !== "EUR") {
@@ -81,7 +85,7 @@ serve(async (req) => {
 
     if (!STRIPE_SECRET_KEY) {
       console.error("Stripe secret not configured; returning pending status", { orderId, paymentId });
-      return jsonResponse(
+      const pendingResponse = jsonResponse(
         {
           order_id: orderId,
           payment_id: paymentId,
@@ -92,6 +96,14 @@ serve(async (req) => {
         },
         202
       );
+      await span.end(client, {
+        status: 'error',
+        tenantId: sessionContext.tenantId,
+        locationId: sessionContext.locationId,
+        tableSessionId: sessionContext.tableSessionId,
+        errorMessage: 'stripe_secret_missing',
+      });
+      return pendingResponse;
     }
 
     const stripe = new Stripe(STRIPE_SECRET_KEY, {
@@ -156,7 +168,7 @@ serve(async (req) => {
     const successUrl = payload.success_url ?? `${origin}/?payment=success&order=${orderId}`;
     const cancelUrl = payload.cancel_url ?? `${origin}/?payment=cancelled&order=${orderId}`;
 
-    const session = await stripe.checkout.sessions.create({
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
       payment_method_types: ["card"],
       success_url: successUrl,
@@ -181,7 +193,12 @@ serve(async (req) => {
           message: "You will return to ICUPA once payment completes",
         },
       },
-    });
+    };
+
+    // Use Stripe idempotency to guard against duplicate checkout attempts for the same payment/order
+    // We prefer a deterministic key derived from the paymentId which is unique per provisional payment row.
+    const idempotencyKey = `icupa_checkout_${paymentId}`;
+    const session = await stripe.checkout.sessions.create(sessionParams, { idempotencyKey });
 
     const providerRef = session.id ?? session.payment_intent ?? null;
     if (providerRef) {
@@ -213,7 +230,7 @@ serve(async (req) => {
       });
     }
 
-    return jsonResponse({
+    const response = jsonResponse({
       order_id: orderId,
       payment_id: paymentId,
       payment_status: "pending",
@@ -223,8 +240,31 @@ serve(async (req) => {
       currency: requestedCurrency,
       total_cents: totals.totalCents,
     });
+    await span.end(client, {
+      status: 'success',
+      tenantId: sessionContext.tenantId,
+      locationId: sessionContext.locationId,
+      tableSessionId: sessionContext.tableSessionId,
+      attributes: {
+        payment_id: paymentId,
+        order_id: orderId,
+        total_cents: totals.totalCents,
+      },
+    });
+    return response;
   } catch (error) {
     console.error("Stripe checkout error", error);
+    if (client && sessionContext) {
+      await span.end(client, {
+        status: 'error',
+        tenantId: sessionContext.tenantId,
+        locationId: sessionContext.locationId,
+        tableSessionId: sessionContext.tableSessionId,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+    }
     return errorResponse(500, "stripe_checkout_error", "Failed to initiate Stripe checkout");
   }
-});
+}
+
+export default handleStripeCheckout;

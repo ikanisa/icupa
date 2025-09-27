@@ -1,0 +1,39 @@
+{
+  "name": "icupa-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.58.0",
+    "@icupa/ui": "file:../packages/ui",
+    "@tanstack/react-query": "^5.83.0",
+    "@tanstack/react-query-devtools": "^5.83.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.23.22",
+    "lucide-react": "^0.462.0",
+    "next": "^14.2.17",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwind-merge": "^2.6.0",
+    "zod": "^3.25.76",
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.16.5",
+    "@types/react": "^18.3.23",
+    "@types/react-dom": "^18.3.7",
+    "autoprefixer": "^10.4.21",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "^14.2.17",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.8.3"
+  }
+}

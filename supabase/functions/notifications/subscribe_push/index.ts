@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 type Maybe<T> = T | null | undefined;
@@ -130,7 +129,7 @@ async function resolveLocationAndTenant(
   return { locationId: locationId ?? null, tenantId: tenantId ?? null };
 }
 
-serve(async (req) => {
+export async function handleSubscribePush(req: Request): Promise<Response> {
   if (req.method !== "POST") {
     return errorResponse(405, "method_not_allowed", "Only POST requests are supported");
   }
@@ -251,4 +250,6 @@ serve(async (req) => {
   subscriptionId = insertedRow?.id ?? null;
 
   return jsonResponse({ subscription_id: subscriptionId, status: "created" }, 201);
-});
+}
+
+export default handleSubscribePush;

@@ -90,10 +90,10 @@ ICUPA is a three-surface, multi-tenant Progressive Web Application that powers d
 
 | Variable | Required | Description |
 | --- | --- | --- |
-| `VITE_SUPABASE_URL` | ✅ | URL for your Supabase project. It is injected into the generated Supabase client and must match the project you plan to target. |
-| `VITE_SUPABASE_ANON_KEY` | ✅ | Supabase anonymous key used by the browser client. Store the matching service role key only in secure server-side environments (Edge Functions, agents service, etc.). |
-| `VITE_AGENTS_SERVICE_URL` | ➖ | Optional URL for the agent orchestration service. Configure when connecting the UI to OpenAI-powered agents. |
-| `VITE_VAPID_PUBLIC_KEY` | ➖ | VAPID public key used to register web push subscriptions from the PWA. Generate a matching private key and store it securely in Supabase for outbound delivery. |
+| `NEXT_PUBLIC_SUPABASE_URL` | ✅ | URL for your Supabase project. It is injected into the generated Supabase client and must match the project you plan to target. |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ | Supabase anonymous key used by the browser client. Store the matching service role key only in secure server-side environments (Edge Functions, agents service, etc.). |
+| `NEXT_PUBLIC_AGENTS_URL` | ➖ | Optional URL for the agent orchestration service. Configure when connecting the UI to OpenAI-powered agents. |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | ➖ | VAPID public key used to register web push subscriptions from the PWA. Generate a matching private key and store it securely in Supabase for outbound delivery. |
 
 ### Supabase secrets for Edge Functions
 
@@ -154,6 +154,10 @@ supabase db test
 
 The migrations create enums, helper functions, ivfflat indexes, and row-level security policies spanning diners (by `x-icupa-session`) and staff (via `user_roles`). Seeds provision demo users, menus, items with deterministic embeddings, and sample agent telemetry so the SQL regression tests can execute.
 
+- SQL tests now include merchant onboarding/auth coverage (see `supabase/tests/rls_user_mgmt.sql`) so WhatsApp OTP storage, merchant profiles, and diner preferences remain tenant-scoped.
+
+- **Automation** – Run `npm run test` for Vitest suites and `npx playwright test` (or `npm run test:e2e`) for the scripted journeys covering diner checkout (`client.journey.spec.ts`), merchant ingestion (`merchant.menu.ingestion.spec.ts`), merchant WhatsApp login, and admin magic link flows.
+
 - **Outsourcing playbook** – External database specialists follow [`docs/outsourcing/phase1-outsourcing.md`](docs/outsourcing/phase1-outsourcing.md) to review migrations, run RLS regressions, and rehearse embedding refreshes. Artefacts land in `artifacts/phase1/*` with meeting notes stored under `docs/outsourcing/notes/` so Phase 1 owners can audit deliverables.
 
 ### Embedding refresh Edge Function
@@ -177,6 +181,84 @@ The helper raises a notice instead of failing when the URL is blank, making it s
 
 The ivfflat index on `items.embedding` (lists=100) accelerates cosine similarity queries used by the diner shell's semantic search and agent recommendation tooling.
 
+### OCR menu ingestion pipeline
+
+- **Schema & buckets** – `supabase/migrations/20250315000000_menu_ingestion.sql` introduces `menu_ingestions` + `menu_items_staging`, enables RLS, and provisions the storage buckets `raw_menus` (private) and `menu_images` (public/signed). Apply the migration with `supabase db reset` or `supabase db push`.
+- **Edge Functions** – Deploy the ingestion lifecycle:
+
+  ```bash
+  supabase functions deploy ingest_menu_start --no-verify-jwt
+  supabase functions deploy ingest_menu_process --no-verify-jwt
+  supabase functions deploy ingest_menu_publish --no-verify-jwt
+  ```
+
+- **Environment** – Set these secrets before invoking the pipeline:
+
+  | Variable | Purpose |
+  | --- | --- |
+  | `OPENAI_API_KEY` | Required. Vision Responses API for OCR structuring. |
+  | `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Already required for other Edge Functions. |
+  | `OCR_CONVERTER_URL` | Optional. HTTPS endpoint that converts PDFs to images (Supabase signs the source URL). |
+  | `OCR_CONVERTER_TOKEN` | Optional bearer token for the converter microservice. |
+  | `OCR_OPENAI_MODEL` (default `gpt-4o`) | Vision model used by `ingest_menu_process`. |
+  | `OCR_SIGNED_UPLOAD_TTL_SECONDS` (default `900`) | Signed upload URL lifetime. |
+  | `OCR_SIGNED_DOWNLOAD_TTL_SECONDS` (default `600`) | Signed download lifetime when fetching from Storage. |
+  | `OCR_MAX_PAGES` (default `25`) | Hard ceiling on processed pages. |
+  | `OCR_IMAGE_MAX_EDGE` (default `1200`) | Resize bound passed to the converter. |
+  | `OCR_MIN_CONFIDENCE` (default `0.55`) | Confidence floor for flagging uncertain items. |
+
+- **Local converter shim** – This repo includes a minimal HTTP service at `apps/ocr-converter` you can run locally while wiring the pipeline. It fetches image sources and returns base64 payloads, and returns an explicit 501 for PDFs (deploy a full converter in production).
+
+  ```bash
+  # in a separate terminal
+  npm run dev:ocr:converter
+  ```
+
+  Then set in your Supabase project (or locally):
+
+  - `OCR_CONVERTER_URL=http://host.docker.internal:8789/convert`
+  - `OCR_CONVERTER_TOKEN=<match apps/ocr-converter/.env>`
+
+  The production converter should accept `{ source_url, max_pages, max_edge }` and return `{ images: [{ page, base64, content_type }] }`.
+
+### Merchant authentication & onboarding
+
+- **WhatsApp OTP** – `auth/whatsapp_send_otp` hashes codes (SHA-256) and enforces per-number rate limits before calling the WhatsApp Graph API. `auth/whatsapp_verify_otp` validates the hash + TTL, automatically creates/updates Supabase users, merchant profiles, and assigns `user_roles`.
+- **Onboarding function** – `merchant/onboarding_update` lets merchants progress through Verify → Business → MoMo → GPS → Menu → Done, storing MoMo codes and GPS pins (with map deeplink support). The merchant PWA (`/merchant/login`, `/merchant/settings`, `/merchant/menu*`) is gated so only authenticated, fully onboarded merchants can publish menus.
+
+### Admin email magic links
+
+- `auth/admin_email_magiclink` generates Supabase magic links via the Admin API, sends emails through the configured SMTP credentials, and is surfaced at `/admin/login`. Admin shell verifies both session and `user_roles` before loading panels.
+
+### Release utilities
+
+- `npm run release:checklist` runs the go-live health checks (agents service, receipts worker, reconciliation cron, voice waiter). Configure `SUPABASE_FUNCTIONS_URL`, `AGENTS_BASE_URL`, and `SUPABASE_SERVICE_ROLE_KEY` to target staging or production.
+- `npm run release:canary-toggle` flips agent experiments on/off (set `CANARY_AGENT`, `CANARY_ENABLED`, and optional `CANARY_TENANT_ID` to scope per tenant).
+
+#### Bulk secrets and function deployment
+
+Use the helper scripts under `scripts/supabase/` to load secrets and deploy all Edge Functions quickly:
+
+```bash
+cp .env.supabase.example .env.supabase
+# Fill values, then set them in your project
+./scripts/supabase/set-secrets.sh --project <your-ref> --env-file .env.supabase
+# Deploy functions (no-verify-jwt by default for local/dev)
+./scripts/supabase/deploy-functions.sh --project <your-ref>
+```
+
+#### Run all dev services together
+
+To launch the web app, agents service, and the OCR converter shim concurrently:
+
+```bash
+npm run dev:all
+```
+
+
+- **Invocation flow** – Merchants invoke `ingest_menu_start` (returns `ingestion_id` + signed upload URL), upload the asset to `raw_menus`, call `ingest_menu_process` to run OCR + OpenAI structuring, then review/publish via the merchant PWA. Publish uses `ingest_menu_publish` which wraps a transactional stored procedure and triggers `menu/embed_items` for refreshed embeddings.
+- **Observability** – Each function writes timeline events to `agent_events` (`ingestion.started`, `processing`, `awaiting_review`, `published`, `failed`) with counters for pages processed, items extracted, and confidence buckets. Grafana/DataDog dashboards can pivot on these payloads for throughput and error monitoring.
+
 ### Table session Edge Function & QR tooling
 
 - `supabase/functions/create_table_session` validates signed QR payloads, captures the caller's IP and device fingerprint, and issues a four-hour table session identifier that powers the diner RLS policies. Configure `TABLE_QR_SIGNING_SECRET`, `TABLE_SESSION_TTL_HOURS` (defaults to `4`), and `TABLE_QR_MAX_AGE_MINUTES` (defaults to `15`) as Supabase secrets before deploying the function.【F:supabase/functions/create_table_session/index.ts†L1-L124】
@@ -198,12 +280,41 @@ supabase functions invoke admin/reissue_table_qr \
 
 The React admin stub at `/admin/tools/qr` wraps the reissue endpoint so operations teams can mint new QR payloads without leaving the app. Paste a one-time admin token, submit the table identifier, and copy the refreshed link or payload returned by the tool.【F:src/pages/AdminQrTools.tsx†L1-L119】
 
+### Clerk → Supabase verification (P0 bridge)
+
+If you are using Clerk for the web UI but keeping Supabase as the application database and RLS authority, you can verify a Clerk user token from Supabase Edge Functions using `compliance/verify_clerk`:
+
+```bash
+supabase functions deploy compliance/verify_clerk --no-verify-jwt
+supabase functions invoke compliance/verify_clerk \
+  --project-ref <ref> \
+  --no-verify-jwt \
+  --header "Authorization: Bearer <clerk_session_jwt>"
+```
+
+Configure:
+
+- `CLERK_JWKS_URL` – Clerk JWKS endpoint for your instance.
+- `CLERK_ISSUER` – Optional issuer to enforce in JWT verification.
+
+The function responds with the Clerk subject, email, and whether a corresponding Supabase `auth.users` record already exists (matched by email). This acts as the glue to connect Clerk-auth flows to Supabase while you finalise your production token exchange strategy (JWT audience alignment or a dedicated linkage flow).
+
 ### Payments Edge Functions & queueing
 
 - `supabase/functions/payments/stripe/checkout` validates the cart payload, binds the order to the active table session, and creates a Stripe Checkout Session while persisting provisional order/payment rows.【F:supabase/functions/payments/stripe/checkout/index.ts†L1-L168】
 - `supabase/functions/payments/stripe/webhook` verifies Stripe signatures, marks payments as `captured`, updates the linked order, and enqueues fiscalisation jobs via `public.enqueue_fiscalization_job`.【F:supabase/functions/payments/stripe/webhook/index.ts†L1-L87】
 - Rwandan mobile money flows are stubbed via `payments/momo/request_to_pay` and `payments/airtel/request_to_pay`, which persist pending payments, emit structured events, and return developer-friendly references.【F:supabase/functions/payments/momo/request_to_pay/index.ts†L1-L94】【F:supabase/functions/payments/airtel/request_to_pay/index.ts†L1-L94】 Their companion webhooks accept provider callbacks and transition payments to `captured`/`failed` while logging signature validation results.【F:supabase/functions/payments/momo/webhook/index.ts†L1-L63】【F:supabase/functions/payments/airtel/webhook/index.ts†L1-L60】
 - The Phase 4 migration seeds a durable `fiscalization_jobs` queue and exposes `public.enqueue_fiscalization_job(order_uuid uuid, payment_uuid uuid)` so capture handlers can hand off receipt generation work.【F:supabase/migrations/20240226000000_phase4_payments.sql†L1-L25】
+
+Hardening updates:
+
+- Stripe Checkout now uses an idempotency key derived from the payment so duplicate client retries cannot create multiple sessions.【F:supabase/functions/payments/stripe/checkout/index.ts†L1-L80】
+- Mobile money webhooks support optional HMAC verification: set `MOMO_WEBHOOK_HMAC_SECRET` and/or `AIRTEL_WEBHOOK_HMAC_SECRET` alongside the legacy `*_WEBHOOK_SECRET`. When HMAC is configured the function verifies `x-mtn-signature-hmac`/`x-airtel-signature-hmac` against the raw body; otherwise it falls back to the legacy shared-secret header check.【F:supabase/functions/payments/momo/webhook/index.ts†L1-L40】【F:supabase/functions/payments/airtel/webhook/index.ts†L1-L40】 The idempotency register in `payment_webhook_events` continues to deduplicate repeated deliveries.
+
+### P2 – Inventory auto‑86 and reconciliation
+
+- Auto‑86 Edge Function: `merchant/inventory/auto_86` disables or re‑enables menu items for a location (staff‑gated). Body: `{ location_id, item_ids: string[], enable?: boolean, reason?: string }`. Returns `{ updated, enable }` and records an event for audit.【F:supabase/functions/merchant/inventory/auto_86/index.ts†L1-L80】
+- Reconciliation job: `reconciliation/reconcile_daily` scans captured payments in the last 24h, enqueues missing receipts for fiscalisation, and returns a summary `{ inspected, with_receipts, enqueued }`. Accepts `{ since_hours, tenant_id, location_id }`. Intended for pg_cron / automation with service role credentials.【F:supabase/functions/reconciliation/reconcile_daily/index.ts†L1-L120】
 
 The diner pay screen now calls these Edge Functions, surfaces pending vs. captured states, and offers a one-tap redirect to the hosted Stripe flow when available.【F:src/components/client/PaymentScreen.tsx†L99-L341】 Mobile money stubs remain non-blocking while their production credentials are added.
 

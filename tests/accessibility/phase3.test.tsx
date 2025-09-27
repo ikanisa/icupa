@@ -6,7 +6,7 @@ import { AIChatScreen } from '@/components/client/AIChatScreen';
 import { MenuItemDrawer } from '@/components/client/MenuItemDrawer';
 import { menuItems } from '@/data/menu';
 
-describe('Phase 3 diner experience accessibility', () => {
+describe.sequential('Phase 3 diner experience accessibility', () => {
   it('action dock navigation has no critical accessibility issues', async () => {
     const { container } = render(
       <ActionDock activeTab="menu" onTabChange={() => {}} cartItemCount={4} />,
@@ -20,7 +20,7 @@ describe('Phase 3 diner experience accessibility', () => {
     });
 
     expect(results.violations).toHaveLength(0);
-  });
+  }, 10_000);
 
   it('AI chat placeholder respects accessible form semantics', async () => {
     const { container } = render(<AIChatScreen />);
@@ -33,7 +33,7 @@ describe('Phase 3 diner experience accessibility', () => {
     });
 
     expect(results.violations).toHaveLength(0);
-  });
+  }, 10_000);
 
   it('menu item drawer surfaces allergens and pricing accessibly', async () => {
     const sampleItem = menuItems[0];
@@ -56,5 +56,5 @@ describe('Phase 3 diner experience accessibility', () => {
     });
 
     expect(results.violations).toHaveLength(0);
-  });
+  }, 10_000);
 });

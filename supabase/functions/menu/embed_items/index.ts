@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.42.3";
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -96,7 +95,7 @@ async function updateEmbeddings(items: ItemRecord[]): Promise<{ updated: number 
   return { updated };
 }
 
-serve(async (req) => {
+export async function handleEmbedItems(req: Request): Promise<Response> {
   if (req.method !== "POST") {
     return new Response("Method Not Allowed", { status: 405 });
   }
@@ -139,4 +138,6 @@ serve(async (req) => {
       headers: { "content-type": "application/json" },
     });
   }
-});
+}
+
+export default handleEmbedItems;

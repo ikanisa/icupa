@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 type Maybe<T> = T | null | undefined;
@@ -45,7 +44,7 @@ function isUuid(value: Maybe<string>): value is string {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
-serve(async (req) => {
+export async function handleSendPush(req: Request): Promise<Response> {
   if (req.method !== "POST") {
     return errorResponse(405, "method_not_allowed", "Only POST requests are supported");
   }
@@ -135,4 +134,6 @@ serve(async (req) => {
     },
     202,
   );
-});
+}
+
+export default handleSendPush;

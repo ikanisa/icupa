@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { base64UrlEncode, computeSignature, encodeJson } from "../../_shared/qr.ts";
 
@@ -57,7 +56,7 @@ function createQrPayload(tableId: string, locationId: string | null): Record<str
   };
 }
 
-serve(async (req) => {
+export async function handleReissueTableQr(req: Request): Promise<Response> {
   try {
     if (req.method !== "POST") {
       return errorResponse(405, "Only POST requests are supported", "method_not_allowed");
@@ -132,4 +131,6 @@ serve(async (req) => {
     console.error("Unexpected error in reissue_table_qr", error);
     return errorResponse(500, "Unexpected error", "internal_error");
   }
-});
+}
+
+export default handleReissueTableQr;

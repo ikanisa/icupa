@@ -1,0 +1,52 @@
+name: Deploy Supabase Edge Functions
+
+on:
+  workflow_dispatch:
+    inputs:
+      project_ref:
+        description: 'Supabase project ref (e.g., abcdefghijklmnop). If omitted, uses SUPABASE_PROJECT_REF secret.'
+        required: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      PROJECT_REF: ${{ github.event.inputs.project_ref || secrets.SUPABASE_PROJECT_REF }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Supabase CLI
+        run: npm i -g supabase
+      - name: Set Supabase secrets
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OCR_CONVERTER_URL: ${{ secrets.OCR_CONVERTER_URL }}
+          OCR_CONVERTER_TOKEN: ${{ secrets.OCR_CONVERTER_TOKEN }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          MOMO_WEBHOOK_HMAC_SECRET: ${{ secrets.MOMO_WEBHOOK_HMAC_SECRET }}
+          AIRTEL_WEBHOOK_HMAC_SECRET: ${{ secrets.AIRTEL_WEBHOOK_HMAC_SECRET }}
+          CLERK_JWKS_URL: ${{ secrets.CLERK_JWKS_URL }}
+          CLERK_ISSUER: ${{ secrets.CLERK_ISSUER }}
+        run: |
+          ./scripts/supabase/set-secrets.sh --project ${PROJECT_REF} --env-file <(cat << 'EOF'
+          SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+          OPENAI_API_KEY=${OPENAI_API_KEY}
+          OCR_CONVERTER_URL=${OCR_CONVERTER_URL}
+          OCR_CONVERTER_TOKEN=${OCR_CONVERTER_TOKEN}
+          STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+          STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+          MOMO_WEBHOOK_HMAC_SECRET=${MOMO_WEBHOOK_HMAC_SECRET}
+          AIRTEL_WEBHOOK_HMAC_SECRET=${AIRTEL_WEBHOOK_HMAC_SECRET}
+          CLERK_JWKS_URL=${CLERK_JWKS_URL}
+          CLERK_ISSUER=${CLERK_ISSUER}
+          EOF
+          )
+      - name: Deploy functions
+        run: ./scripts/supabase/deploy-functions.sh --project ${PROJECT_REF}

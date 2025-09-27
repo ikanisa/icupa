@@ -10,6 +10,49 @@ This implementation plan translates the ICUPA programme brief, regulatory requir
 - **Regulatory readiness** – satisfy Rwanda EBM 2.1, Malta fiscal receipts, GDPR/Rwanda DPL data handling, EU AI Act transparency, and DSA KYBC obligations prior to GA.
 - **Performance and reliability** – meet Core Web Vitals (LCP ≤ 2.5 s, TTI ≤ 2.0 s), API p95 ≤ 250 ms, checkout success ≥ 99.5%, and fiscal receipt latency p95 ≤ 5 s.
 
+## CUPA launch readiness gates (P0–P3)
+
+These gates compress the critical launch work into four reviewable windows that map to the deeper phase breakdowns that follow. Each gate must be satisfied in order; promotion to the next window assumes the previous gate has been signed off in staging or production shadow.
+
+| Phase | Window | Focus | Critical Tasks | Exit / Gate |
+| --- | --- | --- | --- | --- |
+| P0 – Critical Blockers | 1–2 weeks | Payments, fiscal, RLS, AI guardrails, compliance basics | Implement real EBM/Malta connectors; productionize MoMo/Airtel with idempotency; enable RLS on inventory/agent_events; ship missing agents + timeouts; add CSP/HSTS, AI disclosure, DSR endpoints. | p95 capture→receipt ≤5 s in staging; RLS tests green; AI guardrails active; security headers verified. |
+| P1 – Canary 10% | 1 week | Offline/perf + observability | Add navigation fallback + perf budgets; enable Lighthouse gating; wire OTel traces + Grafana dashboards; surface runbooks in admin. | Checkout ≥99.5%; fiscal failures <0.5% over 72h; dashboards/alerts live. |
+| P2 – Scale 50→100% | 1–2 weeks | Promotions, inventory resilience, reconciliation | Deliver promo/inventory agents & controls; implement reconciliation jobs + daily reports; finalize refund/void flow. | SLOs stable 7 days; reconciliation clean; promo guardrails validated. |
+| P3 – Post-GA Hardening | Ongoing | Voice, chaos, DPIA | Voice waiter readiness note & optional launch; chaos/load drills; quarterly DPIA review; cost optimization (model tiering, image pipeline). | Voice rollout go/no-go; chaos drills logged; DPIA calendar committed. |
+
+### P0 – Critical Blockers (Weeks 0–2)
+
+- Productionise the Rwanda EBM and Malta CFR fiscal connectors so the `/receipts` queue issues receipts within the staging ≤5 s p95 target; ensure retries and poison queue handling are in place.
+- Harden mobile money integrations: add idempotency keys, duplicate submission guards, and queue-backed retries for MoMo and Airtel flows; expand regression coverage around `supabase/functions/payments/*` webhooks.
+- Extend RLS coverage to `inventory`, `agent_events`, and any new tables introduced in recent migrations; gate with the RLS tests in `supabase/tests/rls_*` and ensure tenant/session claims propagate from Edge Functions.
+- Close the gap on pending agents (timeouts, alerting, kill-switch hooks) and apply the AI guardrail config that blocks allergen/age violations.
+- Ship baseline security and compliance tooling: CSP/HSTS headers in `src/sw.ts`/`public/_headers`, surfaced AI disclosures in the client shell, and DSR endpoints in `supabase/functions/compliance` with runbook links.
+
+### P1 – Canary 10% (Week 3)
+
+- Stand up offline fallback navigation with Workbox strategies and verify Perf Budgets via Lighthouse CI (`lighthouserc.json`).
+- Enforce Lighthouse gating in CI to block regressions on LCP/CLS/TTI before widening rollout.
+- Instrument OpenTelemetry spans across the agents service and Supabase functions, exporting into Grafana dashboards that surface payments, agents, and fiscal receipt latency trends.
+- Publish runbooks (payments, fiscal, AI kill switch) directly inside the admin console so the canary rotation can self-serve.
+- Gate promotion on checkout success ≥99.5% and fiscal failure rate <0.5% over a continuous 72-hour staging window.
+
+### P2 – Scale 50→100% (Weeks 4–5)
+
+- Finish promo and inventory control agents with guardrails (budget caps, fairness constraints) and expose configuration in the admin portal.
+- Operationalise reconciliation by activating the daily pg_cron jobs in `supabase/functions/reconciliation` and piping reports to `artifacts/reconciliation/` for finance review.
+- Complete refund/void flows across Supabase functions, agents service, and admin UI; ensure asynchronous updates reconcile with payment provider states.
+- Observe SLO stability for seven consecutive days with live alerts; resolve any anomalies surfaced by Grafana dashboards.
+- Validate promo guardrails and inventory resiliency via scripted chaos tests in `tests/chaos/`.
+
+### P3 – Post-GA Hardening (Ongoing)
+
+- Finalise the voice waiter readiness assessment and decide on opt-in launch scope; provide fallback scripts and staff training materials.
+- Schedule and execute chaos/load drills each quarter, capturing learnings in `docs/runbooks/chaos-drill.md` and updating on-call procedures.
+- Maintain an active DPIA cadence using `docs/compliance/dpia-schedule.md`; ensure data processors are logged and review uptake is tracked.
+- Pursue cost optimisation initiatives: model tiering for agents, asset/image pipeline tuning, and scheduled pruning of inactive embeddings.
+- Keep the post-GA backlog groomed with security patch tracking, dependency updates, and conservative feature expansion.
+
 ## Phase 0 – Bootstrap foundations (Weeks 1–2)
 
 **Objectives**
@@ -236,6 +279,190 @@ This implementation plan translates the ICUPA programme brief, regulatory requir
 - Living README + architecture decision records (ADRs) for major design choices.
 - Developer handbook covering branching strategy, coding standards, and testing requirements.
 - Merchant and admin runbooks for fiscalisation, payments reconciliation, and AI settings.
+
+## OCR menu ingestion & structuring track
+
+This taskpack operationalises automated menu OCR using OpenAI vision models while preserving additive-only guarantees across the stack. Workstreams follow the global rules: RLS-first schema, strict JSON Schema validation, confidence scoring, idempotent external calls, and redacted logging.
+
+**Key deliverables**
+- Database migration introducing `menu_ingestions` and `menu_items_staging` tables with RLS enabled and indexed (`supabase/migrations/XXXX_menu_ingestion.sql`).
+- Supabase storage buckets `raw_menus` (private) and `menu_images` (public or signed).
+- Edge Functions handling ingestion lifecycle: `ingest_menu_start`, `ingest_menu_process`, `ingest_menu_publish` under `supabase/functions/`.
+- Merchant app workflow covering Upload → Draft Review → Publish within `apps/web/src/app/(merchant)/merchant/menu/`.
+- Structured Outputs integration with OpenAI Responses API (vision) and batch-processing design notes.
+- Tests and observability counters charting ingestion throughput, failures, and item confidence distribution.
+
+**Environment variables**
+- Required: `OPENAI_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
+- Optional tuning: `OCR_MAX_PAGES` (default 25), `OCR_IMAGE_MAX_EDGE` (default 1200), `OCR_MIN_CONFIDENCE` (default 0.55).
+
+### PH1 – DB schema + RLS + indexes
+
+**Objectives**
+- Create additive-only schema for ingestion tracking and staging while enforcing tenant/location isolation.
+
+**Deliverables**
+- Migration file `supabase/migrations/XXXX_menu_ingestion.sql` defining:
+  - `menu_ingestions` columns: `id`, `tenant_id`, `location_id`, `uploaded_by`, `original_filename`, `storage_path`, `file_mime`, `status`, `currency`, `raw_text`, `structured_json`, `errors`, timestamps.
+  - `menu_items_staging` columns: `id`, `ingestion_id`, `category_name`, `name`, `description`, `price_cents`, `currency`, `allergens[]`, `tags[]`, `is_alcohol`, `confidence`, `media_url`.
+- Enable RLS on both tables with policies granting staff write/read via `user_roles` and restricting tenants/locations appropriately.
+- Indexes: `idx_ingestions_tenant_location` and `idx_staging_ingestion` to accelerate lookups.
+
+**Acceptance criteria**
+- Migrations apply cleanly across dev/staging/prod; reruns are idempotent.
+- RLS tests confirm isolation for diners and staff (extend `supabase/tests/rls_inventory.sql` pattern for new tables).
+
+### PH2 – Supabase storage buckets
+
+**Objectives**
+- Provision storage for raw uploads and processed menu imagery aligned with security posture.
+
+**Deliverables**
+- Configure `raw_menus` (private) and `menu_images` (public signed URLs) via Supabase CLI or dashboard; document policies in README.
+- Ensure upload flows write only to `raw_menus` unless explicitly publishing derivative assets.
+
+**Acceptance criteria**
+- Buckets exist with correct visibility and access policies.
+- Signed URL issuance audited in logs without exposing PII.
+
+### PH3 – Edge functions: start, process, publish
+
+#### T3 `ingest_menu_start`
+- POST `/functions/v1/ingest_menu_start` accepting `{ location_id, original_filename, file_mime }`.
+- Create an ingestion row bound to tenant/location, generate optional signed upload URL to `raw_menus`, return `{ ingestion_id, upload_url? }`.
+- Enforce mime whitelist (pdf/jpg/jpeg/png) and record `status='uploaded'`.
+
+#### T4 `ingest_menu_process`
+- POST `/functions/v1/ingest_menu_process` with `{ ingestion_id }`.
+- Fetch file from storage, convert PDFs to images (bounded by `OCR_MAX_PAGES`), resize to `OCR_IMAGE_MAX_EDGE`.
+- Call OpenAI Responses API (`gpt-4o` vision) per page using `response_format: json_schema` (`menu_schema`).
+- Merge page results, dedupe similar items (name/price match), compute confidence, and upsert staging rows.
+- Persist combined `raw_text` and `structured_json` on `menu_ingestions`, set `status='awaiting_review'`, track `pages_processed`, `items_count`, and any errors.
+- Ensure idempotent reruns replace prior staging data for the ingestion.
+
+#### T5 `ingest_menu_publish`
+- POST `/functions/v1/ingest_menu_publish` with `{ ingestion_id, menu_id }`.
+- Wrap in transaction: upsert categories/items/modifiers for the menu/location, carry allergens/tags/is_alcohol flags, and align currency.
+- Increment menu version, trigger `supabase/functions/menu/embed_items`, set ingestion `status='published'`.
+- Return `{ published:true, items_upserted, categories_created, version }`.
+
+**Acceptance criteria**
+- Endpoints require auth, honour idempotency (ingestion_id), and redact sensitive fields in logs.
+- Processing step enforces JSON Schema validation; failures surface in `errors` array and observability counters.
+- Publish step leaves system consistent even on retry or partial failure (transactional rollback).
+
+### PH4 – Merchant UI workflow
+
+**Objectives**
+- Enable merchants to upload menus, review extracted items, and publish updates without leaving the PWA.
+
+**Deliverables**
+- Upload screen `apps/web/src/app/(merchant)/merchant/menu/upload/page.tsx`: drag-and-drop picker, file guards, status/progress UI. Calls `ingest_menu_start`, streams file to signed URL, initiates processing.
+- Draft review screen `apps/web/src/app/(merchant)/merchant/menu/review/[ingestion_id]/page.tsx`: page thumbnails, editable table for items (price, description, allergens, tags, is_alcohol, confidence). Supports merging with existing catalogue items and flagging anomalies (missing price, high price).
+- Menu hub `apps/web/src/app/(merchant)/merchant/menu/page.tsx`: list active ingestions with statuses (`uploaded`, `processing`, `awaiting_review`, `failed`) and entry points to upload/review.
+- Persist review edits back to staging tables via Edge Function or Supabase RPC.
+
+**Acceptance criteria**
+- Merchant can complete Upload → Process → Review → Publish flow with immediate reflectivity in live menu.
+- Confidence filters and anomaly flags function; high price items require explicit confirmation before publish.
+
+### PH5 – Agents & AI integration
+
+**Objectives**
+- Wire OpenAI Responses API with structured outputs and provide guidance for batch processing.
+
+**Deliverables**
+- Integrate OpenAI SDK within `ingest_menu_process` using strict `menu_schema`; reject or retry on schema violations, log page-level errors without exposing raw media URLs.
+- Propagate confidence from model output to staging rows; never fabricate allergens/prices when missing—leave unset and lower confidence.
+- Design note (README or `docs/`) covering Batch API usage for large menus: cost estimates, latency trade-offs, and switching instructions.
+
+**Acceptance criteria**
+- All stored JSON conforms to `menu_schema`; validation tests cover happy-path and failure modes.
+- Confidence scoring visible in UI and metrics.
+- Batch processing guidance reviewed with agents team.
+
+### PH6 – Validation, idempotency, and safety
+
+**Objectives**
+- Guarantee safe retries, sanity checks, and privacy-respecting observability.
+
+**Deliverables**
+- Idempotency keyed on `ingestion_id` across all functions; reruns replace staging data without duplicating rows.
+- Price sanity rules: flag unusually high values relative to location/menu norms; require manual confirmation before publish.
+- Allergen policy: never invent allergens; mark low-confidence extractions with `confidence < OCR_MIN_CONFIDENCE` and highlight for review.
+- Logging redaction: strip storage URLs/filenames, include only `ingestion_id`, `tenant_id`, aggregate metrics.
+
+**Acceptance criteria**
+- Reprocessing an ingestion yields consistent results without duplicates.
+- Logs contain no PII, secrets, or raw file paths.
+- Publish is blocked until flagged issues resolved or acknowledged.
+
+### PH7 – Tests & observability
+
+**Objectives**
+- Provide automated coverage and telemetry for ingestion quality and performance.
+
+**Deliverables**
+- Unit tests for dedupe/merge utilities, schema validator, price conversions (`tests/` or `apps/web/__tests__`).
+- E2E tests simulating merchant upload→publish flow with mocked OpenAI responses (e.g., Playwright + MSW).
+- Load/latency tests for Edge Functions to validate OCR scaling (consider k6/Deno benchmarks).
+- Observability hooks emitting events: `ingestion.started`, `ingestion.processed`, `ingestion.awaiting_review`, `ingestion.published`, `ingestion.failed`; counters for `pages_processed`, `items_extracted`, `items_conf_ge_0_8` (Expose via `agents-service/src/observability.ts` or Supabase logs).
+
+**Acceptance criteria**
+- Dashboards highlight throughput, confidence distribution, and failure rates; alarms configured for sustained failures.
+- Tests run in CI with OpenAI mocked to avoid external dependencies.
+
+### JSON schema reference
+
+```json
+{
+  "name": "menu_schema",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["currency", "categories"],
+    "properties": {
+      "currency": { "type": "string", "minLength": 3, "maxLength": 3 },
+      "categories": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["name", "items"],
+          "properties": {
+            "name": { "type": "string", "minLength": 1 },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["name", "price", "currency"],
+                "properties": {
+                  "name": { "type": "string", "minLength": 1 },
+                  "description": { "type": "string" },
+                  "price": { "type": "number", "minimum": 0 },
+                  "currency": { "type": "string", "minLength": 3, "maxLength": 3 },
+                  "allergens": { "type": "array", "items": { "type": "string" } },
+                  "is_alcohol": { "type": "boolean" },
+                  "tags": { "type": "array", "items": { "type": "string" } },
+                  "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+### Final sign-off checklist
+- [ ] Migration applied with RLS/policies verified.
+- [ ] Storage buckets live with documented policies.
+- [ ] Edge Functions deployed; idempotency tests passing.
+- [ ] Merchant UI upload/review/publish E2E green.
+- [ ] Structured Outputs validation enforced; failure handling tested.
+- [ ] Metrics dashboards tracking ingestion health.
 
 ## Milestone review gates
 

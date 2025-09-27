@@ -4,7 +4,9 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@icupa/ingestion-utils": ["./packages/ingestion-utils/src"],
+      "@icupa/ingestion-utils/*": ["./packages/ingestion-utils/src/*"]
     },
     "noImplicitAny": false,
     "noUnusedParameters": false,

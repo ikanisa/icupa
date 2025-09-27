@@ -5,15 +5,22 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:agents": "npm --prefix agents-service run dev",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
+    "dev:ocr:converter": "node apps/ocr-converter/server.mjs",
+    "dev:all": "bash scripts/dev/dev-all.sh",
+    "smoke:ingestion": "node scripts/smoke/ingestion-smoke.mjs",
+    "release:canary-toggle": "node scripts/release/canary-toggle.mjs",
+    "release:checklist": "node scripts/release/checklist.mjs",
     "supabase:test": "supabase db test",
     "test": "vitest run",
     "test:accessibility": "vitest run tests/accessibility",
-    "test:e2e": "playwright test --config tests/playwright/playwright.config.ts"
+    "test:e2e": "playwright test --config tests/playwright/playwright.config.ts",
+    "test:perf": "npx --yes @lhci/cli@0.12.2 autorun"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

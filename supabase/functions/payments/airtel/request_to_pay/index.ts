@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import {
   calculateTotals,
   createOrderAndPayment,
@@ -6,6 +5,7 @@ import {
   errorResponse,
   jsonResponse,
   resolveSessionContext,
+  startEdgeTrace,
   type PaymentCartItem,
 } from "../../../_shared/payments.ts";
 
@@ -20,7 +20,85 @@ interface AirtelMoneyRequest {
   msisdn?: string;
 }
 
-serve(async (req) => {
+const AIRTEL_API_BASE = (Deno.env.get("AIRTEL_API_BASE") ?? "").replace(/\/$/, "");
+const AIRTEL_CLIENT_ID = Deno.env.get("AIRTEL_CLIENT_ID") ?? "";
+const AIRTEL_CLIENT_SECRET = Deno.env.get("AIRTEL_CLIENT_SECRET") ?? "";
+const AIRTEL_COUNTRY = Deno.env.get("AIRTEL_COUNTRY") ?? "RW";
+const AIRTEL_CURRENCY = Deno.env.get("AIRTEL_CURRENCY") ?? "RWF";
+
+async function obtainAirtelToken(): Promise<string> {
+  if (!AIRTEL_API_BASE || !AIRTEL_CLIENT_ID || !AIRTEL_CLIENT_SECRET) {
+    throw new Error("Airtel Money credentials are not configured");
+  }
+
+  const response = await fetch(`${AIRTEL_API_BASE}/auth/oauth2/token`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      client_id: AIRTEL_CLIENT_ID,
+      client_secret: AIRTEL_CLIENT_SECRET,
+      grant_type: "client_credentials",
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Airtel token request failed (${response.status}): ${text}`);
+  }
+
+  const json = (await response.json()) as { access_token?: string };
+  if (!json.access_token) {
+    throw new Error("Airtel token payload missing access_token");
+  }
+
+  return json.access_token;
+}
+
+async function initiateAirtelCollection(params: {
+  token: string;
+  referenceId: string;
+  amount: number;
+  currency: string;
+  msisdn: string;
+}) {
+  const endpoint = `${AIRTEL_API_BASE}/standard/v1/payments`; // standard collection API
+  const body = {
+    reference: params.referenceId,
+    subscriber: {
+      country: AIRTEL_COUNTRY,
+      currency: params.currency,
+      msisdn: params.msisdn,
+    },
+    transaction: {
+      amount: (params.amount / 100).toFixed(2),
+      country: AIRTEL_COUNTRY,
+      currency: params.currency,
+      id: params.referenceId,
+    },
+  };
+
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${params.token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Airtel request-to-pay failed (${response.status}): ${text}`);
+  }
+}
+
+export async function handleAirtelRequestToPay(req: Request): Promise<Response> {
+  const span = startEdgeTrace('payments.airtel.request_to_pay');
+  let client;
+  let sessionContext;
+
   try {
     if (req.method !== "POST") {
       return errorResponse(405, "method_not_allowed", "Only POST requests are supported");
@@ -44,10 +122,19 @@ serve(async (req) => {
       return errorResponse(401, "missing_session", "x-icupa-session header is required");
     }
 
-    const client = createServiceRoleClient();
-    const sessionContext = await resolveSessionContext(client, tableSessionId);
+    if (!payload.msisdn) {
+      return errorResponse(400, "missing_payer", "msisdn must be provided for Airtel Money payments");
+    }
 
-    const requestedCurrency = (payload.currency ?? sessionContext.currency ?? "RWF").toUpperCase();
+    const normalizedMsisdn = payload.msisdn.replace(/[^0-9]/g, "");
+    if (normalizedMsisdn.length < 9) {
+      return errorResponse(400, "invalid_payer", "msisdn must be a valid subscriber number");
+    }
+
+    client = createServiceRoleClient();
+    sessionContext = await resolveSessionContext(client, tableSessionId);
+
+    const requestedCurrency = (payload.currency ?? sessionContext.currency ?? AIRTEL_CURRENCY).toUpperCase();
     if (requestedCurrency !== "RWF") {
       return errorResponse(400, "unsupported_currency", "Airtel Money is available for RWF payments only");
     }
@@ -68,7 +155,16 @@ serve(async (req) => {
       "airtel_money"
     );
 
-    const providerRef = `airtel_stub_${crypto.randomUUID()}`;
+    const providerRef = crypto.randomUUID();
+    const token = await obtainAirtelToken();
+    await initiateAirtelCollection({
+      token,
+      referenceId: providerRef,
+      amount: totals.totalCents,
+      currency: requestedCurrency,
+      msisdn: normalizedMsisdn,
+    });
+
     const updateResult = await client
       .from("payments")
       .update({ provider_ref: providerRef })
@@ -86,7 +182,8 @@ serve(async (req) => {
       payload: {
         order_id: orderId,
         payment_id: paymentId,
-        msisdn: payload.msisdn ?? null,
+        msisdn: normalizedMsisdn,
+        reference_id: providerRef,
       },
     });
 
@@ -97,18 +194,39 @@ serve(async (req) => {
       });
     }
 
-    return jsonResponse({
+    const response = jsonResponse({
       order_id: orderId,
       payment_id: paymentId,
       payment_status: "pending",
       payment_method: "airtel_money",
       provider_ref: providerRef,
       total_cents: totals.totalCents,
-      message:
-        "Airtel Money integration is stubbed for local development. Configure AIRTEL_KEY and AIRTEL_SECRET before enabling live payments.",
+      message: "Airtel Money payment initiated. Awaiting provider confirmation.",
     });
+    await span.end(client, {
+      status: 'success',
+      tenantId: sessionContext.tenantId,
+      locationId: sessionContext.locationId,
+      tableSessionId: sessionContext.tableSessionId,
+      attributes: {
+        payment_id: paymentId,
+        total_cents: totals.totalCents,
+      },
+    });
+    return response;
   } catch (error) {
     console.error("Airtel request-to-pay error", error);
+    if (client && sessionContext) {
+      await span.end(client, {
+        status: 'error',
+        tenantId: sessionContext.tenantId,
+        locationId: sessionContext.locationId,
+        tableSessionId: sessionContext.tableSessionId,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      });
+    }
     return errorResponse(500, "airtel_request_failed", "Failed to initiate Airtel Money payment");
   }
-});
+}
+
+export default handleAirtelRequestToPay;

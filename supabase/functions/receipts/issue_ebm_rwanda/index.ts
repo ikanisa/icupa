@@ -1,7 +1,7 @@
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { errorResponse, jsonResponse } from "../../_shared/payments.ts";
+import { createServiceRoleClient, errorResponse, jsonResponse, startEdgeTrace } from "../../_shared/payments.ts";
 import {
   ReceiptContextInput,
+  issueRwandaFiscalReceipt,
   simulateRwandaReceipt,
 } from "../../_shared/receipts.ts";
 
@@ -35,7 +35,10 @@ const validatePayload = (payload: IssueReceiptRequest): payload is IssueReceiptR
   return required.every((value) => typeof value === "string" && value.length > 0);
 };
 
-serve(async (req) => {
+export async function handleIssueEbmRwanda(req: Request): Promise<Response> {
+  const span = startEdgeTrace('receipts.issue_ebm_rwanda');
+  let telemetryClient: ReturnType<typeof createServiceRoleClient> | null = null;
+
   if (req.method !== "POST") {
     return errorResponse(405, "method_not_allowed", "Only POST is supported");
   }
@@ -69,13 +72,63 @@ serve(async (req) => {
       unitPriceCents: Math.max(0, Math.floor(item.unit_price_cents ?? 0)),
     })),
   };
+  try {
+    const receipt = await issueRwandaFiscalReceipt(context);
+    if (!telemetryClient) {
+      try {
+        telemetryClient = createServiceRoleClient();
+      } catch (_error) {
+        telemetryClient = null;
+      }
+    }
 
-  const simulated = simulateRwandaReceipt(context);
+    if (telemetryClient) {
+      await span.end(telemetryClient, {
+        status: 'success',
+        tenantId: context.tenantId,
+        locationId: context.locationId,
+        attributes: {
+          order_id: context.orderId,
+          payment_id: context.paymentId,
+        },
+      });
+    }
 
-  return jsonResponse({
-    status: "simulated",
-    receipt: simulated.summary,
-    payload: simulated.payload,
-    integration_notes: simulated.integrationNotes,
-  });
-});
+    return jsonResponse({
+      status: "issued",
+      receipt: receipt.summary,
+      payload: receipt.payload,
+      integration_notes: receipt.integrationNotes,
+    });
+  } catch (error) {
+    console.error("RRA EBM issuance failed, falling back to simulation", error);
+    if (!telemetryClient) {
+      try {
+        telemetryClient = createServiceRoleClient();
+      } catch (_error) {
+        telemetryClient = null;
+      }
+    }
+    if (telemetryClient) {
+      await span.end(telemetryClient, {
+        status: 'error',
+        tenantId: context.tenantId,
+        locationId: context.locationId,
+        errorMessage: error instanceof Error ? error.message : String(error),
+        attributes: {
+          order_id: context.orderId,
+          payment_id: context.paymentId,
+        },
+      });
+    }
+    const simulated = simulateRwandaReceipt(context);
+    return jsonResponse({
+      status: "simulated",
+      receipt: simulated.summary,
+      payload: simulated.payload,
+      integration_notes: simulated.integrationNotes,
+    }, 202);
+  }
+}
+
+export default handleIssueEbmRwanda;

@@ -1,12 +1,26 @@
 import { Agent, Runner } from '@openai/agents';
 import { OpenAIProvider, fileSearchTool, setDefaultOpenAIKey, setOpenAIAPI } from '@openai/agents-openai';
 import { createAgentTools } from './tools';
-import { AllergenGuardianOutputSchema, UpsellOutputSchema, WaiterOutputSchema } from './types';
-import type { AgentSessionContext, UpsellSuggestion, AllergenGuardianOutput } from './types';
+import {
+  AllergenGuardianOutputSchema,
+  ComplianceAgentOutputSchema,
+  InventoryAgentOutputSchema,
+  PromoAgentOutputSchema,
+  SupportAgentOutputSchema,
+  UpsellOutputSchema,
+  WaiterOutputSchema,
+} from './types';
+import type {
+  AgentSessionContext,
+  UpsellSuggestion,
+  AllergenGuardianOutput,
+} from './types';
 import { loadConfig } from '../config';
 import { supabaseClient } from '../supabase';
 
 const config = loadConfig();
+const lowCostModel = config.openai.lowCostModel;
+const defaultModel = config.openai.defaultModel;
 
 setDefaultOpenAIKey(config.openai.apiKey);
 if (!config.openai.responsesApi) {
@@ -19,7 +33,19 @@ const provider = new OpenAIProvider({
   useResponses: config.openai.responsesApi
 });
 
-const { getMenu, checkAllergens, recommendItems, createOrder, getKitchenLoad } = createAgentTools({
+const {
+  getMenu,
+  checkAllergens,
+  recommendItems,
+  createOrder,
+  getKitchenLoad,
+  listPromotions,
+  updatePromotion,
+  getInventoryLevels,
+  adjustInventoryLevel,
+  logSupportTicket,
+  resolveComplianceTask,
+} = createAgentTools({
   supabase: supabaseClient
 });
 
@@ -48,7 +74,7 @@ export const upsellAgent = Agent.create<AgentSessionContext>({
 Use the available tools to retrieve menu knowledge and propose 2-3 upsell or pairing options. Never recommend items that conflict with declared allergens or age restrictions, and always include prices and citation tokens.`;
   },
   handoffDescription: 'Provides contextual menu pairings and upsell suggestions.',
-  model: config.openai.defaultModel,
+  model: defaultModel,
   tools: [getMenu, recommendItems, checkAllergens, getKitchenLoad, ...retrievalTools],
   outputType: UpsellOutputSchema
 });
@@ -61,7 +87,7 @@ export const allergenGuardianAgent = Agent.create<AgentSessionContext>({
 Validate the proposed upsell suggestions against the guest allergen list (${context.allergies.join(', ') || 'none declared'}). Flag any conflicts and explain the risk. If an item is blocked, provide a short explanation.`;
   },
   handoffDescription: 'Ensures the recommendations respect allergen policies and table safety rules.',
-  model: config.openai.defaultModel,
+  model: defaultModel,
   tools: [checkAllergens],
   outputType: AllergenGuardianOutputSchema
 });
@@ -81,15 +107,65 @@ Compose a concise response summarising the top items and why they fit. Quote pri
 ${suggestionBulletList}`;
   },
   handoffDescription: 'Primary diner-facing waiter agent delivering grounded responses and upsell offers.',
-  model: config.openai.defaultModel,
+  model: defaultModel,
   tools: [getMenu, createOrder, getKitchenLoad, checkAllergens, ...retrievalTools],
   handoffs: [allergenGuardianAgent, upsellAgent],
   outputType: WaiterOutputSchema
 });
 
+export const promoAgent = Agent.create<AgentSessionContext>({
+  name: 'ICUPA Promo Strategist',
+  instructions: async (runContext) => {
+    const context = runContext.context;
+    return `${buildLocaleInstruction(context)}
+Review current promotion performance and recommend safe adjustments. Never exceed campaign budget caps and respect fairness constraints. Provide clear rationale for every action.`;
+  },
+  handoffDescription: 'Optimises promo campaigns while staying within policy guardrails.',
+  model: defaultModel,
+  tools: [listPromotions, updatePromotion],
+  outputType: PromoAgentOutputSchema,
+});
+
+export const inventoryAgent = Agent.create<AgentSessionContext>({
+  name: 'ICUPA Inventory Steward',
+  instructions: async (runContext) => {
+    const context = runContext.context;
+    return `${buildLocaleInstruction(context)}
+Detect low-stock items, recommend 86 decisions, and propose substitutions when needed. Only adjust inventory when absolutely necessary and justify each change.`;
+  },
+  handoffDescription: 'Maintains inventory accuracy and auto-86 policies.',
+  model: lowCostModel,
+  tools: [getInventoryLevels, adjustInventoryLevel],
+  outputType: InventoryAgentOutputSchema,
+});
+
+export const supportAgent = Agent.create<AgentSessionContext>({
+  name: 'ICUPA Support Concierge',
+  instructions: async () =>
+    'Capture diner or staff issues, assign an appropriate priority, and recommend the next communication step. Every ticket must include a concise summary.',
+  handoffDescription: 'Logs support incidents and suggests follow-up actions.',
+  model: lowCostModel,
+  tools: [logSupportTicket],
+  outputType: SupportAgentOutputSchema,
+});
+
+export const complianceAgent = Agent.create<AgentSessionContext>({
+  name: 'ICUPA Compliance Guardian',
+  instructions: async (runContext) => {
+    const context = runContext.context;
+    return `${buildLocaleInstruction(context)}
+Review open compliance tasks and respond with status updates. Escalate only when blockers exist or deadlines are breached.`;
+  },
+  handoffDescription: 'Keeps compliance tasks on track and escalates blockers.',
+  model: lowCostModel,
+  tools: [resolveComplianceTask],
+  outputType: ComplianceAgentOutputSchema,
+});
+
 export const runner = new Runner<AgentSessionContext>({
   modelProvider: provider,
-  model: config.openai.defaultModel
+  model: lowCostModel,
+  maxToolDepth: 3,
 });
 
 export function applyAllergenFilter(

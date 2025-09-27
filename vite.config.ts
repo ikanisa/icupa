@@ -30,11 +30,22 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@icupa/ingestion-utils": path.resolve(__dirname, "./packages/ingestion-utils/src"),
     },
   },
   test: {
     environment: "jsdom",
     setupFiles: [path.resolve(__dirname, "vitest.setup.ts")],
     css: true,
+    exclude: [
+      "tests/playwright/**",
+      "tests/k6/**",
+      "**/node_modules/**",
+    ],
+    include: [
+      "src/**/*.{test,spec}.{ts,tsx}",
+      "packages/**/*.{test,spec}.{ts,tsx}",
+      "tests/**/*.{test,spec}.{ts,tsx}",
+    ],
   },
 }));

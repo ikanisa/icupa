@@ -1,0 +1,11 @@
+{
+  "name": "icupa-ocr-converter",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Minimal OCR converter shim for ICUPA ingestion (PDF→images placeholder)",
+  "scripts": {
+    "start": "node server.mjs"
+  }
+}
+

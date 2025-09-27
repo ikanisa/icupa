@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { tool } from '@openai/agents';
 import { z } from 'zod';
 import type { AnySupabaseClient } from '../supabase';
@@ -71,6 +72,34 @@ function pickTopSuggestions(context: AgentSessionContext, limit: number, goals: 
 }
 
 export function createAgentTools(deps: { supabase: AnySupabaseClient }) {
+  async function enqueueAgentAction(params: {
+    context: AgentSessionContext;
+    agentType: string;
+    actionType: string;
+    payload: Record<string, unknown>;
+    rationale?: string;
+  }) {
+    const { data, error } = await deps.supabase
+      .from('agent_action_queue')
+      .insert({
+        tenant_id: params.context.tenantId ?? null,
+        location_id: params.context.locationId ?? null,
+        agent_type: params.agentType,
+        action_type: params.actionType,
+        payload: params.payload,
+        rationale: params.rationale ?? null,
+        created_by: params.context.userId ?? null,
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      throw new Error(`Failed to enqueue ${params.actionType}: ${error.message}`);
+    }
+
+    return data?.id as string;
+  }
+
   const getMenu = tool({
     name: 'get_menu',
     description: 'List available menu items for the active location including allergens and pricing.',
@@ -234,11 +263,200 @@ export function createAgentTools(deps: { supabase: AnySupabaseClient }) {
     }
   });
 
+  const listPromotions = tool({
+    name: 'list_promotions',
+    description: 'Fetch active promo campaigns for the tenant and location.',
+    parameters: z.object({
+      status: z.enum(['draft', 'pending_review', 'approved', 'active', 'paused', 'archived']).optional()
+    }),
+    async execute(input, runContext) {
+      const context = getContext(runContext);
+      if (!context.tenantId) {
+        throw new Error('Tenant context required to list promotions.');
+      }
+
+      let query = deps.supabase
+        .from('promo_campaigns')
+        .select('id, name, status, epsilon, budget_cap_cents, spent_cents, frequency_cap')
+        .eq('tenant_id', context.tenantId)
+        .order('created_at', { ascending: false })
+        .limit(25);
+
+      if (input.status) {
+        query = query.eq('status', input.status);
+      }
+
+      const { data, error } = await query;
+      if (error) {
+        throw new Error(`Unable to load promotions: ${error.message}`);
+      }
+
+      return { campaigns: data ?? [], citation: 'policies:promotions' };
+    }
+  });
+
+  const updatePromotion = tool({
+    name: 'update_promo_status',
+    description: 'Adjust promo campaign status or budget. Allowed statuses: active, paused, archived.',
+    parameters: z.object({
+      campaign_id: z.string().uuid(),
+      status: z.enum(['active', 'paused', 'archived']).optional(),
+      budget_delta_cents: z.number().int().optional()
+    }),
+    async execute(input, runContext) {
+      const context = getContext(runContext);
+      if (!context.tenantId) {
+        throw new Error('Tenant context required to update promotions.');
+      }
+
+      const actionId = await enqueueAgentAction({
+        context,
+        agentType: 'promo',
+        actionType: 'promo.update_campaign',
+        payload: {
+          campaign_id: input.campaign_id,
+          status: input.status ?? null,
+          budget_delta_cents: input.budget_delta_cents ?? null,
+        },
+      });
+
+      return { status: 'queued', action_id: actionId };
+    }
+  });
+
+  const getInventoryLevels = tool({
+    name: 'get_inventory_levels',
+    description: 'Retrieve inventory levels for the active location to detect low stock.',
+    parameters: z.object({ limit: z.number().int().min(1).max(50).optional() }),
+    async execute(input, runContext) {
+      const context = getContext(runContext);
+      if (!context.locationId) {
+        throw new Error('Location context required to inspect inventory.');
+      }
+
+      const { data, error } = await deps.supabase
+        .from('inventory_items')
+        .select('id, display_name, quantity, par_level, auto_86, auto_86_level')
+        .eq('location_id', context.locationId)
+        .order('quantity', { ascending: true })
+        .limit(input.limit ?? 25);
+
+      if (error) {
+        throw new Error(`Unable to read inventory: ${error.message}`);
+      }
+
+      return { items: data ?? [], citation: 'inventory:snapshot' };
+    }
+  });
+
+  const adjustInventoryLevel = tool({
+    name: 'adjust_inventory_level',
+    description: 'Update quantity or auto-86 flag for an inventory item.',
+    parameters: z.object({
+      inventory_id: z.string().uuid(),
+      quantity: z.number().nonnegative().optional(),
+      auto_86: z.boolean().optional(),
+      auto_86_level: z.string().optional()
+    }),
+    async execute(input, runContext) {
+      const context = getContext(runContext);
+      if (!context.locationId) {
+        throw new Error('Location context required to adjust inventory.');
+      }
+
+      const actionId = await enqueueAgentAction({
+        context,
+        agentType: 'inventory',
+        actionType: 'inventory.adjust_level',
+        payload: {
+          inventory_id: input.inventory_id,
+          quantity: input.quantity ?? null,
+          auto_86: input.auto_86 ?? null,
+          auto_86_level: input.auto_86_level ?? null,
+        },
+      });
+
+      return { status: 'queued', action_id: actionId };
+    }
+  });
+
+  const logSupportTicket = tool({
+    name: 'log_support_ticket',
+    description: 'Record a support ticket and return the generated identifier.',
+    parameters: z.object({
+      priority: z.enum(['low', 'medium', 'high']).default('medium'),
+      summary: z.string(),
+      details: z.string().optional()
+    }),
+    async execute(input, runContext) {
+      const context = getContext(runContext);
+      const ticketId = randomUUID();
+
+      const { error } = await deps.supabase.from('events').insert({
+        id: ticketId,
+        tenant_id: context.tenantId ?? null,
+        location_id: context.locationId ?? null,
+        table_session_id: context.tableSessionId ?? null,
+        type: 'support.ticket.opened',
+        payload: {
+          priority: input.priority,
+          summary: input.summary,
+          details: input.details ?? null,
+        },
+      });
+
+      if (error) {
+        throw new Error(`Failed to log support ticket: ${error.message}`);
+      }
+
+      return { ticket_id: ticketId };
+    }
+  });
+
+  const resolveComplianceTask = tool({
+    name: 'resolve_compliance_task',
+    description: 'Update the status of a compliance task.',
+    parameters: z.object({
+      task_id: z.string().uuid(),
+      status: z.enum(['pending', 'in_progress', 'blocked', 'resolved']),
+      notes: z.string().optional()
+    }),
+    async execute(input, runContext) {
+      const context = getContext(runContext);
+      if (!context.tenantId) {
+        throw new Error('Tenant context required to update compliance tasks.');
+      }
+
+      const update: Record<string, unknown> = { status: input.status };
+      if (input.notes) {
+        update.details = { note: input.notes };
+      }
+
+      const { error } = await deps.supabase
+        .from('compliance_tasks')
+        .update(update)
+        .eq('id', input.task_id)
+        .eq('tenant_id', context.tenantId);
+
+      if (error) {
+        throw new Error(`Failed to update compliance task: ${error.message}`);
+      }
+
+      return { status: 'ok' };
+    }
+  });
+
   return {
     getMenu,
     checkAllergens,
     recommendItems,
     createOrder,
-    getKitchenLoad
+    getKitchenLoad,
+    listPromotions,
+    updatePromotion,
+    getInventoryLevels,
+    adjustInventoryLevel,
+    logSupportTicket,
+    resolveComplianceTask
   };
 }

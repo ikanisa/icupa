@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/use-toast";
+import { AgentActionQueue } from "@/components/admin/AgentActionQueue";
 
 interface AgentSettingsPanelProps {
   tenantId: string | null;
@@ -291,6 +292,7 @@ export function AgentSettingsPanel({ tenantId }: AgentSettingsPanelProps) {
           isSaving={updateMutation.isPending}
         />
       ))}
+      <AgentActionQueue tenantId={tenantId} />
     </div>
   );
 }

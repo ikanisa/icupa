@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@icupa/ui": ["./src"],
+      "@icupa/ui/*": ["./src/*"]
+    }
+  },
+  "include": ["src/**/*"]
+}

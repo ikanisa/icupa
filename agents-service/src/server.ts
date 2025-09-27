@@ -1,8 +1,21 @@
 import 'dotenv/config';
+import './observability';
 import Fastify from 'fastify';
+import { Agent } from '@openai/agents';
+import { trace, SpanStatusCode } from '@opentelemetry/api';
 import { z } from 'zod';
 import { loadConfig } from './config';
-import { upsellAgent, allergenGuardianAgent, waiterAgent, runner, applyAllergenFilter } from './agents/agents';
+import {
+  upsellAgent,
+  allergenGuardianAgent,
+  waiterAgent,
+  promoAgent,
+  inventoryAgent,
+  supportAgent,
+  complianceAgent,
+  runner,
+  applyAllergenFilter,
+} from './agents/agents';
 import { buildAgentContext } from './services/context';
 import {
   ensureAgentEnabled,
@@ -12,7 +25,16 @@ import {
   recordRecommendationImpressions
 } from './services/telemetry';
 import type { AgentSessionContext, UpsellSuggestion } from './agents/types';
-import { CartItemSchema, WaiterOutputSchema, UpsellOutputSchema, AllergenGuardianOutputSchema } from './agents/types';
+import {
+  CartItemSchema,
+  WaiterOutputSchema,
+  UpsellOutputSchema,
+  AllergenGuardianOutputSchema,
+  PromoAgentOutputSchema,
+  InventoryAgentOutputSchema,
+  SupportAgentOutputSchema,
+  ComplianceAgentOutputSchema,
+} from './agents/types';
 import { estimateCostUsd } from './utils/pricing';
 
 const config = loadConfig();
@@ -46,6 +68,34 @@ const WaiterRequestSchema = z.object({
 
 type WaiterRequest = z.infer<typeof WaiterRequestSchema>;
 
+const PromoRequestSchema = z.object({
+  message: z.string().min(1, 'message is required'),
+  tenant_id: z.string().uuid(),
+  location_id: z.string().uuid(),
+  session_id: z.string().uuid().optional(),
+  language: z.string().optional(),
+});
+
+const InventoryRequestSchema = PromoRequestSchema;
+
+const SupportRequestSchema = z.object({
+  message: z.string().min(1, 'message is required'),
+  tenant_id: z.string().uuid().optional(),
+  location_id: z.string().uuid().optional(),
+  table_session_id: z.string().uuid().optional(),
+  priority: z.enum(['low', 'medium', 'high']).optional(),
+  session_id: z.string().uuid().optional(),
+  language: z.string().optional(),
+});
+
+const ComplianceRequestSchema = z.object({
+  message: z.string().min(1, 'message is required'),
+  tenant_id: z.string().uuid(),
+  location_id: z.string().uuid(),
+  session_id: z.string().uuid().optional(),
+  language: z.string().optional(),
+});
+
 function ensureLocationOrSession(body: WaiterRequest) {
   if (!body.location_id && !body.table_session_id) {
     throw new Error('Either location_id or table_session_id must be provided.');
@@ -69,6 +119,7 @@ function extractUsage(result: any): { inputTokens: number; outputTokens: number 
 }
 
 const ALLOWED_CITATION_PREFIXES = ['menu:', 'allergens:', 'policies:'] as const;
+const DEFAULT_AGENT_TIMEOUT_MS = Number(process.env.AGENT_TIMEOUT_MS ?? '45000');
 
 function addDisclaimer(bucket: Set<string>, value?: string | null) {
   if (!value) return;
@@ -114,6 +165,99 @@ function summariseBlockedSuggestions(
       return `${name}: ${detail}`;
     })
     .join('; ');
+}
+
+async function runAgentWithTimeout(
+  agent: ReturnType<typeof Agent.create>,
+  message: string,
+  context: AgentSessionContext,
+  timeoutMs = DEFAULT_AGENT_TIMEOUT_MS,
+) {
+  let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+
+  const timeoutPromise = new Promise((_resolve, reject) => {
+    timeoutHandle = setTimeout(() => {
+      reject(new Error(`Agent ${agent.name ?? 'unknown'} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+
+  try {
+    return (await Promise.race([
+      runner.run(agent, message, { context }),
+      timeoutPromise,
+    ])) as any;
+  } finally {
+    if (timeoutHandle) {
+      clearTimeout(timeoutHandle);
+    }
+  }
+}
+
+const tracer = trace.getTracer('icupa-agents-service');
+
+async function executeManagedAgentRun<TOutput>(params: {
+  agentType: string;
+  agent: ReturnType<typeof Agent.create>;
+  message: string;
+  context: AgentSessionContext;
+  toolsUsed: string[];
+  schema: z.ZodSchema<TOutput>;
+  sessionId?: string;
+  timeoutMs?: number;
+}) {
+  return tracer.startActiveSpan(`agent:${params.agentType}`, async (span) => {
+    span.setAttribute('icupa.agent.type', params.agentType);
+    if (params.toolsUsed.length) {
+      span.setAttribute('icupa.agent.tools', params.toolsUsed.join(','));
+    }
+
+    const runtime = await ensureAgentEnabled(params.agentType, params.context.tenantId);
+    const sessionId = params.sessionId ?? (await createAgentSessionRecord(params.agentType, params.context));
+    params.context.sessionId = sessionId;
+
+    const startedAt = Date.now();
+
+    try {
+      const result = await runAgentWithTimeout(
+        params.agent,
+        params.message,
+        params.context,
+        params.timeoutMs,
+      );
+
+      const usage = extractUsage(result);
+      const parsedOutput = params.schema.parse(result?.finalOutput ?? {});
+      const costEstimate = estimateCostUsd(config.openai.defaultModel, usage);
+
+      await assertBudgetsAfterRun(params.agentType, params.context.tenantId, runtime, costEstimate);
+
+      await logAgentEvent({
+        agentType: params.agentType as any,
+        context: params.context,
+        sessionId,
+        input: params.message,
+        output: JSON.stringify(parsedOutput),
+        toolsUsed: params.toolsUsed,
+        startedAt,
+        model: config.openai.defaultModel,
+        usage,
+      });
+
+      span.setAttribute('icupa.agent.cost_usd', costEstimate);
+      span.setStatus({ code: SpanStatusCode.OK });
+
+      return { sessionId, output: parsedOutput, costUsd: costEstimate };
+    } catch (error) {
+      span.recordException(error as Error);
+      span.setStatus({
+        code: SpanStatusCode.ERROR,
+        message: error instanceof Error ? error.message : 'Agent execution failed',
+      });
+      throw error;
+    } finally {
+      span.end();
+    }
+  });
 }
 
 function buildDisclaimers(context: AgentSessionContext, blocked: { item_id: string; reason?: string; allergens: string[] }[]) {
@@ -236,10 +380,11 @@ app.post('/agents/waiter', async (request, reply) => {
       { context }
     );
     guardianUsage = extractUsage(guardianResult);
-    const guardianOutput = AllergenGuardianOutputSchema.parse(guardianResult.finalOutput ?? {});
+   const guardianOutput = AllergenGuardianOutputSchema.parse(guardianResult.finalOutput ?? {});
 
     const blockedDisclaimers = buildDisclaimers(context, guardianOutput.blocked ?? []);
     blockedDisclaimers.forEach((message) => addDisclaimer(disclaimers, message));
+    (guardianOutput.notes ?? []).forEach((note) => addDisclaimer(disclaimers, note));
 
     const filtered = applyAllergenFilter(context.suggestions, guardianOutput);
     if (filtered.length === 0) {
@@ -311,6 +456,146 @@ app.post('/agents/waiter', async (request, reply) => {
     disclaimers: Array.from(disclaimers),
     citations,
     cost_usd: Number(totalCostUsd.toFixed(6))
+  });
+});
+
+app.post('/agents/promo', async (request, reply) => {
+  const parseResult = PromoRequestSchema.safeParse(request.body);
+  if (!parseResult.success) {
+    return reply.status(400).send({ error: 'invalid_request', details: parseResult.error.issues });
+  }
+
+  const body = parseResult.data;
+
+  const context = await buildAgentContext({
+    tenantId: body.tenant_id,
+    locationId: body.location_id,
+    language: body.language,
+  });
+
+  const { sessionId, output, costUsd } = await executeManagedAgentRun({
+    agentType: 'promo',
+    agent: promoAgent,
+    message: body.message,
+    context,
+    toolsUsed: ['list_promotions', 'update_promo_status'],
+    schema: PromoAgentOutputSchema,
+    sessionId: body.session_id ?? undefined,
+  });
+
+  return reply.send({
+    session_id: sessionId,
+    actions: output.actions,
+    notes: output.notes ?? [],
+    cost_usd: Number(costUsd.toFixed(6)),
+  });
+});
+
+app.post('/agents/inventory', async (request, reply) => {
+  const parseResult = InventoryRequestSchema.safeParse(request.body);
+  if (!parseResult.success) {
+    return reply.status(400).send({ error: 'invalid_request', details: parseResult.error.issues });
+  }
+
+  const body = parseResult.data;
+
+  const context = await buildAgentContext({
+    tenantId: body.tenant_id,
+    locationId: body.location_id,
+    language: body.language,
+  });
+
+  const { sessionId, output, costUsd } = await executeManagedAgentRun({
+    agentType: 'inventory',
+    agent: inventoryAgent,
+    message: body.message,
+    context,
+    toolsUsed: ['get_inventory_levels', 'adjust_inventory_level'],
+    schema: InventoryAgentOutputSchema,
+    sessionId: body.session_id ?? undefined,
+  });
+
+  return reply.send({
+    session_id: sessionId,
+    directives: output.directives,
+    alerts: output.alerts ?? [],
+    cost_usd: Number(costUsd.toFixed(6)),
+  });
+});
+
+app.post('/agents/support', async (request, reply) => {
+  const parseResult = SupportRequestSchema.safeParse(request.body);
+  if (!parseResult.success) {
+    return reply.status(400).send({ error: 'invalid_request', details: parseResult.error.issues });
+  }
+
+  const body = parseResult.data;
+  if (!body.location_id && !body.table_session_id) {
+    return reply.status(400).send({
+      error: 'invalid_request',
+      details: [{ message: 'location_id or table_session_id is required' }],
+    });
+  }
+
+  const enrichedMessage = body.priority
+    ? `[Priority: ${body.priority}] ${body.message}`
+    : body.message;
+
+  const context = await buildAgentContext({
+    tenantId: body.tenant_id,
+    locationId: body.location_id,
+    tableSessionId: body.table_session_id,
+    language: body.language,
+  });
+
+  const { sessionId, output, costUsd } = await executeManagedAgentRun({
+    agentType: 'support',
+    agent: supportAgent,
+    message: enrichedMessage,
+    context,
+    toolsUsed: ['log_support_ticket'],
+    schema: SupportAgentOutputSchema,
+    sessionId: body.session_id ?? undefined,
+  });
+
+  return reply.send({
+    session_id: sessionId,
+    ticket: output.ticket,
+    summary: output.summary,
+    next_steps: output.next_steps,
+    cost_usd: Number(costUsd.toFixed(6)),
+  });
+});
+
+app.post('/agents/compliance', async (request, reply) => {
+  const parseResult = ComplianceRequestSchema.safeParse(request.body);
+  if (!parseResult.success) {
+    return reply.status(400).send({ error: 'invalid_request', details: parseResult.error.issues });
+  }
+
+  const body = parseResult.data;
+
+  const context = await buildAgentContext({
+    tenantId: body.tenant_id,
+    locationId: body.location_id,
+    language: body.language,
+  });
+
+  const { sessionId, output, costUsd } = await executeManagedAgentRun({
+    agentType: 'compliance',
+    agent: complianceAgent,
+    message: body.message,
+    context,
+    toolsUsed: ['resolve_compliance_task'],
+    schema: ComplianceAgentOutputSchema,
+    sessionId: body.session_id ?? undefined,
+  });
+
+  return reply.send({
+    session_id: sessionId,
+    tasks: output.tasks,
+    escalation_required: output.escalation_required,
+    cost_usd: Number(costUsd.toFixed(6)),
   });
 });
 

@@ -2,8 +2,8 @@
 /// <reference lib="es2017" />
 
 import { clientsClaim } from "workbox-core";
-import { precacheAndRoute, cleanupOutdatedCaches } from "workbox-precaching";
-import { registerRoute, setDefaultHandler } from "workbox-routing";
+import { precacheAndRoute, cleanupOutdatedCaches, createHandlerBoundToURL } from "workbox-precaching";
+import { registerRoute, setDefaultHandler, setCatchHandler } from "workbox-routing";
 import {
   NetworkFirst,
   NetworkOnly,
@@ -17,7 +17,8 @@ declare let self: ServiceWorkerGlobalScope;
 
 type ManifestEntry = { url: string; revision?: string };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const manifest = self.__WB_MANIFEST as Array<ManifestEntry> | undefined;
+const manifest = (self.__WB_MANIFEST as Array<ManifestEntry> | undefined) ?? [];
+const FALLBACK_URL = "/offline.html";
 
 const SUPABASE_ORIGIN = (() => {
   try {
@@ -67,10 +68,8 @@ async function broadcastSyncComplete(): Promise<void> {
 self.skipWaiting();
 clientsClaim();
 
-if (manifest) {
-  precacheAndRoute(manifest);
-  cleanupOutdatedCaches();
-}
+precacheAndRoute([...manifest, { url: FALLBACK_URL }]);
+cleanupOutdatedCaches();
 
 setDefaultHandler(
   new NetworkFirst({
@@ -78,6 +77,24 @@ setDefaultHandler(
     networkTimeoutSeconds: 5,
   })
 );
+
+const offlineFallbackHandler = createHandlerBoundToURL(FALLBACK_URL);
+
+setCatchHandler(async ({ event }) => {
+  if (event.request.mode === "navigate") {
+    try {
+      return await offlineFallbackHandler({ event } as never);
+    } catch (_error) {
+      const cache = await caches.open("icupa-pages");
+      const cachedResponse = await cache.match(FALLBACK_URL);
+      if (cachedResponse) {
+        return cachedResponse;
+      }
+    }
+  }
+
+  return Response.error();
+});
 
 registerRoute(
   ({ request }) => request.destination === "image",
