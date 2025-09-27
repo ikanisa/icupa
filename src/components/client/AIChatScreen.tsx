@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { motion } from "framer-motion";
+import { useState, type FormEvent } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +31,7 @@ export function AIChatScreen() {
   ]);
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
 
   const sendMessage = async () => {
     if (!inputValue.trim()) return;
@@ -70,11 +71,16 @@ export function AIChatScreen() {
     setInputValue(suggestion);
   };
 
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    void sendMessage();
+  };
+
   return (
     <div className="flex-1 flex flex-col p-4 pb-32">
       {/* Chat Header */}
       <motion.div
-        initial={{ opacity: 0, y: -10 }}
+        initial={prefersReducedMotion ? undefined : { opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         className="mb-4"
       >
@@ -98,13 +104,18 @@ export function AIChatScreen() {
       </motion.div>
 
       {/* Messages */}
-      <div className="flex-1 space-y-4 overflow-y-auto">
+      <div
+        className="flex-1 space-y-4 overflow-y-auto"
+        role="log"
+        aria-live="polite"
+        aria-relevant="additions text"
+      >
         {messages.map((message, index) => (
           <motion.div
             key={message.id}
-            initial={{ opacity: 0, y: 20 }}
+            initial={prefersReducedMotion ? undefined : { opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
+            transition={{ delay: prefersReducedMotion ? 0 : index * 0.1 }}
             className={`flex ${message.type === "user" ? "justify-end" : "justify-start"}`}
           >
             <div className={`max-w-[80%] ${message.type === "user" ? "order-2" : "order-1"}`}>
@@ -141,9 +152,9 @@ export function AIChatScreen() {
               {/* Suggestions */}
               {message.suggestions && (
                 <motion.div
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={prefersReducedMotion ? undefined : { opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
+                  transition={{ delay: prefersReducedMotion ? 0 : 0.3 }}
                   className="mt-2 flex flex-wrap gap-2"
                 >
                   {message.suggestions.map((suggestion, idx) => (
@@ -152,6 +163,7 @@ export function AIChatScreen() {
                       variant="outline"
                       size="sm"
                       className="text-xs h-auto py-1.5 px-3 rounded-full bg-background/50 hover:bg-primary/10"
+                      type="button"
                       onClick={() => handleSuggestionClick(suggestion)}
                     >
                       {suggestion}
@@ -166,9 +178,11 @@ export function AIChatScreen() {
         {/* Typing Indicator */}
         {isTyping && (
           <motion.div
-            initial={{ opacity: 0 }}
+            initial={prefersReducedMotion ? undefined : { opacity: 0 }}
             animate={{ opacity: 1 }}
             className="flex justify-start"
+            role="status"
+            aria-live="polite"
           >
             <Card className="glass-card border-0">
               <CardContent className="p-3">
@@ -176,18 +190,18 @@ export function AIChatScreen() {
                   <Bot className="w-4 h-4 text-primary" />
                   <div className="flex gap-1">
                     <motion.div
-                      animate={{ opacity: [0.3, 1, 0.3] }}
-                      transition={{ duration: 1.5, repeat: Infinity, delay: 0 }}
+                      animate={prefersReducedMotion ? { opacity: 1 } : { opacity: [0.3, 1, 0.3] }}
+                      transition={{ duration: prefersReducedMotion ? 0 : 1.5, repeat: prefersReducedMotion ? 0 : Infinity, delay: 0 }}
                       className="w-2 h-2 bg-primary rounded-full"
                     />
                     <motion.div
-                      animate={{ opacity: [0.3, 1, 0.3] }}
-                      transition={{ duration: 1.5, repeat: Infinity, delay: 0.2 }}
+                      animate={prefersReducedMotion ? { opacity: 1 } : { opacity: [0.3, 1, 0.3] }}
+                      transition={{ duration: prefersReducedMotion ? 0 : 1.5, repeat: prefersReducedMotion ? 0 : Infinity, delay: prefersReducedMotion ? 0 : 0.2 }}
                       className="w-2 h-2 bg-primary rounded-full"
                     />
                     <motion.div
-                      animate={{ opacity: [0.3, 1, 0.3] }}
-                      transition={{ duration: 1.5, repeat: Infinity, delay: 0.4 }}
+                      animate={prefersReducedMotion ? { opacity: 1 } : { opacity: [0.3, 1, 0.3] }}
+                      transition={{ duration: prefersReducedMotion ? 0 : 1.5, repeat: prefersReducedMotion ? 0 : Infinity, delay: prefersReducedMotion ? 0 : 0.4 }}
                       className="w-2 h-2 bg-primary rounded-full"
                     />
                   </div>
@@ -200,28 +214,37 @@ export function AIChatScreen() {
 
       {/* Input */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={prefersReducedMotion ? undefined : { opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="mt-4"
       >
         <Card className="glass-card border-0">
           <CardContent className="p-3">
-            <div className="flex gap-2">
+            <form className="flex gap-2" onSubmit={handleSubmit} aria-label="Send a message to the ICUPA assistant">
+              <label htmlFor="icupa-chat-input" className="sr-only">
+                Ask ICUPA anything
+              </label>
               <Input
+                id="icupa-chat-input"
                 placeholder="Ask ICUPA anything..."
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && sendMessage()}
                 className="bg-background/50 border-border/50 rounded-xl"
+                aria-describedby="icupa-chat-helper"
               />
               <Button
-                onClick={sendMessage}
+                type="submit"
                 disabled={!inputValue.trim() || isTyping}
                 className="bg-primary-gradient hover:opacity-90 transition-opacity rounded-xl px-4"
+                aria-label="Send message"
               >
-                <Send className="w-4 h-4" />
+                <Send className="w-4 h-4" aria-hidden="true" />
+                <span className="sr-only">Send</span>
               </Button>
-            </div>
+            </form>
+            <p id="icupa-chat-helper" className="sr-only">
+              Press enter or use the send button to submit your question.
+            </p>
           </CardContent>
         </Card>
       </motion.div>
