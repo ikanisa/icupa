@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Phase 10 automation artefacts (preserve .gitkeep placeholders)
+artifacts/phase10/**
+!artifacts/phase10/**/.gitkeep
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
