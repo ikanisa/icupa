@@ -1,16 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { getTableSessionHeader } from './table-session';
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-if (!SUPABASE_URL) {
-  throw new Error('NEXT_PUBLIC_SUPABASE_URL is not set.');
-}
-
-if (!SUPABASE_ANON_KEY) {
-  throw new Error('NEXT_PUBLIC_SUPABASE_ANON_KEY is not set.');
-}
+const SUPABASE_URL = 'https://elhlcdiosomutugpneoc.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsaGxjZGlvc29tdXR1Z3BuZW9jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5MDU3NTMsImV4cCI6MjA3NDQ4MTc1M30.d92ZJG5E_9r7bOlRLBXRI6gcB_7ERVbL-Elp7fk4avY';
 
 const authStorage = typeof window === 'undefined' ? undefined : window.localStorage;
 
