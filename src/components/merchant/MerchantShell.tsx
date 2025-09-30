@@ -8,6 +8,7 @@ import { FloorPlanner } from "@/components/merchant/FloorPlanner";
 import { MenuManagerPanel } from "@/components/merchant/MenuManagerPanel";
 import { InventoryManagerPanel } from "@/components/merchant/InventoryManagerPanel";
 import { PromoBuilderPanel } from "@/components/merchant/PromoBuilderPanel";
+import { MerchantAssistantPanel } from "@/components/merchant/MerchantAssistantPanel";
 import { cn } from "@/lib/utils";
 
 const TABS = [
@@ -16,6 +17,7 @@ const TABS = [
   { id: "menu", label: "Menu" },
   { id: "inventory", label: "Inventory" },
   { id: "promos", label: "Promos" },
+  { id: "assistant", label: "AI" },
 ];
 
 export function MerchantShell() {
@@ -65,7 +67,7 @@ export function MerchantShell() {
         </header>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="glass-card grid h-12 grid-cols-5 gap-2 border border-white/10 bg-white/10 p-1 text-xs uppercase tracking-wide text-white/80">
+          <TabsList className="glass-card grid h-12 grid-cols-6 gap-2 border border-white/10 bg-white/10 p-1 text-xs uppercase tracking-wide text-white/80">
             {TABS.map((tab) => (
               <TabsTrigger
                 key={tab.id}
@@ -94,6 +96,9 @@ export function MerchantShell() {
           </TabsContent>
           <TabsContent value="promos" className="mt-0">
             <PromoBuilderPanel location={activeLocation ?? null} />
+          </TabsContent>
+          <TabsContent value="assistant" className="mt-0">
+            <MerchantAssistantPanel location={activeLocation ?? null} />
           </TabsContent>
         </Tabs>
       </div>

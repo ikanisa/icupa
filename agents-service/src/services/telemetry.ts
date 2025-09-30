@@ -235,3 +235,36 @@ export async function recordRecommendationImpressions(
     throw new Error(`Failed to record recommendation impressions: ${error.message}`);
   }
 }
+
+export async function recordAgentFeedback(params: {
+  agentType: string;
+  sessionId: string;
+  rating: 'up' | 'down';
+  messageId?: string;
+  tenantId?: string;
+  locationId?: string;
+  tableSessionId?: string;
+}): Promise<void> {
+  const { error } = await supabaseClient.from('agent_events').insert({
+    agent_type: params.agentType,
+    session_id: params.sessionId,
+    tenant_id: params.tenantId ?? null,
+    location_id: params.locationId ?? null,
+    table_session_id: params.tableSessionId ?? null,
+    input: {
+      message: 'feedback',
+      rating: params.rating,
+      message_id: params.messageId ?? null,
+    },
+    output: {
+      acknowledged: true,
+    },
+    tools_used: [],
+    latency_ms: 0,
+    cost_usd: 0,
+  });
+
+  if (error) {
+    throw new Error(`Unable to record agent feedback: ${error.message}`);
+  }
+}

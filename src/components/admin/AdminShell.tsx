@@ -8,6 +8,7 @@ import { Link } from "react-router-dom";
 import { useAdminTenants } from "@/hooks/useAdminTenants";
 import { OnboardingWizard } from "@/components/admin/OnboardingWizard";
 import { AgentSettingsPanel } from "@/components/admin/AgentSettingsPanel";
+import { AdminAssistantPanel } from "@/components/admin/AdminAssistantPanel";
 import { AnalyticsOverview } from "@/components/admin/AnalyticsOverview";
 import { CompliancePanel } from "@/components/admin/CompliancePanel";
 import { PaymentRefundsPanel } from "@/components/admin/PaymentRefundsPanel";
@@ -143,8 +144,9 @@ export function AdminShell() {
             />
           </TabsContent>
 
-          <TabsContent value="agents" className="mt-0">
+          <TabsContent value="agents" className="mt-0 space-y-6">
             <AgentSettingsPanel tenantId={activeTenant?.id ?? null} />
+            <AdminAssistantPanel tenant={activeTenant ?? null} />
           </TabsContent>
 
           <TabsContent value="analytics" className="mt-0">

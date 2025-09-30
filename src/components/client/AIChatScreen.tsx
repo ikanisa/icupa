@@ -1,40 +1,23 @@
-import { useMemo, useState, type FormEvent } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { useEffect, useMemo, useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Send, Bot, User, Sparkles, AlertCircle, ShoppingCart } from 'lucide-react';
-import { z } from 'zod';
 import { toast } from '@icupa/ui/use-toast';
-import { cn } from '@/lib/utils';
+import { z } from 'zod';
+import {
+  AgentRunDetailsDialog,
+  ChatComposer,
+  ChatTranscript,
+} from '@/components/ai';
+import { useAgentChat } from '@/hooks/useAgentChat';
+import type { AgentChatMessage, AgentFeedbackRating } from '@/types/agents';
+import { parseAgentStreamEvent } from '@/lib/chat-stream';
+import { AgentMetadataSchema } from '@/lib/agent-schemas';
 
 interface CartSnapshotItem {
   id: string;
   name: string;
   priceCents: number;
   quantity: number;
-}
-
-interface UpsellSuggestion {
-  item_id: string;
-  name: string;
-  price_cents: number;
-  currency: string;
-  rationale: string;
-  allergens: string[];
-  tags: string[];
-  is_alcohol: boolean;
-}
-
-interface Message {
-  id: string;
-  type: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-  quickReplies?: string[];
-  upsell?: UpsellSuggestion[];
-  disclaimers?: string[];
 }
 
 interface AIChatScreenProps {
@@ -48,7 +31,58 @@ interface AIChatScreenProps {
   onAddToCart?: (item: { id: string; name: string; priceCents: number }) => void;
 }
 
+const UpsellSuggestionSchema = z.object({
+  item_id: z.string().uuid(),
+  name: z.string(),
+  price_cents: z.number().int().nonnegative(),
+  currency: z.string(),
+  rationale: z.string(),
+  allergens: z.array(z.string()),
+  tags: z.array(z.string()),
+  is_alcohol: z.boolean(),
+  citations: z.array(z.string()).optional().default([]),
+});
+
+const WaiterResponseSchema = z.object({
+  session_id: z.string().uuid(),
+  reply: z.string(),
+  upsell: z.array(UpsellSuggestionSchema).optional().default([]),
+  disclaimers: z.array(z.string()).optional().default([]),
+  citations: z.array(z.string()).optional().default([]),
+  cost_usd: z.number().optional(),
+  metadata: AgentMetadataSchema.optional(),
+});
+
 const uuidRegex = /^[0-9a-fA-F-]{8}-[0-9a-fA-F-]{4}-[0-9a-fA-F-]{4}-[0-9a-fA-F-]{4}-[0-9a-fA-F-]{12}$/;
+
+function buildWaiterPrompts(options: {
+  upsell: z.infer<typeof UpsellSuggestionSchema>[];
+  hasAllergies: boolean;
+  cartSize: number;
+}): string[] {
+  const prompts: string[] = [];
+  const seen = new Set<string>();
+
+  options.upsell.slice(0, 2).forEach((suggestion) => {
+    if (!seen.has(suggestion.name.toLowerCase())) {
+      prompts.push(`Tell me more about ${suggestion.name}`);
+      seen.add(suggestion.name.toLowerCase());
+    }
+  });
+
+  if (options.upsell.length > 0) {
+    const first = options.upsell[0];
+    if (!seen.has(`add-${first.name.toLowerCase()}`)) {
+      prompts.push(`Add ${first.name} to my order`);
+      seen.add(`add-${first.name.toLowerCase()}`);
+    }
+  }
+
+  prompts.push(options.cartSize > 0 ? 'Review my current order' : 'Show popular dishes');
+  prompts.push(options.hasAllergies ? 'Filter items to avoid my allergens' : "What are today's specials?");
+
+  return Array.from(new Set(prompts)).slice(0, 5);
+}
 
 export function AIChatScreen({
   tableSessionId,
@@ -60,391 +94,198 @@ export function AIChatScreen({
   cartItems = [],
   onAddToCart,
 }: AIChatScreenProps) {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      type: 'assistant',
-      content:
-        "Hello! I'm ICUPA, your AI dining assistant. I can help you find the perfect dishes, check for allergens, and suggest pairings. What would you like to know?",
-      timestamp: new Date(),
-      quickReplies: [
-        "What's popular today?",
-        'I have a gluten allergy',
-        'Suggest wine pairings',
-        "What's the prep time for pasta?",
-      ],
-    },
-  ]);
   const [inputValue, setInputValue] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
-  const [agentSessionId, setAgentSessionId] = useState<string | null>(null);
-  const [lastError, setLastError] = useState<string | null>(null);
-  const prefersReducedMotion = useReducedMotion();
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [inspectedMessage, setInspectedMessage] = useState<AgentChatMessage | null>(null);
 
-  const waiterEndpoint = useMemo(() => {
-    const base = process.env.NEXT_PUBLIC_AGENTS_URL?.replace(/\/$/, '');
-    if (!base) return null;
-    return `${base}/agents/waiter`;
-  }, []);
-
-  const AgentResponseSchema = useMemo(
-    () =>
-      z.object({
-        session_id: z.string().uuid(),
-        reply: z.string(),
-        upsell: z
-          .array(
-            z.object({
-              item_id: z.string().uuid(),
-              name: z.string(),
-              price_cents: z.number().int().nonnegative(),
-              currency: z.string(),
-              rationale: z.string(),
-              allergens: z.array(z.string()),
-              tags: z.array(z.string()),
-              is_alcohol: z.boolean(),
-            })
-          )
-          .optional()
-          .default([]),
-        disclaimers: z.array(z.string()).optional().default([]),
-        citations: z.array(z.string()).optional().default([]),
-      }),
-    []
+  const sanitizedAllergies = useMemo(
+    () => allergies.map((value) => value.trim()).filter(Boolean),
+    [allergies]
   );
 
-  const validCartForAgent = useMemo(
+  const agentCart = useMemo(
     () =>
       cartItems
-        .filter((item) => uuidRegex.test(item.id))
+        .filter((item) => uuidRegex.test(item.id) && item.quantity > 0)
         .map((item) => ({ item_id: item.id, quantity: item.quantity })),
     [cartItems]
   );
 
-  const sendMessage = async () => {
+  const basePrompts = useMemo(
+    () => [
+      "What's popular today?",
+      'I have a gluten allergy',
+      'Suggest wine pairings',
+      "What's the prep time for pasta?",
+    ],
+    []
+  );
+
+  const introMessage = useMemo<AgentChatMessage>(
+    () => ({
+      id: 'intro',
+      role: 'assistant',
+      content:
+        "Hello! I'm ICUPA, your AI dining assistant. I can help you find dishes, check allergens, and suggest pairings. How can I help?",
+      createdAt: new Date(),
+      quickReplies: basePrompts,
+    }),
+    [basePrompts]
+  );
+
+  const streamingEnabled = import.meta.env?.VITE_AGENTS_STREAMING === 'true';
+  const pollingEnabled = import.meta.env?.VITE_AGENTS_LONG_POLLING === 'true';
+
+  const agentContext = useMemo(
+    () => ({
+      table_session_id: tableSessionId ?? undefined,
+      tenant_id: tenantId ?? undefined,
+      location_id: locationId ?? undefined,
+      language: locale,
+      allergies: sanitizedAllergies.length ? sanitizedAllergies : undefined,
+      age_verified: ageVerified,
+      cart: agentCart.length ? agentCart : undefined,
+    }),
+    [tableSessionId, tenantId, locationId, locale, sanitizedAllergies, ageVerified, agentCart]
+  );
+
+  const waiterChat = useAgentChat(
+    useMemo(
+      () => ({
+        agent: 'waiter',
+        path: '/agents/waiter',
+        parseResponse: (data: unknown) => {
+          const parsed = WaiterResponseSchema.parse(data);
+          return { response: parsed, metadata: parsed.metadata };
+        },
+        getSessionId: (result: { response: z.infer<typeof WaiterResponseSchema> }) => result.response.session_id,
+        mapResponse: (response: z.infer<typeof WaiterResponseSchema>) => ({
+          content: response.reply,
+          metadata: response.metadata,
+          quickReplies:
+            response.metadata?.suggested_prompts?.map((prompt) => prompt.prompt) ??
+            buildWaiterPrompts({
+              upsell: response.upsell,
+              hasAllergies: sanitizedAllergies.length > 0,
+              cartSize: agentCart.length,
+            }),
+          extras: {
+            disclaimers: response.disclaimers,
+            upsell: response.upsell,
+            citations: response.citations,
+            raw: response,
+          },
+        }),
+        buildPayload: ({ message, sessionId, context }) => ({
+          message,
+          session_id: sessionId ?? undefined,
+          table_session_id: context?.table_session_id,
+          tenant_id: context?.tenant_id,
+          location_id: context?.location_id,
+          language: context?.language,
+          allergies: context?.allergies,
+          age_verified: context?.age_verified,
+          cart: context?.cart,
+        }),
+        parseStreamEvent: (payload: unknown) => parseAgentStreamEvent(payload, 'waiter'),
+        ...(streamingEnabled
+          ? {
+              streamPath: (sessionId: string) => `/agent-sessions/${sessionId}/stream`,
+            }
+          : {}),
+        ...(pollingEnabled
+          ? {
+              pollPath: (sessionId: string) => `/agent-sessions/${sessionId}/events`,
+              pollIntervalMs: 3500,
+            }
+          : {}),
+      }),
+      [agentCart, pollingEnabled, sanitizedAllergies, streamingEnabled]
+    )
+  );
+
+  const combinedMessages = useMemo(
+    () => [introMessage, ...waiterChat.messages],
+    [introMessage, waiterChat.messages]
+  );
+
+  const availablePrompts = useMemo(() => {
+    const set = new Map<string, string>();
+    introMessage.quickReplies?.forEach((prompt) => set.set(prompt.toLowerCase(), prompt));
+    waiterChat.availablePrompts.forEach((prompt) => set.set(prompt.toLowerCase(), prompt));
+    return Array.from(set.values());
+  }, [introMessage.quickReplies, waiterChat.availablePrompts]);
+
+  useEffect(() => {
+    if (waiterChat.error) {
+      toast({
+        title: 'AI assistant issue',
+        description: waiterChat.error.message,
+        variant: 'destructive',
+      });
+    }
+  }, [waiterChat.error]);
+
+  const handleSend = () => {
     const trimmed = inputValue.trim();
     if (!trimmed) return;
-
-    if (!waiterEndpoint) {
-      toast({
-        title: 'AI assistant offline',
-        description: 'The ICUPA AI service is not configured. Please ask a team member for help.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      type: 'user',
-      content: trimmed,
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
+    waiterChat.sendMessage(trimmed, agentContext);
     setInputValue('');
-    setIsTyping(true);
-    setLastError(null);
-
-    try {
-      const response = await fetch(waiterEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: trimmed,
-          table_session_id: tableSessionId ?? undefined,
-          tenant_id: tenantId ?? undefined,
-          location_id: locationId ?? undefined,
-          session_id: agentSessionId ?? undefined,
-          language: locale,
-          allergies: allergies.length ? allergies : undefined,
-          age_verified: ageVerified,
-          cart: validCartForAgent.length ? validCartForAgent : undefined,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorBody = await response.json().catch(() => ({}));
-        throw new Error(errorBody?.message ?? `Agent returned ${response.status}`);
-      }
-
-      const raw = await response.json();
-      const parsed = AgentResponseSchema.safeParse(raw);
-      if (!parsed.success) {
-        throw new Error('Agent response failed schema validation');
-      }
-      const data = parsed.data;
-
-      setAgentSessionId(data.session_id);
-
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        type: 'assistant',
-        content: data.reply,
-        timestamp: new Date(),
-        quickReplies:
-          data.upsell && data.upsell.length > 0
-            ? data.upsell.map((suggestion) => `Add ${suggestion.name}`)
-            : undefined,
-        upsell: data.upsell ?? [],
-        disclaimers: data.disclaimers ?? [],
-      };
-
-      setMessages((prev) => [...prev, assistantMessage]);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Something went wrong while contacting ICUPA.';
-      setLastError(message);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: (Date.now() + 1).toString(),
-          type: 'assistant',
-          content:
-            "I couldn't reach the ICUPA assistant right now. Please try again shortly or ask a team member for support.",
-          timestamp: new Date(),
-        },
-      ]);
-      toast({
-        title: 'Assistant unavailable',
-        description: message,
-        variant: 'destructive',
-      });
-    } finally {
-      setIsTyping(false);
-    }
   };
 
-  const handleSuggestionClick = (suggestion: string) => {
-    setInputValue(suggestion);
+  const handleFeedback = (message: AgentChatMessage, rating: AgentFeedbackRating) => {
+    waiterChat.submitFeedback(message, rating, agentContext);
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    void sendMessage();
-  };
-
-  const handleUpsellAdd = (suggestion: UpsellSuggestion) => {
+  const handleUpsellAction = (item: NonNullable<AgentChatMessage['extras']>['upsell'][number]) => {
     if (!onAddToCart) return;
-    onAddToCart({ id: suggestion.item_id, name: suggestion.name, priceCents: suggestion.price_cents });
+    onAddToCart({ id: item.item_id, name: item.name, priceCents: item.price_cents });
     toast({
-      title: 'Added to cart',
-      description: `${suggestion.name} added from ICUPA recommendation.`,
+      title: `${item.name} added to cart`,
+      description: 'Review your cart when you are ready to place the order.',
     });
   };
 
   return (
-    <div className="flex-1 flex flex-col p-4 pb-32">
-      <motion.div
-        initial={prefersReducedMotion ? undefined : { opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-4"
-      >
-        <Card className="glass-card border-0">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-primary-gradient rounded-full flex items-center justify-center">
-                <Bot className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <div>
-                <h2 className="font-semibold">ICUPA Assistant</h2>
-                <p className="text-sm text-muted-foreground">AI-powered dining companion</p>
-              </div>
-              <Badge variant="outline" className="ml-auto bg-success/20 text-success border-success/30">
-                <Sparkles className="w-3 h-3 mr-1" /> Online
-              </Badge>
-            </div>
-            <p className="mt-3 flex items-start gap-2 text-xs text-muted-foreground" role="note">
-              <AlertCircle className="mt-0.5 h-3.5 w-3.5" aria-hidden="true" />
-              <span>
-                Responses are generated by AI based on venue policies. Confirm allergen and age-sensitive recommendations with staff when in doubt.
-              </span>
-            </p>
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      <div
-        className="flex-1 space-y-4 overflow-y-auto"
-        role="log"
-        aria-live="polite"
-        aria-relevant="additions text"
-      >
-        {messages.map((message, index) => (
-          <motion.div
-            key={message.id}
-            initial={prefersReducedMotion ? undefined : { opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: prefersReducedMotion ? 0 : index * 0.1 }}
-            className={cn('flex', message.type === 'user' ? 'justify-end' : 'justify-start')}
-          >
-            <div className={cn('max-w-[80%]', message.type === 'user' ? 'order-2' : 'order-1')}>
-              <Card
-                className={cn(
-                  'glass-card border-0',
-                  message.type === 'user' && 'bg-primary-gradient text-primary-foreground'
-                )}
-              >
-                <CardContent className="p-3">
-                  <div className="flex items-start gap-2">
-                    {message.type === 'assistant' && <Bot className="w-4 h-4 mt-0.5 text-primary" />}
-                    {message.type === 'user' && <User className="w-4 h-4 mt-0.5 text-primary-foreground" />}
-                    <div className="flex-1">
-                      <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
-                      <p
-                        className={cn(
-                          'text-xs mt-1',
-                          message.type === 'user' ? 'text-primary-foreground/70' : 'text-muted-foreground'
-                        )}
-                      >
-                        {message.timestamp.toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {message.quickReplies && (
-                <motion.div
-                  initial={prefersReducedMotion ? undefined : { opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: prefersReducedMotion ? 0 : 0.3 }}
-                  className="mt-2 flex flex-wrap gap-2"
-                >
-                  {message.quickReplies.map((suggestion, idx) => (
-                    <Button
-                      key={idx}
-                      variant="outline"
-                      size="sm"
-                      className="text-xs h-auto py-1.5 px-3 rounded-full bg-background/50 hover:bg-primary/10"
-                      type="button"
-                      onClick={() => handleSuggestionClick(suggestion)}
-                    >
-                      {suggestion}
-                    </Button>
-                  ))}
-                </motion.div>
-              )}
-
-              {message.disclaimers && message.disclaimers.length > 0 && (
-                <div className="mt-3 space-y-1">
-                  {message.disclaimers.map((note, idx) => (
-                    <p key={idx} className="text-xs text-muted-foreground flex gap-2">
-                      <AlertCircle className="w-3 h-3 text-amber-300" aria-hidden="true" />
-                      <span>{note}</span>
-                    </p>
-                  ))}
-                </div>
-              )}
-
-              {message.upsell && message.upsell.length > 0 && (
-                <div className="mt-4 space-y-2">
-                  <p className="text-xs font-semibold text-muted-foreground">Recommended for you</p>
-                  <div className="flex flex-col gap-2">
-                    {message.upsell.map((suggestion) => (
-                      <div
-                        key={suggestion.item_id}
-                        className="rounded-2xl border border-border/40 bg-background/40 p-3 flex flex-col gap-2"
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-medium text-foreground">{suggestion.name}</p>
-                            <p className="text-xs text-muted-foreground">{suggestion.rationale}</p>
-                          </div>
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            className="gap-2"
-                            onClick={() => handleUpsellAdd(suggestion)}
-                          >
-                            <ShoppingCart className="w-4 h-4" /> Add
-                          </Button>
-                        </div>
-                        {suggestion.allergens.length > 0 && (
-                          <div className="flex flex-wrap gap-1 text-[11px] text-amber-100">
-                            {suggestion.allergens.map((allergen) => (
-                              <Badge key={allergen} variant="outline" className="border-amber-300/40">
-                                {allergen}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        ))}
-
-        {isTyping && (
-          <motion.div
-            initial={prefersReducedMotion ? undefined : { opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex justify-start"
-            role="status"
-            aria-live="polite"
-          >
-            <Card className="glass-card border-0">
-              <CardContent className="p-3">
-                <div className="flex items-center gap-2">
-                  <Bot className="w-4 h-4 text-primary" />
-                  <div className="flex gap-1">
-                    <motion.div
-                      animate={prefersReducedMotion ? { opacity: 1 } : { opacity: [0.3, 1, 0.3] }}
-                      transition={{ repeat: Infinity, duration: 0.8, delay: 0 }}
-                      className="w-2 h-2 bg-primary/60 rounded-full"
-                    />
-                    <motion.div
-                      animate={prefersReducedMotion ? { opacity: 1 } : { opacity: [0.3, 1, 0.3] }}
-                      transition={{ repeat: Infinity, duration: 0.8, delay: 0.15 }}
-                      className="w-2 h-2 bg-primary/60 rounded-full"
-                    />
-                    <motion.div
-                      animate={prefersReducedMotion ? { opacity: 1 } : { opacity: [0.3, 1, 0.3] }}
-                      transition={{ repeat: Infinity, duration: 0.8, delay: 0.3 }}
-                      className="w-2 h-2 bg-primary/60 rounded-full"
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
-      </div>
-
-      <div className="mt-6 space-y-2">
-        <form onSubmit={handleSubmit} className="glass-card border-0 p-3 rounded-2xl">
-          <div className="flex items-center gap-3">
-            <label htmlFor="ai-message" className="sr-only">
-              Ask ICUPA
-            </label>
-            <Input
-              id="ai-message"
-              placeholder="Ask about dishes, allergens, or pairings"
-              value={inputValue}
-              onChange={(event) => setInputValue(event.target.value)}
-              className="bg-background/60 border-border/40"
-              disabled={isTyping}
-              autoComplete="off"
-            />
-            <Button type="submit" size="icon" className="rounded-full" aria-label="Send message" disabled={isTyping}>
-              <Send className="w-4 h-4" />
-            </Button>
+    <div className="flex h-full flex-col gap-6">
+      <Card className="glass-card flex h-[640px] flex-col border border-white/10 bg-white/5">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+          <div>
+            <CardTitle className="text-lg text-white">ICUPA AI Waiter</CardTitle>
+            <p className="text-xs text-white/70">Personalised menu guidance and allergen-safe upsells.</p>
           </div>
-        </form>
-        {lastError && (
-          <p className="text-xs text-destructive flex items-center gap-1">
-            <AlertCircle className="w-3 h-3" /> {lastError}
-          </p>
-        )}
-      </div>
+          <Badge variant="outline" className="border-emerald-400/40 bg-emerald-500/10 text-emerald-100">
+            {waiterChat.sessionId ? 'Session active' : 'Ready'}
+          </Badge>
+        </CardHeader>
+        <CardContent className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
+          <ChatTranscript
+            messages={combinedMessages}
+            isTyping={waiterChat.isStreaming}
+            typingAgent="waiter"
+            onInspectMetadata={(message) => {
+              setInspectedMessage(message);
+              setDetailsOpen(true);
+            }}
+            onFeedback={handleFeedback}
+            feedbackPendingMessageId={waiterChat.feedbackPendingMessageId}
+            onUpsellAction={onAddToCart ? handleUpsellAction : undefined}
+          />
+          <ChatComposer
+            value={inputValue}
+            onChange={setInputValue}
+            onSubmit={handleSend}
+            disabled={waiterChat.isSending}
+            suggestions={availablePrompts}
+          />
+        </CardContent>
+      </Card>
+
+      <AgentRunDetailsDialog
+        open={detailsOpen}
+        onOpenChange={setDetailsOpen}
+        message={inspectedMessage}
+      />
     </div>
   );
 }

@@ -52,6 +52,7 @@ export function ActionDock({ activeTab, onTabChange, cartItemCount = 0 }: Action
                       ? `${item.label} (${cartItemCount} item${cartItemCount === 1 ? "" : "s"})`
                       : undefined
                   }
+                  data-testid={`dock-tab-${item.id}`}
                 >
                   <div className="relative">
                     <Icon size={20} />

@@ -22,9 +22,10 @@ import {
   assertBudgetsAfterRun,
   createAgentSessionRecord,
   logAgentEvent,
-  recordRecommendationImpressions
+  recordRecommendationImpressions,
+  recordAgentFeedback
 } from './services/telemetry';
-import type { AgentSessionContext, UpsellSuggestion } from './agents/types';
+import type { AgentSessionContext, UpsellSuggestion, WaiterOutput } from './agents/types';
 import {
   CartItemSchema,
   WaiterOutputSchema,
@@ -36,6 +37,11 @@ import {
   ComplianceAgentOutputSchema,
 } from './agents/types';
 import { estimateCostUsd } from './utils/pricing';
+import {
+  createMetadataCollector,
+  extractAgentRunMetadata,
+  buildResponseMetadata
+} from './utils/agent-metadata';
 
 const config = loadConfig();
 
@@ -94,6 +100,16 @@ const ComplianceRequestSchema = z.object({
   location_id: z.string().uuid(),
   session_id: z.string().uuid().optional(),
   language: z.string().optional(),
+});
+
+const AgentFeedbackSchema = z.object({
+  session_id: z.string().uuid(),
+  agent_type: z.string().min(1, 'agent_type is required'),
+  rating: z.enum(['up', 'down']),
+  message_id: z.string().optional(),
+  tenant_id: z.string().uuid().optional(),
+  location_id: z.string().uuid().optional(),
+  table_session_id: z.string().uuid().optional(),
 });
 
 function ensureLocationOrSession(body: WaiterRequest) {
@@ -167,6 +183,53 @@ function summariseBlockedSuggestions(
     .join('; ');
 }
 
+function buildWaiterSuggestedPrompts(context: AgentSessionContext, output: WaiterOutput): string[] {
+  const prompts: string[] = [];
+  const seenNames = new Set<string>();
+  const candidates = (output.upsell?.length ? output.upsell : context.suggestions) ?? [];
+
+  for (const suggestion of candidates) {
+    const name = suggestion?.name?.trim();
+    if (!name) continue;
+    const key = name.toLowerCase();
+    if (seenNames.has(key)) continue;
+    seenNames.add(key);
+    prompts.push(`Tell me more about ${name}`);
+    if (prompts.length >= 2) break;
+  }
+
+  if (candidates.length) {
+    const first = candidates[0]?.name?.trim();
+    if (first) {
+      prompts.push(`Add ${first} to my order`);
+    }
+  }
+
+  if (context.cart.length) {
+    prompts.push('Review my current order');
+  } else {
+    prompts.push('Show popular dishes');
+  }
+
+  if (context.allergies.length) {
+    prompts.push('Filter items to avoid my allergens');
+  } else {
+    prompts.push('What are today\'s specials?');
+  }
+
+  const unique: string[] = [];
+  const seenPrompts = new Set<string>();
+  for (const prompt of prompts) {
+    const key = prompt.toLowerCase();
+    if (seenPrompts.has(key)) continue;
+    seenPrompts.add(key);
+    unique.push(prompt);
+    if (unique.length >= 5) break;
+  }
+
+  return unique;
+}
+
 async function runAgentWithTimeout(
   agent: ReturnType<typeof Agent.create>,
   message: string,
@@ -204,6 +267,7 @@ async function executeManagedAgentRun<TOutput>(params: {
   schema: z.ZodSchema<TOutput>;
   sessionId?: string;
   timeoutMs?: number;
+  fallbackSuggestedPrompts?: string[];
 }) {
   return tracer.startActiveSpan(`agent:${params.agentType}`, async (span) => {
     span.setAttribute('icupa.agent.type', params.agentType);
@@ -229,6 +293,15 @@ async function executeManagedAgentRun<TOutput>(params: {
       const parsedOutput = params.schema.parse(result?.finalOutput ?? {});
       const costEstimate = estimateCostUsd(config.openai.defaultModel, usage);
 
+      const runMetadata = extractAgentRunMetadata(params.agentType, result, {
+        usage,
+        model: config.openai.defaultModel,
+        costUsd: costEstimate,
+        toolsUsed: params.toolsUsed,
+        fallbackSuggestedPrompts: params.fallbackSuggestedPrompts,
+      });
+      const responseMetadata = buildResponseMetadata([runMetadata]);
+
       await assertBudgetsAfterRun(params.agentType, params.context.tenantId, runtime, costEstimate);
 
       await logAgentEvent({
@@ -246,7 +319,7 @@ async function executeManagedAgentRun<TOutput>(params: {
       span.setAttribute('icupa.agent.cost_usd', costEstimate);
       span.setStatus({ code: SpanStatusCode.OK });
 
-      return { sessionId, output: parsedOutput, costUsd: costEstimate };
+      return { sessionId, output: parsedOutput, costUsd: costEstimate, metadata: responseMetadata };
     } catch (error) {
       span.recordException(error as Error);
       span.setStatus({
@@ -318,6 +391,8 @@ app.post('/agents/waiter', async (request, reply) => {
     ageVerified: body.age_verified
   });
 
+  const metadataCollector = createMetadataCollector();
+
   const waiterRuntime = await ensureAgentEnabled('waiter', context.tenantId);
 
   const sessionId = body.session_id ?? (await createAgentSessionRecord('waiter', context));
@@ -351,6 +426,13 @@ app.post('/agents/waiter', async (request, reply) => {
     });
 
     totalCostUsd += upsellCostUsd;
+
+    metadataCollector.addRun('upsell', upsellResult, {
+      usage: upsellUsage,
+      model: config.openai.defaultModel,
+      costUsd: upsellCostUsd,
+      toolsUsed: ['get_menu', 'recommend_items', 'check_allergens', 'get_kitchen_load']
+    });
   } catch (error) {
     request.log.warn({ err: error }, 'Upsell agent unavailable');
     addDisclaimer(
@@ -367,6 +449,11 @@ app.post('/agents/waiter', async (request, reply) => {
       toolsUsed: [],
       startedAt: upsellRunStarted,
       model: config.openai.defaultModel
+    });
+
+    metadataCollector.addRun('upsell', undefined, {
+      model: config.openai.defaultModel,
+      toolsUsed: ['get_menu', 'recommend_items', 'check_allergens', 'get_kitchen_load']
     });
   }
 
@@ -408,6 +495,13 @@ app.post('/agents/waiter', async (request, reply) => {
     });
 
     totalCostUsd += guardianCostUsd;
+
+    metadataCollector.addRun('allergen_guardian', guardianResult, {
+      usage: guardianUsage,
+      model: config.openai.defaultModel,
+      costUsd: guardianCostUsd,
+      toolsUsed: ['check_allergens']
+    });
   }
 
   await recordRecommendationImpressions(context, sessionId, context.suggestions);
@@ -438,8 +532,20 @@ app.post('/agents/waiter', async (request, reply) => {
 
   totalCostUsd += waiterCostUsd;
 
+  const waiterSuggestedPrompts = buildWaiterSuggestedPrompts(context, parsedWaiterOutput);
+
+  metadataCollector.addRun('waiter', waiterResult, {
+    usage: waiterUsage,
+    model: config.openai.defaultModel,
+    costUsd: waiterCostUsd,
+    toolsUsed: ['get_menu', 'create_order', 'get_kitchen_load', 'check_allergens'],
+    fallbackSuggestedPrompts: waiterSuggestedPrompts
+  });
+
+  const safeContextSuggestions = context.suggestions ?? [];
+
   const invalidUpsell = (parsedWaiterOutput.upsell ?? []).filter(
-    (suggestion) => !context.suggestions.some((item) => item.item_id === suggestion.item_id)
+    (suggestion) => !safeContextSuggestions.some((item) => item.item_id === suggestion.item_id)
   );
   if (invalidUpsell.length) {
     addDisclaimer(disclaimers, 'Some model suggestions were removed because they bypassed safety checks.');
@@ -449,13 +555,16 @@ app.post('/agents/waiter', async (request, reply) => {
 
   const citations = sanitiseCitations(parsedWaiterOutput.citations, disclaimers);
 
+  const responseMetadata = metadataCollector.build();
+
   return reply.send({
     session_id: sessionId,
     reply: parsedWaiterOutput.reply,
-    upsell: context.suggestions,
+    upsell: safeContextSuggestions,
     disclaimers: Array.from(disclaimers),
     citations,
-    cost_usd: Number(totalCostUsd.toFixed(6))
+    cost_usd: Number(totalCostUsd.toFixed(6)),
+    metadata: responseMetadata
   });
 });
 
@@ -473,7 +582,7 @@ app.post('/agents/promo', async (request, reply) => {
     language: body.language,
   });
 
-  const { sessionId, output, costUsd } = await executeManagedAgentRun({
+  const { sessionId, output, costUsd, metadata } = await executeManagedAgentRun({
     agentType: 'promo',
     agent: promoAgent,
     message: body.message,
@@ -481,6 +590,11 @@ app.post('/agents/promo', async (request, reply) => {
     toolsUsed: ['list_promotions', 'update_promo_status'],
     schema: PromoAgentOutputSchema,
     sessionId: body.session_id ?? undefined,
+    fallbackSuggestedPrompts: [
+      'Show current promotion performance',
+      'Recommend a budget adjustment',
+      'Pause underperforming campaigns'
+    ]
   });
 
   return reply.send({
@@ -488,6 +602,7 @@ app.post('/agents/promo', async (request, reply) => {
     actions: output.actions,
     notes: output.notes ?? [],
     cost_usd: Number(costUsd.toFixed(6)),
+    metadata
   });
 });
 
@@ -505,7 +620,7 @@ app.post('/agents/inventory', async (request, reply) => {
     language: body.language,
   });
 
-  const { sessionId, output, costUsd } = await executeManagedAgentRun({
+  const { sessionId, output, costUsd, metadata } = await executeManagedAgentRun({
     agentType: 'inventory',
     agent: inventoryAgent,
     message: body.message,
@@ -513,6 +628,11 @@ app.post('/agents/inventory', async (request, reply) => {
     toolsUsed: ['get_inventory_levels', 'adjust_inventory_level'],
     schema: InventoryAgentOutputSchema,
     sessionId: body.session_id ?? undefined,
+    fallbackSuggestedPrompts: [
+      'Show items at risk of 86',
+      'Propose substitutions for low stock items',
+      'Draft an inventory adjustment summary'
+    ]
   });
 
   return reply.send({
@@ -520,6 +640,7 @@ app.post('/agents/inventory', async (request, reply) => {
     directives: output.directives,
     alerts: output.alerts ?? [],
     cost_usd: Number(costUsd.toFixed(6)),
+    metadata
   });
 });
 
@@ -548,7 +669,7 @@ app.post('/agents/support', async (request, reply) => {
     language: body.language,
   });
 
-  const { sessionId, output, costUsd } = await executeManagedAgentRun({
+  const { sessionId, output, costUsd, metadata } = await executeManagedAgentRun({
     agentType: 'support',
     agent: supportAgent,
     message: enrichedMessage,
@@ -556,6 +677,11 @@ app.post('/agents/support', async (request, reply) => {
     toolsUsed: ['log_support_ticket'],
     schema: SupportAgentOutputSchema,
     sessionId: body.session_id ?? undefined,
+    fallbackSuggestedPrompts: [
+      'Escalate this issue to a manager',
+      'Schedule a follow-up with the guest',
+      'Summarise open support tickets'
+    ]
   });
 
   return reply.send({
@@ -564,6 +690,7 @@ app.post('/agents/support', async (request, reply) => {
     summary: output.summary,
     next_steps: output.next_steps,
     cost_usd: Number(costUsd.toFixed(6)),
+    metadata
   });
 });
 
@@ -581,7 +708,7 @@ app.post('/agents/compliance', async (request, reply) => {
     language: body.language,
   });
 
-  const { sessionId, output, costUsd } = await executeManagedAgentRun({
+  const { sessionId, output, costUsd, metadata } = await executeManagedAgentRun({
     agentType: 'compliance',
     agent: complianceAgent,
     message: body.message,
@@ -589,6 +716,11 @@ app.post('/agents/compliance', async (request, reply) => {
     toolsUsed: ['resolve_compliance_task'],
     schema: ComplianceAgentOutputSchema,
     sessionId: body.session_id ?? undefined,
+    fallbackSuggestedPrompts: [
+      'List outstanding compliance tasks',
+      'Prepare an escalation summary',
+      'Review recently resolved compliance items'
+    ]
   });
 
   return reply.send({
@@ -596,7 +728,29 @@ app.post('/agents/compliance', async (request, reply) => {
     tasks: output.tasks,
     escalation_required: output.escalation_required,
     cost_usd: Number(costUsd.toFixed(6)),
+    metadata
   });
+});
+
+app.post('/agent-feedback', async (request, reply) => {
+  const parseResult = AgentFeedbackSchema.safeParse(request.body);
+  if (!parseResult.success) {
+    return reply.status(400).send({ error: 'invalid_request', details: parseResult.error.issues });
+  }
+
+  const body = parseResult.data;
+
+  await recordAgentFeedback({
+    agentType: body.agent_type,
+    sessionId: body.session_id,
+    rating: body.rating,
+    messageId: body.message_id,
+    tenantId: body.tenant_id,
+    locationId: body.location_id,
+    tableSessionId: body.table_session_id,
+  });
+
+  return reply.status(204).send();
 });
 
 const gracefulShutdown = async () => {

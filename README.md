@@ -72,6 +72,8 @@ ICUPA is a three-surface, multi-tenant Progressive Web Application that powers d
    ```
    The Fastify instance listens on `http://localhost:8787/` by default. In addition to `/health`, the service now exposes `POST /agents/waiter`, which orchestrates the waiter → allergen guardian → upsell agents via the OpenAI Agents SDK. Requests accept the diner message alongside optional `table_session_id`, `tenant_id`, `location_id`, declared allergens, cart context, and an existing `session_id`. Responses include the grounded reply, filtered upsell suggestions (with citation tokens), and any allergen disclaimers. Override the port via `AGENTS_PORT` inside `agents-service/.env`.
 
+   > 💡  Capture thumbs-up or thumbs-down ratings by POSTing to `/agent-feedback` with `session_id`, `agent_type`, and `rating` (plus optional tenant, location, or table session context). Feedback is recorded in `agent_events` alongside the existing telemetry pipeline.
+
    > ℹ️  The agents service honours kill switches and spend caps defined in `agent_runtime_configs`. Defaults can be tuned via `AGENT_SESSION_BUDGET_USD` and `AGENT_DAILY_BUDGET_USD` in `.env`.
 
 8. **Lint the project** (optional but recommended before submitting patches)
@@ -93,6 +95,8 @@ ICUPA is a three-surface, multi-tenant Progressive Web Application that powers d
 | `NEXT_PUBLIC_SUPABASE_URL` | ✅ | URL for your Supabase project. It is injected into the generated Supabase client and must match the project you plan to target. |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✅ | Supabase anonymous key used by the browser client. Store the matching service role key only in secure server-side environments (Edge Functions, agents service, etc.). |
 | `NEXT_PUBLIC_AGENTS_URL` | ➖ | Optional URL for the agent orchestration service. Configure when connecting the UI to OpenAI-powered agents. |
+| `VITE_AGENTS_STREAMING` | ➖ | Enable SSE updates from `/agent-sessions/:id/stream` when the agents service exposes a streaming feed (`true`/`false`). |
+| `VITE_AGENTS_LONG_POLLING` | ➖ | Fallback toggle that polls `/agent-sessions/:id/events` every few seconds when SSE is unavailable. |
 | `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | ➖ | VAPID public key used to register web push subscriptions from the PWA. Generate a matching private key and store it securely in Supabase for outbound delivery. |
 
 ### Supabase secrets for Edge Functions
@@ -156,7 +160,7 @@ The migrations create enums, helper functions, ivfflat indexes, and row-level se
 
 - SQL tests now include merchant onboarding/auth coverage (see `supabase/tests/rls_user_mgmt.sql`) so WhatsApp OTP storage, merchant profiles, and diner preferences remain tenant-scoped.
 
-- **Automation** – Run `npm run test` for Vitest suites and `npx playwright test` (or `npm run test:e2e`) for the scripted journeys covering diner checkout (`client.journey.spec.ts`), merchant ingestion (`merchant.menu.ingestion.spec.ts`), merchant WhatsApp login, and admin magic link flows.
+- **Automation** – Run `npm run test` for Vitest suites and `npx playwright test` (or `npm run test:e2e`) for the scripted journeys covering diner checkout (`client.journey.spec.ts`), merchant ingestion (`merchant.menu.ingestion.spec.ts`), merchant WhatsApp login, admin magic link flows, and the AI chat happy path (`diner.ai-assistant.spec.ts`).
 
 - **Outsourcing playbook** – External database specialists follow [`docs/outsourcing/phase1-outsourcing.md`](docs/outsourcing/phase1-outsourcing.md) to review migrations, run RLS regressions, and rehearse embedding refreshes. Artefacts land in `artifacts/phase1/*` with meeting notes stored under `docs/outsourcing/notes/` so Phase 1 owners can audit deliverables.
 
