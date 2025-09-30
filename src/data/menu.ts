@@ -2,6 +2,7 @@ export type RegionCode = "RW" | "EU";
 
 export interface MenuLocation {
   id: string;
+  tenantId?: string;
   name: string;
   region: RegionCode;
   currency: "RWF" | "EUR";

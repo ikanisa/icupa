@@ -88,28 +88,28 @@ const PAYMENT_METHODS = [
     name: "Card & digital wallets",
     description: "Visa, Mastercard, Apple Pay, Google Pay",
     icon: CreditCard,
-    regions: ["EU", "RW"],
+    regions: ["EU", "RW"] as RegionCode[],
   },
   {
     id: "momo",
     name: "MTN Mobile Money",
     description: "Request to Pay via MTN MoMo",
     icon: Smartphone,
-    regions: ["RW"],
+    regions: ["RW"] as RegionCode[],
   },
   {
     id: "airtel",
     name: "Airtel Money",
     description: "Collect payments from Airtel wallets",
     icon: Smartphone,
-    regions: ["RW"],
+    regions: ["RW"] as RegionCode[],
   },
   {
     id: "sepa",
     name: "SEPA instant transfer",
     description: "Available for EU diners with supported banks",
     icon: Waves,
-    regions: ["EU"],
+    regions: ["EU"] as RegionCode[],
   },
 ] as const;
 
@@ -143,7 +143,7 @@ export function PaymentScreen({
   onPaymentComplete,
   isOffline = false,
 }: PaymentScreenProps) {
-  const [selectedMethod, setSelectedMethod] = useState<PaymentUiMethod | "">("");
+  const [selectedMethod, setSelectedMethod] = useState<PaymentUiMethod | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>("idle");
   const [paymentDetails, setPaymentDetails] = useState<PaymentDetailsSummary | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -167,10 +167,7 @@ export function PaymentScreen({
   const currentFailureReason = paymentDetails?.failureReason ?? null;
   const currentStatus = paymentDetails?.status ?? "";
   const currentMethod: PaymentUiMethod =
-    paymentDetails?.method ??
-    (selectedMethod && selectedMethod !== ""
-      ? (selectedMethod as PaymentUiMethod)
-      : "card");
+    paymentDetails?.method ?? selectedMethod ?? "card";
 
   const { subtotalCents, taxCents, totalCents, taxRate, tipCents } = useMemo(() => {
     const subtotal = cartItems.reduce((sum, item) => {
@@ -466,10 +463,7 @@ export function PaymentScreen({
       }
 
       const responseMethod = mapProviderToUiMethod(response.payment_method);
-      const resolvedMethod: PaymentUiMethod =
-        selectedMethod && selectedMethod !== ""
-          ? (selectedMethod as PaymentUiMethod)
-          : responseMethod;
+      const resolvedMethod: PaymentUiMethod = selectedMethod ?? responseMethod;
 
       const normalized: PaymentDetailsSummary = {
         method: resolvedMethod,

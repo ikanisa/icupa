@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { toast } from '@icupa/ui/use-toast';
+import { toast } from '@/components/ui/use-toast';
 import { z } from 'zod';
 import {
   AgentRunDetailsDialog,

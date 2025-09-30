@@ -49,7 +49,7 @@ function normaliseLayout(layout: Record<string, unknown> | null | undefined) {
 async function fetchTables(locationId?: string): Promise<FloorTable[]> {
   let query = supabase
     .from("tables")
-    .select<RawTableRow>("id, code, seats, state, location_id, layout")
+    .select("id, code, seats, state, location_id, layout")
     .order("code", { ascending: true });
 
   if (locationId) {
@@ -62,14 +62,16 @@ async function fetchTables(locationId?: string): Promise<FloorTable[]> {
   }
 
   return (data ?? [])
-    .filter((row): row is RawTableRow & { code: string; state: TableState } => Boolean(row?.id && row?.code && row?.location_id))
+    .filter((row): row is typeof row & { code: string; state: TableState } => 
+      Boolean(row?.id && row?.code && row?.location_id)
+    )
     .map((row) => ({
       id: row.id,
       code: row.code!,
       seats: row.seats ?? 2,
-      state: row.state ?? "vacant",
+      state: (row.state as TableState) ?? "vacant",
       locationId: row.location_id,
-      layout: normaliseLayout(row.layout),
+      layout: normaliseLayout(row.layout as Record<string, unknown> | null),
     }));
 }
 
