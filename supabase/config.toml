@@ -1,1 +1,2 @@
-project_id = "elhlcdiosomutugpneoc"
+# Replace with the project you run locally via `supabase start`.
+project_id = "icupa-local-dev"

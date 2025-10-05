@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Menu, ShoppingCart, CreditCard, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -17,11 +17,14 @@ const dockItems = [
 ];
 
 export function ActionDock({ activeTab, onTabChange, cartItemCount = 0 }: ActionDockProps) {
+  const prefersReducedMotion = useReducedMotion();
   return (
-    <motion.div
-      initial={{ y: 100 }}
+    <motion.nav
+      initial={prefersReducedMotion ? undefined : { y: 100 }}
       animate={{ y: 0 }}
       className="fixed bottom-0 left-0 right-0 z-50 thumb-reach"
+      role="navigation"
+      aria-label="Primary diner actions"
     >
       <div className="mx-4 mb-4">
         <div className="glass-card rounded-2xl p-2">
@@ -29,7 +32,7 @@ export function ActionDock({ activeTab, onTabChange, cartItemCount = 0 }: Action
             {dockItems.map((item) => {
               const isActive = activeTab === item.id;
               const Icon = item.icon;
-              
+
               return (
                 <Button
                   key={item.id}
@@ -37,17 +40,24 @@ export function ActionDock({ activeTab, onTabChange, cartItemCount = 0 }: Action
                   size="lg"
                   className={cn(
                     "flex-1 flex-col gap-1 h-auto py-3 relative transition-all duration-200",
-                    isActive 
-                      ? "bg-primary/20 text-primary" 
+                    isActive
+                      ? "bg-primary/20 text-primary"
                       : "text-muted-foreground hover:text-foreground"
                   )}
+                  type="button"
                   onClick={() => onTabChange(item.id)}
+                  aria-current={isActive ? "page" : undefined}
+                  aria-label={
+                    item.id === "cart" && cartItemCount > 0
+                      ? `${item.label} (${cartItemCount} item${cartItemCount === 1 ? "" : "s"})`
+                      : undefined
+                  }
                 >
                   <div className="relative">
                     <Icon size={20} />
                     {item.id === "cart" && cartItemCount > 0 && (
                       <motion.div
-                        initial={{ scale: 0 }}
+                        initial={prefersReducedMotion ? undefined : { scale: 0 }}
                         animate={{ scale: 1 }}
                         className="absolute -top-2 -right-2 bg-accent text-accent-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center font-medium"
                       >
@@ -69,6 +79,6 @@ export function ActionDock({ activeTab, onTabChange, cartItemCount = 0 }: Action
           </div>
         </div>
       </div>
-    </motion.div>
+    </motion.nav>
   );
 }
