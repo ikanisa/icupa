@@ -188,22 +188,26 @@ export function usePushSubscription(
       }
 
       const endpoint = existing.endpoint;
-      await existing.unsubscribe();
+      const { error: deleteError } = await supabase.functions.invoke(
+        "notifications/unsubscribe_push",
+        {
+          body: {
+            subscription_id: subscriptionId ?? undefined,
+            endpoint,
+            table_session_id: options.tableSessionId ?? undefined,
+            location_id: options.locationId ?? undefined,
+            tenant_id: options.tenantId ?? undefined,
+          },
+        },
+      );
 
-      const deleteQuery = supabase.from("notification_subscriptions").delete();
-      if (subscriptionId) {
-        deleteQuery.eq("id", subscriptionId);
-      } else {
-        deleteQuery.eq("endpoint", endpoint);
-        if (options.tableSessionId) {
-          deleteQuery.eq("table_session_id", options.tableSessionId);
-        }
-      }
-
-      const { error: deleteError } = await deleteQuery;
       if (deleteError) {
         console.error("Failed to remove stored push subscription", deleteError);
+        setError("We could not disable notifications. Please try again.");
+        return false;
       }
+
+      await existing.unsubscribe();
 
       setIsSubscribed(false);
       setSubscriptionId(null);
@@ -216,7 +220,7 @@ export function usePushSubscription(
     } finally {
       setIsUnsubscribing(false);
     }
-  }, [options.tableSessionId, subscriptionId, supportsPush]);
+  }, [options, subscriptionId, supportsPush]);
 
   const sendTestNotification = useCallback(async () => {
     if (!supportsPush) {
