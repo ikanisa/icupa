@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useTenantKpis, TenantKpiSnapshot } from "@/hooks/useTenantKpis";
 import { ReconciliationPanel } from "@/components/admin/ReconciliationPanel";
+import { OfflineSyncTelemetryPanel } from "@/components/admin/OfflineSyncTelemetryPanel";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
@@ -116,6 +117,8 @@ export function AnalyticsOverview({ tenantId, currency }: AnalyticsOverviewProps
           </ChartContainer>
         </div>
       </Card>
+
+      <OfflineSyncTelemetryPanel tenantId={tenantId} />
 
       <ReconciliationPanel />
     </div>

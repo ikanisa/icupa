@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { handleSubscribePush } from "./subscribe_push/index.ts";
 import { handleSendPush } from "./send_push/index.ts";
+import { handleUnsubscribePush } from "./unsubscribe_push/index.ts";
 
 function extractSubPath(req: Request, prefix: string): string | null {
   const url = new URL(req.url);
@@ -17,6 +18,8 @@ serve(async (req) => {
   switch (subPath) {
     case "subscribe_push":
       return handleSubscribePush(req);
+    case "unsubscribe_push":
+      return handleUnsubscribePush(req);
     case "send_push":
       return handleSendPush(req);
     default:

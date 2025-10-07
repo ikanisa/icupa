@@ -125,6 +125,7 @@ These gates compress the critical launch work into four reviewable windows that 
 **Acceptance criteria**
 - Lighthouse PWA audit ≥ 90 on mobile.
 - Axe accessibility scan passes (no critical issues).
+- Phase 3 diner readiness checklist signed off with artefacts linked in [`docs/runbooks/phase3-diner-readiness.md`](runbooks/phase3-diner-readiness.md).
 
 ## Phase 4 – Payments and webhooks (Weeks 6–8)
 

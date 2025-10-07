@@ -30,23 +30,28 @@ const SUPABASE_ORIGIN = (() => {
   }
 })();
 
-const API_QUEUE_TAG = "workbox-background-sync:icupa-api-queue";
 const SYNC_COMPLETE_MESSAGE = "icupa-sync-complete";
 
-let queuedSinceLastSync = 0;
-let hasBroadcastForCurrentBatch = true;
+interface SyncBroadcastPayload {
+  replayedCount: number;
+  firstQueuedAt?: number | null;
+  replayStartedAt?: number | null;
+  replayCompletedAt?: number | null;
+  queuedDurationMs?: number | null;
+  replayLatencyMs?: number | null;
+  hadError?: boolean;
+  batchId?: string | null;
+}
 
-async function broadcastSyncComplete(): Promise<void> {
-  if (hasBroadcastForCurrentBatch) {
-    queuedSinceLastSync = 0;
-    return;
+function generateBatchId(): string {
+  if (typeof self.crypto !== "undefined" && typeof self.crypto.randomUUID === "function") {
+    return self.crypto.randomUUID();
   }
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
 
-  const operationsToReport = queuedSinceLastSync;
-  queuedSinceLastSync = 0;
-  hasBroadcastForCurrentBatch = true;
-
-  if (operationsToReport <= 0) {
+async function broadcastSyncComplete(payload: SyncBroadcastPayload): Promise<void> {
+  if (payload.replayedCount <= 0) {
     return;
   }
 
@@ -59,7 +64,7 @@ async function broadcastSyncComplete(): Promise<void> {
     clientList.map((client) =>
       client.postMessage({
         type: SYNC_COMPLETE_MESSAGE,
-        replayedCount: operationsToReport,
+        ...payload,
       })
     ),
   );
@@ -117,16 +122,63 @@ registerRoute(
   })
 );
 
-const backgroundSync = new BackgroundSyncPlugin("icupa-api-queue", {
+const backgroundSyncQueueName = "icupa-api-queue";
+
+const backgroundSync = new BackgroundSyncPlugin(backgroundSyncQueueName, {
   maxRetentionTime: 60,
-  callbacks: {
-    async requestWillEnqueue() {
-      queuedSinceLastSync += 1;
-      hasBroadcastForCurrentBatch = false;
-    },
-    async queueDidReplay() {
-      await broadcastSyncComplete();
-    },
+  onSync: async ({ queue }) => {
+    const entries = await queue.getAll();
+    if (entries.length === 0) {
+      return;
+    }
+
+    const replayStartedAt = Date.now();
+    const batchId = generateBatchId();
+
+    const firstQueuedAt = entries.reduce<number | null>((earliest, entry) => {
+      if (typeof entry.timestamp !== "number") {
+        return earliest;
+      }
+      if (earliest === null || entry.timestamp < earliest) {
+        return entry.timestamp;
+      }
+      return earliest;
+    }, null);
+
+    const broadcastResult = async (replayedCount: number, hadError: boolean, completedAt: number) => {
+      const queuedDurationMs =
+        firstQueuedAt !== null ? Math.max(0, completedAt - firstQueuedAt) : null;
+      const replayLatencyMs = Math.max(0, completedAt - replayStartedAt);
+
+      await broadcastSyncComplete({
+        replayedCount,
+        firstQueuedAt,
+        replayStartedAt,
+        replayCompletedAt: completedAt,
+        queuedDurationMs,
+        replayLatencyMs,
+        hadError,
+        batchId,
+      });
+    };
+
+    let replayedCount = 0;
+    let hadError = false;
+
+    try {
+      await queue.replayRequests();
+      replayedCount = entries.length;
+    } catch (error) {
+      hadError = true;
+      const remaining = await queue.getAll();
+      replayedCount = Math.max(0, entries.length - remaining.length);
+      const replayCompletedAt = Date.now();
+      await broadcastResult(replayedCount, hadError, replayCompletedAt);
+      throw error;
+    }
+
+    const replayCompletedAt = Date.now();
+    await broadcastResult(replayedCount, hadError, replayCompletedAt);
   },
 });
 
@@ -215,15 +267,7 @@ registerRoute(
   "PATCH"
 );
 
-self.addEventListener("sync", (event) => {
-  if (event.tag !== API_QUEUE_TAG) {
-    return;
-  }
-
-  event.waitUntil(broadcastSyncComplete());
-});
-
-self.addEventListener("push", (event) => {
+  self.addEventListener("push", (event) => {
   if (!event.data) {
     return;
   }

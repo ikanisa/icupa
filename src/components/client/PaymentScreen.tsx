@@ -17,6 +17,7 @@ import {
   Printer,
   QrCode,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { formatCurrency } from "@/lib/currency";
 import type { RegionCode } from "@/data/menu";
@@ -24,6 +25,16 @@ import type { SplitMode } from "@/stores/cart-store";
 import { supabase } from "@/integrations/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { toast } from "@/components/ui/use-toast";
+import {
+  DEFAULT_FAILURE_MESSAGE,
+  type PaymentStatus,
+  type PaymentUiMethod,
+  deriveFailureMessage,
+  getPendingCopy,
+  mapProviderToUiMethod,
+  normalisePaymentStatus,
+  resolveUiStatus,
+} from "@/lib/payment-utils";
 
 interface CartItem {
   id: string;
@@ -45,8 +56,6 @@ interface PaymentScreenProps {
   onPaymentComplete: () => void;
   isOffline?: boolean;
 }
-
-type PaymentStatus = "idle" | "processing" | "pending" | "succeeded" | "error";
 
 interface PaymentDetailsSummary {
   method: PaymentUiMethod;
@@ -82,54 +91,42 @@ interface ReceiptSummaryDetails {
   integrationNotes?: Record<string, any> | null;
 }
 
-const PAYMENT_METHODS = [
+const PAYMENT_METHODS: Array<{
+  id: PaymentUiMethod;
+  name: string;
+  description: string;
+  icon: LucideIcon;
+  regions: RegionCode[];
+}> = [
   {
     id: "card",
     name: "Card & digital wallets",
     description: "Visa, Mastercard, Apple Pay, Google Pay",
     icon: CreditCard,
-    regions: ["EU", "RW"] as RegionCode[],
+    regions: ["EU", "RW"],
   },
   {
     id: "momo",
     name: "MTN Mobile Money",
     description: "Request to Pay via MTN MoMo",
     icon: Smartphone,
-    regions: ["RW"] as RegionCode[],
+    regions: ["RW"],
   },
   {
     id: "airtel",
     name: "Airtel Money",
     description: "Collect payments from Airtel wallets",
     icon: Smartphone,
-    regions: ["RW"] as RegionCode[],
+    regions: ["RW"],
   },
   {
     id: "sepa",
     name: "SEPA instant transfer",
     description: "Available for EU diners with supported banks",
     icon: Waves,
-    regions: ["EU"] as RegionCode[],
+    regions: ["EU"],
   },
-] as const;
-
-type PaymentUiMethod = (typeof PAYMENT_METHODS)[number]["id"];
-
-const PROVIDER_TO_UI_METHOD: Record<string, PaymentUiMethod> = {
-  stripe: "card",
-  adyen: "card",
-  mtn_momo: "momo",
-  airtel_money: "airtel",
-};
-
-const DEFAULT_FAILURE_MESSAGE = "The payment provider was unable to complete this transaction. Please try again or ask a team member for help.";
-
-const normaliseStatus = (status?: string | null) => (status ?? "").toLowerCase();
-
-const mapProviderToUiMethod = (provider?: string | null): PaymentUiMethod => {
-  if (!provider) return "card";
-  return PROVIDER_TO_UI_METHOD[provider.toLowerCase()] ?? "card";
-};
+];
 
 export function PaymentScreen({
   cartItems,
@@ -267,7 +264,7 @@ export function PaymentScreen({
 
   const applyPaymentSnapshot = useCallback(
     (snapshot: PaymentDetailsSummary, overrides?: { status?: PaymentStatus; errorMessage?: string | null }) => {
-      const normalizedStatus = normaliseStatus(snapshot.status);
+      const normalizedStatus = normalisePaymentStatus(snapshot.status);
       const fallbackMethod = (availableMethodIds[0] ?? snapshot.method) as PaymentUiMethod;
       const resolvedMethod = availableMethodIds.includes(snapshot.method)
         ? snapshot.method
@@ -285,12 +282,8 @@ export function PaymentScreen({
 
       if (overrides?.status) {
         setPaymentStatus(overrides.status);
-      } else if (normalizedStatus === "captured") {
-        setPaymentStatus("succeeded");
-      } else if (normalizedStatus === "failed") {
-        setPaymentStatus("error");
       } else {
-        setPaymentStatus("pending");
+        setPaymentStatus(resolveUiStatus(snapshot.status));
       }
 
       if (typeof overrides?.errorMessage !== "undefined") {
@@ -298,17 +291,13 @@ export function PaymentScreen({
         return;
       }
 
-      if (normalizedStatus === "captured") {
-        setErrorMessage(null);
-      } else if (normalizedStatus === "failed") {
-        setErrorMessage(snapshot.failureReason ?? DEFAULT_FAILURE_MESSAGE);
-      } else if (snapshot.failureReason) {
-        setErrorMessage(snapshot.failureReason);
-      } else if (snapshot.message) {
-        setErrorMessage(snapshot.message);
-      } else {
-        setErrorMessage(null);
-      }
+      setErrorMessage(
+        deriveFailureMessage({
+          status: normalizedStatus,
+          failureReason: snapshot.failureReason,
+          message: snapshot.message,
+        }),
+      );
     },
     [availableMethodIds]
   );
@@ -317,32 +306,7 @@ export function PaymentScreen({
     if (!paymentDetails) {
       return null;
     }
-    switch (paymentDetails.method) {
-      case "card":
-        return {
-          title: "Complete payment in Stripe",
-          body:
-            "Finish the secure Stripe checkout flow. We’ll refresh your order as soon as Stripe confirms the payment.",
-          actionLabel: "Open Stripe checkout",
-        };
-      case "momo":
-        return {
-          title: "Approve MTN MoMo request",
-          body:
-            "Approve the request on your MTN MoMo device. The order will update automatically once the provider confirms.",
-        };
-      case "airtel":
-        return {
-          title: "Confirm Airtel Money payment",
-          body:
-            "Authorize the Airtel Money prompt on your phone. We’ll mark the payment as captured when Airtel sends the receipt.",
-        };
-      default:
-        return {
-          title: "Waiting for payment confirmation",
-          body: "We’re waiting for the payment provider to confirm this transaction.",
-        };
-    }
+    return getPendingCopy(paymentDetails.method);
   }, [paymentDetails]);
 
   useEffect(() => {
@@ -530,7 +494,7 @@ export function PaymentScreen({
           throw new Error("We could not find the latest payment for this order.");
         }
 
-        const normalizedStatus = normaliseStatus(data.status);
+        const normalizedStatus = normalisePaymentStatus(data.status);
         const cancellationMessage =
           outcome === "cancelled" && normalizedStatus !== "captured"
             ? "The payment was cancelled before completion."
