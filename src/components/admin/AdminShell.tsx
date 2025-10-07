@@ -60,6 +60,11 @@ export function AdminShell() {
       href: `${runbookBase}/voice-waiter-readiness.md`,
     },
     {
+      label: 'Phase 3 Diner Readiness',
+      description: 'Operational gates before expanding the diner canary.',
+      href: `${runbookBase}/phase3-diner-readiness.md`,
+    },
+    {
       label: 'Alerts & Escalation',
       description: 'On-call contacts and pager rotations.',
       href: alertPlaybookUrl,

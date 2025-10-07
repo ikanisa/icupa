@@ -53,7 +53,6 @@ export function ClientShell() {
   const [ageGateChoice, setAgeGateChoice] = useState<"unknown" | "verified" | "declined">("unknown");
   const [hasLoadedAgeGate, setHasLoadedAgeGate] = useState(false);
   const { session: tableSession, status: tableSessionStatus } = useTableSession();
-  useBackgroundSyncToast();
   useReceiptNotifications({
     tableSessionId: tableSession?.id ?? null,
     enabled: tableSessionStatus === "ready",
@@ -116,6 +115,12 @@ export function ClientShell() {
     [locations, selectedLocationId]
   );
 
+  useBackgroundSyncToast({
+    tenantId: selectedLocation?.tenantId ?? null,
+    locationId: selectedLocation?.id ?? null,
+    tableSessionId: tableSession?.id ?? null,
+  });
+
   const pushSubscription = usePushSubscription({
     tableSessionId: tableSession?.id ?? null,
     locationId: tableSession?.locationId ?? selectedLocation?.id ?? null,
@@ -160,12 +165,13 @@ export function ClientShell() {
   }, []);
 
   const shouldShowPushCard =
-    pushSubscription.canSubscribe &&
-    !pushSubscription.isSubscribed &&
-    pushSubscription.permission !== "unsupported";
+    pushSubscription.canSubscribe && pushSubscription.permission !== "unsupported";
 
   const pushButtonDisabled =
     pushSubscription.permission === "denied" || pushSubscription.isSubscribing;
+
+  const verifyButtonDisabled = pushSubscription.isVerifying;
+  const disableButtonDisabled = pushSubscription.isUnsubscribing;
 
   useEffect(() => {
     clearCart();
@@ -538,37 +544,77 @@ export function ClientShell() {
                   <div className="mt-1 rounded-full bg-primary/10 text-primary p-2" aria-hidden="true">
                     <Bell className="w-4 h-4" />
                   </div>
-                <div className="space-y-2 flex-1">
-                  <div>
-                    <p className="text-sm font-semibold">Enable instant updates</p>
-                    <p className="text-xs text-muted-foreground">
-                      Get notified when receipts are issued or an order status changes, even if you close the app.
-                    </p>
+                  <div className="space-y-2 flex-1">
+                    <div>
+                      <p className="text-sm font-semibold">
+                        {pushSubscription.isSubscribed ? "Alerts enabled" : "Enable instant updates"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {pushSubscription.isSubscribed
+                          ? "Send a test notification or disable alerts if you no longer need realtime updates."
+                          : "Get notified when receipts are issued or an order status changes, even if you close the app."}
+                      </p>
+                    </div>
+                    {pushSubscription.shouldShowIosInstallHint && (
+                      <p className="text-xs text-muted-foreground">
+                        Install ICUPA from Safari (Share → <strong>Add to Home Screen</strong>) before enabling push alerts on
+                        iOS.
+                      </p>
+                    )}
+                    {pushSubscription.permission === "denied" && (
+                      <p className="text-xs text-warning-foreground">
+                        Notifications are blocked in your browser preferences. Re-enable them to receive updates.
+                      </p>
+                    )}
+                    {pushSubscription.error && pushSubscription.permission !== "denied" && (
+                      <p className="text-xs text-destructive">{pushSubscription.error}</p>
+                    )}
+                    <div className="flex flex-wrap gap-2">
+                      {!pushSubscription.isSubscribed ? (
+                        <Button
+                          onClick={() => pushSubscription.subscribe()}
+                          disabled={pushButtonDisabled}
+                          variant="secondary"
+                          size="sm"
+                          className="rounded-full"
+                        >
+                          {pushSubscription.isSubscribing ? "Enabling…" : "Enable alerts"}
+                        </Button>
+                      ) : (
+                        <>
+                          <Button
+                            onClick={() => pushSubscription.verify()}
+                            disabled={verifyButtonDisabled}
+                            variant="secondary"
+                            size="sm"
+                            className="rounded-full"
+                          >
+                            {pushSubscription.isVerifying ? "Sending test…" : "Send test alert"}
+                          </Button>
+                          <Button
+                            onClick={() => pushSubscription.unsubscribe()}
+                            disabled={disableButtonDisabled}
+                            variant="ghost"
+                            size="sm"
+                            className="rounded-full"
+                          >
+                            {pushSubscription.isUnsubscribing ? "Disabling…" : "Disable alerts"}
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                    {pushSubscription.verificationStatus === "delivered" && (
+                      <p className="text-xs text-success">
+                        Test notification queued. Check your device to confirm push alerts are working.
+                      </p>
+                    )}
+                    {pushSubscription.verificationStatus === "error" && !pushSubscription.error && (
+                      <p className="text-xs text-destructive">
+                        We could not send a test notification. Please try again in a moment.
+                      </p>
+                    )}
                   </div>
-                  {pushSubscription.shouldShowIosInstallHint && (
-                    <p className="text-xs text-muted-foreground">
-                      Install ICUPA from Safari (Share → <strong>Add to Home Screen</strong>) before enabling push alerts on iOS.
-                    </p>
-                  )}
-                  {pushSubscription.permission === "denied" && (
-                    <p className="text-xs text-warning-foreground">
-                      Notifications are blocked in your browser preferences. Re-enable them to receive updates.
-                    </p>
-                  )}
-                  {pushSubscription.error && pushSubscription.permission !== "denied" && (
-                    <p className="text-xs text-destructive">{pushSubscription.error}</p>
-                  )}
                 </div>
-                <Button
-                  onClick={() => pushSubscription.subscribe()}
-                  disabled={pushButtonDisabled}
-                  variant="secondary"
-                  size="sm"
-                  className="rounded-full"
-                >
-                  {pushSubscription.isSubscribing ? "Enabling…" : "Enable alerts"}
-                </Button>
-              </div>
               </div>
             </motion.div>
           )}

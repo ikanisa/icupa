@@ -865,6 +865,79 @@ export type Database = {
           },
         ]
       }
+      offline_sync_events: {
+        Row: {
+          id: string
+          tenant_id: string | null
+          location_id: string | null
+          table_session_id: string
+          replayed_count: number
+          first_enqueued_at: string | null
+          replay_started_at: string | null
+          replay_completed_at: string | null
+          queued_duration_ms: number | null
+          replay_latency_ms: number | null
+          had_error: boolean
+          metadata: Json | null
+          batch_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          tenant_id?: string | null
+          location_id?: string | null
+          table_session_id: string
+          replayed_count: number
+          first_enqueued_at?: string | null
+          replay_started_at?: string | null
+          replay_completed_at?: string | null
+          queued_duration_ms?: number | null
+          replay_latency_ms?: number | null
+          had_error?: boolean
+          metadata?: Json | null
+          batch_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          tenant_id?: string | null
+          location_id?: string | null
+          table_session_id?: string
+          replayed_count?: number
+          first_enqueued_at?: string | null
+          replay_started_at?: string | null
+          replay_completed_at?: string | null
+          queued_duration_ms?: number | null
+          replay_latency_ms?: number | null
+          had_error?: boolean
+          metadata?: Json | null
+          batch_id?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "offline_sync_events_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offline_sync_events_table_session_id_fkey"
+            columns: ["table_session_id"]
+            isOneToOne: false
+            referencedRelation: "table_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "offline_sync_events_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_item_mods: {
         Row: {
           id: string
