@@ -19,7 +19,7 @@ export default defineConfig(({ mode }) => ({
       filename: "sw.ts",
       manifest: false,
       injectRegister: false,
-      includeAssets: ["favicon.ico", "placeholder.svg"],
+      includeAssets: ["favicon.ico", "placeholder.svg", "icons/icon-192.png", "icons/icon-512.png"],
       devOptions: {
         enabled: true,
         type: "module",

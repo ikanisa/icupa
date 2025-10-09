@@ -10,7 +10,7 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "preview": "vite preview",
+    "preview": "vite preview --port 5000",
     "dev:ocr:converter": "node apps/ocr-converter/server.mjs",
     "dev:all": "bash scripts/dev/dev-all.sh",
     "smoke:ingestion": "node scripts/smoke/ingestion-smoke.mjs",
@@ -20,7 +20,8 @@
     "test": "vitest run",
     "test:accessibility": "vitest run tests/accessibility",
     "test:e2e": "playwright test --config tests/playwright/playwright.config.ts",
-    "test:perf": "npx --yes @lhci/cli@0.12.2 autorun"
+    "test:perf": "npx --yes @lhci/cli@0.12.2 autorun",
+    "analyze:pwa": "npx --yes lighthouse http://localhost:5000 --only-categories=pwa --preset=desktop || true"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -105,5 +106,8 @@
     "vite-plugin-pwa": "^1.0.3",
     "vitest": "^3.2.4",
     "vitest-axe": "^0.1.0"
+  },
+  "engines": {
+    "node": ">=18.18.0"
   }
 }

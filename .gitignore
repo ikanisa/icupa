@@ -26,3 +26,8 @@ artifacts/phase10/**
 *.njsproj
 *.sln
 *.sw?
+
+# Environment variable files
+.env
+.env.*
+!.env.example
