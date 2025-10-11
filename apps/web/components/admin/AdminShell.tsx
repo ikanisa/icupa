@@ -12,6 +12,7 @@ import { OnboardingWizard } from "@/components/admin/OnboardingWizard";
 import { AgentSettingsPanel } from "@/components/admin/AgentSettingsPanel";
 import { AnalyticsOverview } from "@/components/admin/AnalyticsOverview";
 import { CompliancePanel } from "@/components/admin/CompliancePanel";
+import { RoleManagerPanel } from "@/components/admin/RoleManagerPanel";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase-client";
 import { Alert, AlertDescription } from "@icupa/ui/alert";
@@ -21,6 +22,7 @@ const TABS = [
   { id: "onboarding", label: "Onboarding" },
   { id: "agents", label: "AI Settings" },
   { id: "analytics", label: "Analytics" },
+  { id: "access", label: "Access" },
   { id: "compliance", label: "Compliance" },
 ];
 
@@ -138,7 +140,7 @@ export function AdminShell() {
         </header>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="glass-card grid h-12 grid-cols-4 gap-2 border border-white/10 bg-white/10 p-1 text-xs uppercase tracking-wide text-white/80">
+          <TabsList className="glass-card grid h-12 grid-cols-5 gap-2 border border-white/10 bg-white/10 p-1 text-xs uppercase tracking-wide text-white/80">
             {TABS.map((tab) => (
               <TabsTrigger
                 key={tab.id}
@@ -168,6 +170,10 @@ export function AdminShell() {
 
           <TabsContent value="analytics" className="mt-0">
             <AnalyticsOverview tenantId={activeTenant?.id ?? null} currency={currency} />
+          </TabsContent>
+
+          <TabsContent value="access" className="mt-0">
+            <RoleManagerPanel tenantId={activeTenant?.id ?? null} />
           </TabsContent>
 
           <TabsContent value="compliance" className="mt-0">

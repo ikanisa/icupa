@@ -1,10 +1,28 @@
-set search_path = public;
+set search_path = public, extensions;
 
 -- Phase 8 – Admin console tables, policies, and agent configuration governance
 
-create type if not exists autonomy_level_t as enum ('L0', 'L1', 'L2', 'L3');
-create type if not exists compliance_status_t as enum ('pending', 'in_progress', 'blocked', 'resolved');
-create type if not exists compliance_severity_t as enum ('low', 'medium', 'high', 'critical');
+do $$
+begin
+  if not exists (select 1 from pg_type where typname = 'autonomy_level_t') then
+    create type public.autonomy_level_t as enum ('L0', 'L1', 'L2', 'L3');
+  end if;
+end;
+$$;
+do $$
+begin
+  if not exists (select 1 from pg_type where typname = 'compliance_status_t') then
+    create type public.compliance_status_t as enum ('pending', 'in_progress', 'blocked', 'resolved');
+  end if;
+end;
+$$;
+do $$
+begin
+  if not exists (select 1 from pg_type where typname = 'compliance_severity_t') then
+    create type public.compliance_severity_t as enum ('low', 'medium', 'high', 'critical');
+  end if;
+end;
+$$;
 
 alter table public.agent_runtime_configs
   add column if not exists instructions text not null default 'Follow tenant brand guardrails and cite sources.',
@@ -50,7 +68,7 @@ create index if not exists idx_compliance_tasks_tenant on public.compliance_task
 create table if not exists public.tenant_kpi_snapshots (
   id uuid primary key default uuid_generate_v4(),
   tenant_id uuid not null references public.tenants(id) on delete cascade,
-  window text not null default '7d',
+  time_window text not null default '7d',
   captured_at timestamptz not null default now(),
   gmv_cents bigint not null default 0,
   aov_cents bigint not null default 0,
@@ -67,29 +85,35 @@ alter table public.agent_config_audit_events enable row level security;
 alter table public.compliance_tasks enable row level security;
 alter table public.tenant_kpi_snapshots enable row level security;
 
-create policy if not exists "Staff read agent config audit" on public.agent_config_audit_events
+drop policy if exists "Staff read agent config audit" on public.agent_config_audit_events;
+create policy "Staff read agent config audit" on public.agent_config_audit_events
   for select using (
     tenant_id is null
     or is_staff_for_tenant(tenant_id, array['owner','manager','admin','support']::role_t[])
   );
 
-create policy if not exists "Staff insert agent config audit" on public.agent_config_audit_events
+drop policy if exists "Staff insert agent config audit" on public.agent_config_audit_events;
+create policy "Staff insert agent config audit" on public.agent_config_audit_events
   for insert with check (
     tenant_id is null
     or is_staff_for_tenant(tenant_id, array['owner','manager','admin','support']::role_t[])
   );
 
-create policy if not exists "Staff read compliance tasks" on public.compliance_tasks
+drop policy if exists "Staff read compliance tasks" on public.compliance_tasks;
+create policy "Staff read compliance tasks" on public.compliance_tasks
   for select using (tenant_id is null or is_staff_for_tenant(tenant_id, array['owner','manager','admin','support']::role_t[]));
 
-create policy if not exists "Staff manage compliance tasks" on public.compliance_tasks
+drop policy if exists "Staff manage compliance tasks" on public.compliance_tasks;
+create policy "Staff manage compliance tasks" on public.compliance_tasks
   for all using (tenant_id is not null and is_staff_for_tenant(tenant_id, array['owner','manager','admin','support']::role_t[]))
   with check (tenant_id is not null and is_staff_for_tenant(tenant_id, array['owner','manager','admin','support']::role_t[]));
 
-create policy if not exists "Staff read tenant KPI snapshots" on public.tenant_kpi_snapshots
+drop policy if exists "Staff read tenant KPI snapshots" on public.tenant_kpi_snapshots;
+create policy "Staff read tenant KPI snapshots" on public.tenant_kpi_snapshots
   for select using (is_staff_for_tenant(tenant_id, array['owner','manager','admin','support']::role_t[]));
 
-create policy if not exists "Staff manage tenant KPI snapshots" on public.tenant_kpi_snapshots
+drop policy if exists "Staff manage tenant KPI snapshots" on public.tenant_kpi_snapshots;
+create policy "Staff manage tenant KPI snapshots" on public.tenant_kpi_snapshots
   for all using (is_staff_for_tenant(tenant_id, array['owner','manager','admin','support']::role_t[]))
   with check (is_staff_for_tenant(tenant_id, array['owner','manager','admin','support']::role_t[]));
 

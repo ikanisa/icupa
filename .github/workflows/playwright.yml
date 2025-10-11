@@ -1,0 +1,41 @@
+name: Playwright E2E
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Base URL to test (staging/prod)
+        required: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npx playwright install --with-deps
+
+      - name: Run Playwright
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ inputs.base_url }}
+        run: |
+          npm run test:e2e -- --config tests/playwright/playwright.config.ts --reporter=html,github
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase10-playwright
+          path: tests/playwright/artifacts/phase10/playwright/html
+

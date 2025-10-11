@@ -1,4 +1,4 @@
-set search_path = public;
+set search_path = public, extensions;
 
 -- Merchant onboarding profile linked to auth user + tenant
 create table if not exists public.merchant_profiles (
@@ -34,13 +34,16 @@ create trigger trg_touch_merchant_profiles
 
 alter table public.merchant_profiles enable row level security;
 
-create policy if not exists "merchant self-read" on public.merchant_profiles
+drop policy if exists "merchant self-read" on public.merchant_profiles;
+create policy "merchant self-read" on public.merchant_profiles
   for select using (auth.uid() = user_id);
 
-create policy if not exists "merchant self-update" on public.merchant_profiles
+drop policy if exists "merchant self-update" on public.merchant_profiles;
+create policy "merchant self-update" on public.merchant_profiles
   for update using (auth.uid() = user_id);
 
-create policy if not exists "service role manage" on public.merchant_profiles
+drop policy if exists "service role manage" on public.merchant_profiles;
+create policy "service role manage" on public.merchant_profiles
   for all using (auth.role() = 'service_role')
   with check (auth.role() = 'service_role');
 
@@ -60,7 +63,8 @@ create index if not exists whatsapp_otps_expires_idx on public.whatsapp_otps(exp
 
 alter table public.whatsapp_otps enable row level security;
 
-create policy if not exists "service role only" on public.whatsapp_otps
+drop policy if exists "service role only" on public.whatsapp_otps;
+create policy "service role only" on public.whatsapp_otps
   for all using (auth.role() = 'service_role')
   with check (auth.role() = 'service_role');
 
@@ -75,6 +79,7 @@ create table if not exists public.customer_prefs (
 
 alter table public.customer_prefs enable row level security;
 
-create policy if not exists "customer self" on public.customer_prefs
+drop policy if exists "customer self" on public.customer_prefs;
+create policy "customer self" on public.customer_prefs
   for all using (auth.uid() = user_id)
   with check (auth.uid() = user_id);

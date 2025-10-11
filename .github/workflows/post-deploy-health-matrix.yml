@@ -1,0 +1,18 @@
+name: Post-Deploy Health Matrix
+
+on:
+  workflow_dispatch:
+
+jobs:
+  staging:
+    uses: ./.github/workflows/post-deploy-health.yml
+    with:
+      base_url: ${{ vars.FUNCTIONS_BASE_URL }}
+    environment: staging
+
+  production:
+    uses: ./.github/workflows/post-deploy-health.yml
+    with:
+      base_url: ${{ vars.FUNCTIONS_BASE_URL }}
+    environment: production
+

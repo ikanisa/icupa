@@ -1,10 +1,10 @@
 import 'dotenv/config';
-import './observability';
+import './telemetry';
 import Fastify from 'fastify';
 import { Agent } from '@openai/agents';
 import { trace, SpanStatusCode } from '@opentelemetry/api';
 import { z } from 'zod';
-import { loadConfig } from './config';
+import { loadConfig } from './config/index';
 import {
   upsellAgent,
   allergenGuardianAgent,

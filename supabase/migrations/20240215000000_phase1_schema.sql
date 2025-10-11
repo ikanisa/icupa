@@ -1,19 +1,57 @@
--- Phase 1 schema expansion and RLS hardening
-set search_path = public;
+set search_path = public, extensions;
 
 -- Ensure required extensions for semantic search and scheduling
-create extension if not exists "pgvector";
+do $$
+begin
+  -- Supabase's Postgres images expose the vector extension under either "pgvector" or "vector".
+  if exists (select 1 from pg_available_extensions where name = 'pgvector') then
+    execute 'create extension if not exists "pgvector"';
+  else
+    execute 'create extension if not exists "vector"';
+  end if;
+end;
+$$;
 create extension if not exists "pg_trgm";
 create extension if not exists "pg_stat_statements";
 create extension if not exists "pg_cron";
 create extension if not exists "pgmq";
 
 -- Enumerated types for regionalisation, roles, and transactional state
-create type region_t as enum ('RW','EU');
-create type role_t as enum ('diner','owner','manager','cashier','server','chef','kds','auditor','support','admin');
-create type order_status_t as enum ('draft','submitted','in_kitchen','ready','served','settled','voided');
-create type payment_method_t as enum ('mtn_momo','airtel_money','stripe','adyen','cash','card_on_prem');
-create type payment_status_t as enum ('pending','authorized','captured','failed','refunded');
+do $$
+begin
+  if not exists (select 1 from pg_type where typname = 'region_t') then
+    create type public.region_t as enum ('RW','EU');
+  end if;
+end;
+$$;
+do $$
+begin
+  if not exists (select 1 from pg_type where typname = 'role_t') then
+    create type public.role_t as enum ('diner','owner','manager','cashier','server','chef','kds','auditor','support','admin');
+  end if;
+end;
+$$;
+do $$
+begin
+  if not exists (select 1 from pg_type where typname = 'order_status_t') then
+    create type public.order_status_t as enum ('draft','submitted','in_kitchen','ready','served','settled','voided');
+  end if;
+end;
+$$;
+do $$
+begin
+  if not exists (select 1 from pg_type where typname = 'payment_method_t') then
+    create type public.payment_method_t as enum ('mtn_momo','airtel_money','stripe','adyen','cash','card_on_prem');
+  end if;
+end;
+$$;
+do $$
+begin
+  if not exists (select 1 from pg_type where typname = 'payment_status_t') then
+    create type public.payment_status_t as enum ('pending','authorized','captured','failed','refunded');
+  end if;
+end;
+$$;
 
 -- Helper functions for policy checks
 create or replace function public.current_table_session_id()
@@ -36,11 +74,13 @@ as $$
 $$;
 
 -- Core identity tables
+alter table if exists public.tenants drop constraint if exists tenants_region_check;
 alter table public.tenants
   alter column region type region_t using region::region_t,
   add column if not exists settings jsonb not null default '{}'::jsonb,
   add column if not exists created_by uuid;
 
+alter table if exists public.locations drop constraint if exists locations_region_check;
 alter table public.locations
   alter column region type region_t using region::region_t,
   add column if not exists vat_rate numeric(5,2) default 0,
@@ -172,7 +212,9 @@ alter table public.orders
   add column if not exists tax_cents integer not null default 0,
   add column if not exists service_cents integer not null default 0,
   add column if not exists channel text not null default 'dine_in',
-  alter column status type order_status_t using status::order_status_t;
+  alter column status drop default,
+  alter column status type order_status_t using status::order_status_t,
+  alter column status set default 'draft'::order_status_t;
 
 create table if not exists public.order_items (
   id uuid primary key default uuid_generate_v4(),
@@ -191,6 +233,25 @@ create table if not exists public.order_item_mods (
   price_delta_cents integer not null
 );
 
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.tables
+    where table_schema = 'public'
+      and table_name = 'payments'
+  ) and not exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'payments'
+      and column_name = 'order_id'
+  ) then
+    execute 'alter table public.payments rename to payments_legacy';
+    raise notice 'Renamed legacy payments table to payments_legacy';
+  end if;
+end;
+$$;
 create table if not exists public.payments (
   id uuid primary key default uuid_generate_v4(),
   order_id uuid not null references public.orders(id) on delete cascade,
@@ -255,7 +316,14 @@ create table if not exists public.events (
 -- Indexes for performance
 create index if not exists idx_locations_region on public.locations(region);
 create index if not exists idx_items_menu on public.items(menu_id);
-create index if not exists idx_items_embedding_ivfflat on public.items using ivfflat (embedding vector_cosine_ops) with (lists = 100);
+do $$
+begin
+  execute 'create index if not exists idx_items_embedding_ivfflat on public.items using ivfflat (embedding vector_cosine_ops) with (lists = 100)';
+exception
+  when others then
+    raise notice 'Skipping idx_items_embedding_ivfflat: %', SQLERRM;
+end;
+$$;
 create index if not exists idx_orders_table_session on public.orders(table_session_id);
 create index if not exists idx_orders_tenant_status on public.orders(tenant_id, status, created_at desc);
 create index if not exists idx_payments_order on public.payments(order_id);
@@ -279,36 +347,45 @@ alter table public.recommendation_impressions enable row level security;
 alter table public.events enable row level security;
 
 -- Policies for diners (table session)
-create policy if not exists "Tenants readable by staff" on public.tenants for select using (
+drop policy if exists "Tenants readable by staff" on public.tenants;
+create policy "Tenants readable by staff" on public.tenants for select using (
   is_staff_for_tenant(id, array['owner','manager','admin','support']::role_t[])
 );
 
-create policy if not exists "Locations readable public" on public.locations for select using (true);
-create policy if not exists "Menus readable public" on public.menus for select using (true);
-create policy if not exists "Categories readable public" on public.categories for select using (true);
-create policy if not exists "Items readable public" on public.items for select using (is_available);
+drop policy if exists "Locations readable public" on public.locations;
+create policy "Locations readable public" on public.locations for select using (true);
+drop policy if exists "Menus readable public" on public.menus;
+create policy "Menus readable public" on public.menus for select using (true);
+drop policy if exists "Categories readable public" on public.categories;
+create policy "Categories readable public" on public.categories for select using (true);
+drop policy if exists "Items readable public" on public.items;
+create policy "Items readable public" on public.items for select using (is_available);
 
-create policy if not exists "Insert orders via session" on public.orders
+drop policy if exists "Insert orders via session" on public.orders;
+create policy "Insert orders via session" on public.orders
   for insert
   with check (
     table_session_id is not null
     and table_session_id = public.current_table_session_id()
   );
 
-create policy if not exists "Diner select own order" on public.orders
+drop policy if exists "Diner select own order" on public.orders;
+create policy "Diner select own order" on public.orders
   for select using (
     table_session_id is not null
     and table_session_id = public.current_table_session_id()
   );
 
-create policy if not exists "Diner update own order" on public.orders
+drop policy if exists "Diner update own order" on public.orders;
+create policy "Diner update own order" on public.orders
   for update using (
     table_session_id is not null
     and table_session_id = public.current_table_session_id()
     and status in ('draft','submitted')
   );
 
-create policy if not exists "Order items follow parent order" on public.order_items
+drop policy if exists "Order items follow parent order" on public.order_items;
+create policy "Order items follow parent order" on public.order_items
   for select using (
     exists (
       select 1 from public.orders o
@@ -317,7 +394,8 @@ create policy if not exists "Order items follow parent order" on public.order_it
     )
   );
 
-create policy if not exists "Order items insert by diner" on public.order_items
+drop policy if exists "Order items insert by diner" on public.order_items;
+create policy "Order items insert by diner" on public.order_items
   for insert
   with check (
     exists (
@@ -328,7 +406,8 @@ create policy if not exists "Order items insert by diner" on public.order_items
     )
   );
 
-create policy if not exists "Order items update by diner" on public.order_items
+drop policy if exists "Order items update by diner" on public.order_items;
+create policy "Order items update by diner" on public.order_items
   for update using (
     exists (
       select 1 from public.orders o
@@ -338,10 +417,12 @@ create policy if not exists "Order items update by diner" on public.order_items
     )
   );
 
-create policy if not exists "Table sessions access by header" on public.table_sessions
+drop policy if exists "Table sessions access by header" on public.table_sessions;
+create policy "Table sessions access by header" on public.table_sessions
   for select using (id = public.current_table_session_id());
 
-create policy if not exists "Receipts visible to diners" on public.receipts
+drop policy if exists "Receipts visible to diners" on public.receipts;
+create policy "Receipts visible to diners" on public.receipts
   for select using (
     exists (
       select 1 from public.orders o
@@ -354,13 +435,16 @@ create policy if not exists "Receipts visible to diners" on public.receipts
   );
 
 -- Staff policies
-create policy if not exists "Staff manage locations" on public.locations
+drop policy if exists "Staff manage locations" on public.locations;
+create policy "Staff manage locations" on public.locations
   for all using (is_staff_for_tenant(tenant_id, array['owner','manager','cashier','server','chef','kds','admin']::role_t[]));
 
-create policy if not exists "Staff manage menus" on public.menus
+drop policy if exists "Staff manage menus" on public.menus;
+create policy "Staff manage menus" on public.menus
   for all using (is_staff_for_tenant(tenant_id, array['owner','manager','cashier','server','chef','kds','admin']::role_t[]));
 
-create policy if not exists "Staff manage categories" on public.categories
+drop policy if exists "Staff manage categories" on public.categories;
+create policy "Staff manage categories" on public.categories
   for all using (
     exists (
       select 1 from public.menus m
@@ -369,7 +453,8 @@ create policy if not exists "Staff manage categories" on public.categories
     )
   );
 
-create policy if not exists "Staff manage items" on public.items
+drop policy if exists "Staff manage items" on public.items;
+create policy "Staff manage items" on public.items
   for all using (
     exists (
       select 1 from public.menus m
@@ -378,7 +463,8 @@ create policy if not exists "Staff manage items" on public.items
     )
   );
 
-create policy if not exists "Staff manage tables" on public.tables
+drop policy if exists "Staff manage tables" on public.tables;
+create policy "Staff manage tables" on public.tables
   for all using (
     exists (
       select 1 from public.locations l
@@ -387,10 +473,12 @@ create policy if not exists "Staff manage tables" on public.tables
     )
   );
 
-create policy if not exists "Staff manage orders" on public.orders
+drop policy if exists "Staff manage orders" on public.orders;
+create policy "Staff manage orders" on public.orders
   for all using (is_staff_for_tenant(tenant_id, array['owner','manager','cashier','server','chef','kds','admin']::role_t[]));
 
-create policy if not exists "Staff manage order items" on public.order_items
+drop policy if exists "Staff manage order items" on public.order_items;
+create policy "Staff manage order items" on public.order_items
   for all using (
     exists (
       select 1 from public.orders o
@@ -399,7 +487,8 @@ create policy if not exists "Staff manage order items" on public.order_items
     )
   );
 
-create policy if not exists "Staff manage payments" on public.payments
+drop policy if exists "Staff manage payments" on public.payments;
+create policy "Staff manage payments" on public.payments
   for all using (
     exists (
       select 1 from public.orders o
@@ -408,7 +497,8 @@ create policy if not exists "Staff manage payments" on public.payments
     )
   );
 
-create policy if not exists "Staff manage receipts" on public.receipts
+drop policy if exists "Staff manage receipts" on public.receipts;
+create policy "Staff manage receipts" on public.receipts
   for all using (
     exists (
       select 1 from public.orders o
@@ -417,12 +507,14 @@ create policy if not exists "Staff manage receipts" on public.receipts
     )
   );
 
-create policy if not exists "Staff manage agent sessions" on public.agent_sessions
+drop policy if exists "Staff manage agent sessions" on public.agent_sessions;
+create policy "Staff manage agent sessions" on public.agent_sessions
   for all using (
     is_staff_for_tenant(coalesce(tenant_id, (select tenant_id from public.locations where id = agent_sessions.location_id)), array['owner','manager','cashier','admin','support']::role_t[])
   );
 
-create policy if not exists "Staff manage recommendation impressions" on public.recommendation_impressions
+drop policy if exists "Staff manage recommendation impressions" on public.recommendation_impressions;
+create policy "Staff manage recommendation impressions" on public.recommendation_impressions
   for all using (
     exists (
       select 1 from public.agent_sessions s
@@ -431,7 +523,8 @@ create policy if not exists "Staff manage recommendation impressions" on public.
     )
   );
 
-create policy if not exists "Staff view events" on public.events
+drop policy if exists "Staff view events" on public.events;
+create policy "Staff view events" on public.events
   for select using (
     is_staff_for_tenant(coalesce(tenant_id, (select tenant_id from public.locations where id = events.location_id)), array['owner','manager','admin','support']::role_t[])
   );

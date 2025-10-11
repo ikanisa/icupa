@@ -266,7 +266,7 @@ export function ClientShell() {
     }
 
     return base;
-  }, [activeCategory, filters, locationItems, searchQuery]);
+  }, [activeCategory, filters, locationItems, searchQuery, ageGateChoice]);
 
   const totalItems = useMemo(
     () => cartItems.reduce((sum, item) => sum + item.quantity, 0),

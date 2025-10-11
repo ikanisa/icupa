@@ -112,8 +112,11 @@ export function useReceiptNotifications({
   const seenEventsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    seenReceiptsRef.current.clear();
-    seenEventsRef.current.clear();
+    // Capture the current ref values so cleanup closes over stable instances
+    const seenReceipts = seenReceiptsRef.current;
+    const seenEvents = seenEventsRef.current;
+    seenReceipts.clear();
+    seenEvents.clear();
 
     if (!enabled || !tableSessionId) {
       return;
@@ -121,7 +124,7 @@ export function useReceiptNotifications({
 
     let isActive = true;
 
-    void hydrateExistingReceipts(tableSessionId, seenReceiptsRef.current);
+    void hydrateExistingReceipts(tableSessionId, seenReceipts);
 
     const handleEvent = async (
       payload: RealtimePostgresInsertPayload<Record<string, unknown>>,
@@ -132,11 +135,11 @@ export function useReceiptNotifications({
 
       const newRow = payload.new as Record<string, unknown>;
       const eventId = newRow?.id ? String(newRow.id) : null;
-      if (eventId && seenEventsRef.current.has(eventId)) {
+      if (eventId && seenEvents.has(eventId)) {
         return;
       }
       if (eventId) {
-        seenEventsRef.current.add(eventId);
+        seenEvents.add(eventId);
       }
 
       const eventType = typeof newRow?.type === "string" ? (newRow.type as string) : null;
@@ -146,12 +149,12 @@ export function useReceiptNotifications({
 
       const rawPayload = (newRow?.payload ?? {}) as ReceiptEventPayload;
       const receiptId = rawPayload?.receipt_id;
-      if (receiptId && seenReceiptsRef.current.has(receiptId)) {
+      if (receiptId && seenReceipts.has(receiptId)) {
         // Receipt already surfaced in this session.
         return;
       }
       if (receiptId) {
-        seenReceiptsRef.current.add(receiptId);
+        seenReceipts.add(receiptId);
       }
 
       let fiscalId = rawPayload?.fiscal_id ?? null;
@@ -208,8 +211,8 @@ export function useReceiptNotifications({
 
     return () => {
       isActive = false;
-      seenReceiptsRef.current.clear();
-      seenEventsRef.current.clear();
+      seenReceipts.clear();
+      seenEvents.clear();
       supabase.removeChannel(subscription);
     };
   }, [enabled, tableSessionId]);

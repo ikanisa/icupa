@@ -1,4 +1,4 @@
-set search_path = public;
+set search_path = public, extensions;
 
 -- Queue capturing agent proposed actions for staff approval
 create table if not exists public.agent_action_queue (
@@ -23,7 +23,8 @@ create index if not exists agent_action_queue_tenant_idx on public.agent_action_
 
 alter table public.agent_action_queue enable row level security;
 
-create policy if not exists "Staff manage agent action queue" on public.agent_action_queue
+drop policy if exists "Staff manage agent action queue" on public.agent_action_queue;
+create policy "Staff manage agent action queue" on public.agent_action_queue
   for all using (
     tenant_id is null
       or is_staff_for_tenant(tenant_id, array['owner','manager','admin','support']::role_t[])
@@ -33,7 +34,8 @@ create policy if not exists "Staff manage agent action queue" on public.agent_ac
       or is_staff_for_tenant(tenant_id, array['owner','manager','admin','support']::role_t[])
   );
 
-create policy if not exists "Service role manages agent action queue" on public.agent_action_queue
+drop policy if exists "Service role manages agent action queue" on public.agent_action_queue;
+create policy "Service role manages agent action queue" on public.agent_action_queue
   for all using (auth.role() = 'service_role')
   with check (auth.role() = 'service_role');
 
@@ -60,13 +62,15 @@ create index if not exists payment_refunds_status_idx on public.payment_refunds(
 
 alter table public.payment_refunds enable row level security;
 
-create policy if not exists "Staff view refunds" on public.payment_refunds
+drop policy if exists "Staff view refunds" on public.payment_refunds;
+create policy "Staff view refunds" on public.payment_refunds
   for select using (
     tenant_id is null
       or is_staff_for_tenant(tenant_id, array['owner','manager','cashier','admin','support']::role_t[])
   );
 
-create policy if not exists "Staff manage refunds" on public.payment_refunds
+drop policy if exists "Staff manage refunds" on public.payment_refunds;
+create policy "Staff manage refunds" on public.payment_refunds
   for update using (
     tenant_id is null
       or is_staff_for_tenant(tenant_id, array['owner','manager','cashier','admin']::role_t[])
@@ -76,7 +80,8 @@ create policy if not exists "Staff manage refunds" on public.payment_refunds
       or is_staff_for_tenant(tenant_id, array['owner','manager','cashier','admin']::role_t[])
   );
 
-create policy if not exists "Service role manages refunds" on public.payment_refunds
+drop policy if exists "Service role manages refunds" on public.payment_refunds;
+create policy "Service role manages refunds" on public.payment_refunds
   for all using (auth.role() = 'service_role')
   with check (auth.role() = 'service_role');
 
@@ -99,10 +104,12 @@ create index if not exists payment_reconciliation_runs_window_idx on public.paym
 
 alter table public.payment_reconciliation_runs enable row level security;
 
-create policy if not exists "Staff read reconciliation" on public.payment_reconciliation_runs
+drop policy if exists "Staff read reconciliation" on public.payment_reconciliation_runs;
+create policy "Staff read reconciliation" on public.payment_reconciliation_runs
   for select using (true);
 
-create policy if not exists "Service role manages reconciliation" on public.payment_reconciliation_runs
+drop policy if exists "Service role manages reconciliation" on public.payment_reconciliation_runs;
+create policy "Service role manages reconciliation" on public.payment_reconciliation_runs
   for all using (auth.role() = 'service_role')
   with check (auth.role() = 'service_role');
 
@@ -110,7 +117,7 @@ create or replace function public.run_payment_reconciliation(p_window_start date
 returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   captured_total bigint;
@@ -163,8 +170,16 @@ $$;
 grant execute on function public.run_payment_reconciliation(date, date) to service_role;
 
 -- Schedule daily reconciliation at 02:00 UTC
-select cron.schedule(
-  'payment_reconciliation_daily',
-  '0 2 * * *',
-  $$call public.run_payment_reconciliation(current_date - interval '1 day', current_date - interval '1 day');$$
-) on conflict do nothing;
+do $$
+begin
+  if not exists (
+    select 1 from cron.job where jobname = 'payment_reconciliation_daily'
+  ) then
+    perform cron.schedule(
+      'payment_reconciliation_daily',
+      '0 2 * * *',
+      'call public.run_payment_reconciliation(current_date - interval ''1 day'', current_date - interval ''1 day'');'
+    );
+  end if;
+end;
+$$;

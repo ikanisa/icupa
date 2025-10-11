@@ -33,7 +33,7 @@ function extractBearer(req: Request): string | null {
 function isValidMomoCode(value?: unknown): value is string {
   if (typeof value !== "string") return false;
   const trimmed = value.trim();
-  return /^[A-Za-z0-9\-]{4,32}$/.test(trimmed);
+  return /^[A-Za-z0-9-]{4,32}$/.test(trimmed);
 }
 
 function parseGps(input?: unknown) {

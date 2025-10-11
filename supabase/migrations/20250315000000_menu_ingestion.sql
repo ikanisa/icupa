@@ -1,13 +1,19 @@
 -- Menu ingestion OCR schema and RLS policies
-set search_path = public;
+set search_path = public, extensions;
 
-create type if not exists menu_ingestion_status_t as enum (
-  'uploaded',
-  'processing',
-  'awaiting_review',
-  'failed',
-  'published'
-);
+do $$
+begin
+  if not exists (select 1 from pg_type where typname = 'menu_ingestion_status_t') then
+    create type public.menu_ingestion_status_t as enum (
+      'uploaded',
+      'processing',
+      'awaiting_review',
+      'failed',
+      'published'
+    );
+  end if;
+end;
+$$;
 
 create table if not exists public.menu_ingestions (
   id uuid primary key default uuid_generate_v4(),
@@ -86,18 +92,26 @@ create trigger trg_touch_menu_items_staging
   for each row
   execute function public.touch_menu_items_staging();
 
-insert into storage.buckets (id, name, public)
+insert into storage.buckets (id, name)
 values
-  ('raw_menus', 'raw_menus', false),
-  ('menu_images', 'menu_images', true)
+  ('raw_menus', 'raw_menus'),
+  ('menu_images', 'menu_images')
 on conflict (id) do update set
-  name = excluded.name,
-  public = excluded.public;
+  name = excluded.name;
 
-alter table if exists storage.objects
-  enable row level security;
+do $$
+begin
+  begin
+    execute 'alter table storage.objects enable row level security';
+  exception
+    when insufficient_privilege then
+      raise notice 'Skipping RLS enable on storage.objects due to insufficient privileges';
+  end;
+end;
+$$;
 
-create policy if not exists "Service role manages raw menu objects"
+drop policy if exists "Service role manages raw menu objects" on storage.objects;
+create policy "Service role manages raw menu objects"
   on storage.objects
   for all using (
     bucket_id = 'raw_menus'
@@ -108,7 +122,8 @@ create policy if not exists "Service role manages raw menu objects"
     and auth.role() = 'service_role'
   );
 
-create policy if not exists "Service role manages menu image objects"
+drop policy if exists "Service role manages menu image objects" on storage.objects;
+create policy "Service role manages menu image objects"
   on storage.objects
   for all using (
     bucket_id = 'menu_images'
@@ -122,17 +137,20 @@ create policy if not exists "Service role manages menu image objects"
 alter table public.menu_ingestions enable row level security;
 alter table public.menu_items_staging enable row level security;
 
-create policy if not exists "Service role manages menu ingestions"
+drop policy if exists "Service role manages menu ingestions" on public.menu_ingestions;
+create policy "Service role manages menu ingestions"
   on public.menu_ingestions
   for all using (auth.role() = 'service_role')
   with check (auth.role() = 'service_role');
 
-create policy if not exists "Service role manages menu items staging"
+drop policy if exists "Service role manages menu items staging" on public.menu_items_staging;
+create policy "Service role manages menu items staging"
   on public.menu_items_staging
   for all using (auth.role() = 'service_role')
   with check (auth.role() = 'service_role');
 
-create policy if not exists "Staff read menu ingestions"
+drop policy if exists "Staff read menu ingestions" on public.menu_ingestions;
+create policy "Staff read menu ingestions"
   on public.menu_ingestions
   for select
   using (
@@ -144,7 +162,8 @@ create policy if not exists "Staff read menu ingestions"
     )
   );
 
-create policy if not exists "Staff manage menu ingestions"
+drop policy if exists "Staff manage menu ingestions" on public.menu_ingestions;
+create policy "Staff manage menu ingestions"
   on public.menu_ingestions
   for all using (
     is_staff_for_tenant(tenant_id, array['owner','manager','admin','support']::role_t[])
@@ -163,7 +182,8 @@ create policy if not exists "Staff manage menu ingestions"
     )
   );
 
-create policy if not exists "Staff read menu items staging"
+drop policy if exists "Staff read menu items staging" on public.menu_items_staging;
+create policy "Staff read menu items staging"
   on public.menu_items_staging
   for select
   using (
@@ -180,7 +200,8 @@ create policy if not exists "Staff read menu items staging"
     )
   );
 
-create policy if not exists "Staff manage menu items staging"
+drop policy if exists "Staff manage menu items staging" on public.menu_items_staging;
+create policy "Staff manage menu items staging"
   on public.menu_items_staging
   for all using (
     exists (
@@ -210,18 +231,31 @@ create policy if not exists "Staff manage menu items staging"
   );
 
 -- Ensure diner role cannot access ingestion tables
-create policy if not exists "Diners denied menu ingestions"
+drop policy if exists "Diners denied menu ingestions" on public.menu_ingestions;
+create policy "Diners denied menu ingestions"
   on public.menu_ingestions
   for select
   using (false);
 
-create policy if not exists "Diners denied menu staging"
+drop policy if exists "Diners denied menu staging" on public.menu_items_staging;
+create policy "Diners denied menu staging"
   on public.menu_items_staging
   for select
   using (false);
 
-alter table public.categories
-  add constraint if not exists categories_menu_name_unique unique (menu_id, name);
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_constraint
+    where conname = 'categories_menu_name_unique'
+      and conrelid = 'public.categories'::regclass
+  ) then
+    alter table public.categories
+      add constraint categories_menu_name_unique unique (menu_id, name);
+  end if;
+end;
+$$;
 
 create or replace function public.publish_menu_ingestion(
   p_ingestion_id uuid,
@@ -231,7 +265,7 @@ create or replace function public.publish_menu_ingestion(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_ingestion menu_ingestions%rowtype;

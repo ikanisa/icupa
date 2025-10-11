@@ -16,7 +16,6 @@ import { ExpirationPlugin } from "workbox-expiration";
 declare let self: ServiceWorkerGlobalScope;
 
 type ManifestEntry = { url: string; revision?: string };
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const manifest = (self.__WB_MANIFEST as Array<ManifestEntry> | undefined) ?? [];
 const FALLBACK_URL = "/offline.html";
 

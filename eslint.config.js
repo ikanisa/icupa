@@ -26,4 +26,16 @@ export default tseslint.config(
       "@typescript-eslint/no-require-imports": "off",
     },
   },
+  {
+    // UI component modules often export helpers/types alongside components;
+    // suppress react-refresh warning for these and for app layout.
+    files: [
+      "src/components/ui/**/*.{ts,tsx}",
+      "packages/ui/src/**/*.{ts,tsx}",
+      "apps/web/app/layout.tsx",
+    ],
+    rules: {
+      "react-refresh/only-export-components": "off",
+    },
+  },
 );

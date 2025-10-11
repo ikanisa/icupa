@@ -2,15 +2,17 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { handleOnboardTenant } from "./onboard_tenant/index.ts";
 import { handleReissueTableQr } from "./reissue_table_qr/index.ts";
 import { handleAgentActions } from "./agent_actions/index.ts";
+import { handleManageUserRoles } from "./manage_user_roles/index.ts";
 
 function extractSubPath(req: Request, prefix: string): string | null {
   const url = new URL(req.url);
-  const basePath = url.pathname.replace(/^\/?functions\/v1\//, "");
+  let basePath = url.pathname.replace(/^\/?functions\/v1\//, "");
+  basePath = basePath.replace(/^\/+/, "");
   if (!basePath.startsWith(prefix)) {
     return null;
   }
   const remainder = basePath.slice(prefix.length);
-  return remainder.replace(/^\//, "");
+  return remainder.replace(/^\/+/, "");
 }
 
 serve(async (req) => {
@@ -22,6 +24,8 @@ serve(async (req) => {
       return handleReissueTableQr(req);
     case "agent_actions":
       return handleAgentActions(req);
+    case "user_roles":
+      return handleManageUserRoles(req);
     default:
       return new Response(JSON.stringify({ error: "Not Found" }), {
         status: 404,

@@ -1,6 +1,6 @@
 import { Agent, Runner } from '@openai/agents';
 import { OpenAIProvider, fileSearchTool, setDefaultOpenAIKey, setOpenAIAPI } from '@openai/agents-openai';
-import { createAgentTools } from './tools';
+import { createAgentTools } from '../tools';
 import {
   AllergenGuardianOutputSchema,
   ComplianceAgentOutputSchema,

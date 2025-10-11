@@ -9,12 +9,13 @@ import { handleRefund } from "./refund/index.ts";
 
 function extractSubPath(req: Request, prefix: string): string | null {
   const url = new URL(req.url);
-  const basePath = url.pathname.replace(/^\/?functions\/v1\//, "");
+  let basePath = url.pathname.replace(/^\/?functions\/v1\//, "");
+  basePath = basePath.replace(/^\/+/, "");
   if (!basePath.startsWith(prefix)) {
     return null;
   }
   const remainder = basePath.slice(prefix.length);
-  return remainder.replace(/^\//, "");
+  return remainder.replace(/^\/+/, "");
 }
 
 serve(async (req) => {

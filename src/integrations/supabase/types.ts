@@ -1520,7 +1520,7 @@ export type Database = {
           prep_sla_p95_minutes: number
           safety_blocks: number
           tenant_id: string
-          window: string
+          time_window: string
         }
         Insert: {
           ai_acceptance_rate?: number
@@ -1532,7 +1532,7 @@ export type Database = {
           prep_sla_p95_minutes?: number
           safety_blocks?: number
           tenant_id: string
-          window?: string
+          time_window?: string
         }
         Update: {
           ai_acceptance_rate?: number
@@ -1544,7 +1544,7 @@ export type Database = {
           prep_sla_p95_minutes?: number
           safety_blocks?: number
           tenant_id?: string
-          window?: string
+          time_window?: string
         }
         Relationships: [
           {

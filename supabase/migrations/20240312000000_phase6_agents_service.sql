@@ -1,5 +1,7 @@
 -- Phase 6 – Agents service runtime configuration and telemetry enrichments
 
+set search_path = public, extensions;
+
 -- Extend agent_events with tenant/location context for budgeting and analytics
 alter table if exists public.agent_events
   add column if not exists tenant_id uuid references public.tenants(id) on delete set null,
@@ -53,7 +55,8 @@ create trigger trg_touch_agent_runtime_configs
   execute function public.touch_agent_runtime_configs();
 
 -- RLS policies: staff with admin/support roles can manage tenant rows; service-role bypasses policies
-create policy if not exists "Staff read agent runtime configs"
+drop policy if exists "Staff read agent runtime configs" on public.agent_runtime_configs;
+create policy "Staff read agent runtime configs"
   on public.agent_runtime_configs
   for select
   using (
@@ -61,7 +64,8 @@ create policy if not exists "Staff read agent runtime configs"
       or is_staff_for_tenant(tenant_id, array['owner','manager','admin','support']::role_t[])
   );
 
-create policy if not exists "Staff manage agent runtime configs"
+drop policy if exists "Staff manage agent runtime configs" on public.agent_runtime_configs;
+create policy "Staff manage agent runtime configs"
   on public.agent_runtime_configs
   for all using (
     tenant_id is not null
@@ -73,7 +77,8 @@ create policy if not exists "Staff manage agent runtime configs"
   );
 
 -- Ensure service role can insert global defaults explicitly
-create policy if not exists "Allow service role to manage agent runtime configs"
+drop policy if exists "Allow service role to manage agent runtime configs" on public.agent_runtime_configs;
+create policy "Allow service role to manage agent runtime configs"
   on public.agent_runtime_configs
   for all using (auth.role() = 'service_role')
   with check (auth.role() = 'service_role');

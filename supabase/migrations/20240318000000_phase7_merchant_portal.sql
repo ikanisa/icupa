@@ -1,16 +1,22 @@
-set search_path = public;
+set search_path = public, extensions;
 
 -- Phase 7: Merchant portal tables and governance
 
 -- Table state management ----------------------------------------------------
-create type if not exists table_state_t as enum (
-  'vacant',
-  'ordering',
-  'in_kitchen',
-  'served',
-  'bill',
-  'cleaning'
-);
+do $$
+begin
+  if not exists (select 1 from pg_type where typname = 'table_state_t') then
+    create type public.table_state_t as enum (
+      'vacant',
+      'ordering',
+      'in_kitchen',
+      'served',
+      'bill',
+      'cleaning'
+    );
+  end if;
+end;
+$$;
 
 alter table public.tables
   add column if not exists state table_state_t not null default 'vacant',
@@ -29,7 +35,13 @@ create table if not exists public.table_state_events (
 create index if not exists idx_table_state_events_table_created on public.table_state_events(table_id, created_at desc);
 
 -- Menu copy review ----------------------------------------------------------
-create type if not exists copy_review_status_t as enum ('pending', 'approved', 'rejected');
+do $$
+begin
+  if not exists (select 1 from pg_type where typname = 'copy_review_status_t') then
+    create type public.copy_review_status_t as enum ('pending', 'approved', 'rejected');
+  end if;
+end;
+$$;
 
 create table if not exists public.menu_copy_suggestions (
   id uuid primary key default uuid_generate_v4(),
@@ -56,7 +68,13 @@ alter table public.inventory_items
   add column if not exists auto_86_level text not null default 'L0';
 
 -- Promo builder -------------------------------------------------------------
-create type if not exists promo_status_t as enum ('draft', 'pending_review', 'approved', 'active', 'paused', 'archived');
+do $$
+begin
+  if not exists (select 1 from pg_type where typname = 'promo_status_t') then
+    create type public.promo_status_t as enum ('draft', 'pending_review', 'approved', 'active', 'paused', 'archived');
+  end if;
+end;
+$$;
 
 create table if not exists public.promo_campaigns (
   id uuid primary key default uuid_generate_v4(),
@@ -97,7 +115,8 @@ alter table public.menu_copy_suggestions enable row level security;
 alter table public.promo_campaigns enable row level security;
 alter table public.promo_audit_events enable row level security;
 
-create policy if not exists "Staff read table states" on public.table_state_events
+drop policy if exists "Staff read table states" on public.table_state_events;
+create policy "Staff read table states" on public.table_state_events
   for select using (
     exists (
       select 1 from public.tables t
@@ -107,7 +126,8 @@ create policy if not exists "Staff read table states" on public.table_state_even
     )
   );
 
-create policy if not exists "Staff insert table state events" on public.table_state_events
+drop policy if exists "Staff insert table state events" on public.table_state_events;
+create policy "Staff insert table state events" on public.table_state_events
   for insert with check (
     exists (
       select 1 from public.tables t
@@ -117,7 +137,8 @@ create policy if not exists "Staff insert table state events" on public.table_st
     )
   );
 
-create policy if not exists "Staff manage tables state" on public.tables
+drop policy if exists "Staff manage tables state" on public.tables;
+create policy "Staff manage tables state" on public.tables
   for update using (
     exists (
       select 1 from public.locations l
@@ -132,7 +153,8 @@ create policy if not exists "Staff manage tables state" on public.tables
     )
   );
 
-create policy if not exists "Staff review menu copy" on public.menu_copy_suggestions
+drop policy if exists "Staff review menu copy" on public.menu_copy_suggestions;
+create policy "Staff review menu copy" on public.menu_copy_suggestions
   for all using (
     exists (
       select 1 from public.items i
@@ -142,10 +164,12 @@ create policy if not exists "Staff review menu copy" on public.menu_copy_suggest
     )
   );
 
-create policy if not exists "Staff manage promo campaigns" on public.promo_campaigns
+drop policy if exists "Staff manage promo campaigns" on public.promo_campaigns;
+create policy "Staff manage promo campaigns" on public.promo_campaigns
   for all using (is_staff_for_tenant(tenant_id, array['owner','manager','cashier','admin']::role_t[]));
 
-create policy if not exists "Staff manage promo audit" on public.promo_audit_events
+drop policy if exists "Staff manage promo audit" on public.promo_audit_events;
+create policy "Staff manage promo audit" on public.promo_audit_events
   for all using (
     exists (
       select 1 from public.promo_campaigns c

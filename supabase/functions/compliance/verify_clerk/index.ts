@@ -35,7 +35,7 @@ if (CLERK_JWKS_URL) {
   }
 }
 
-serve(async (req) => {
+export async function handleVerifyClerk(req: Request): Promise<Response> {
   if (req.method !== "POST") {
     return error(405, "method_not_allowed", "Only POST is supported");
   }
@@ -81,5 +81,6 @@ serve(async (req) => {
     console.error("Clerk token verification failed", e);
     return error(401, "invalid_token", "Clerk token could not be verified");
   }
-});
+}
 
+export default handleVerifyClerk;

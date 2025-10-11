@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface TenantKpiSnapshot {
   id: string;
-  window: string;
+  timeWindow: string;
   capturedAt: string;
   gmvCents: number;
   aovCents: number;
@@ -16,7 +16,7 @@ export interface TenantKpiSnapshot {
 async function fetchTenantKpis(tenantId: string): Promise<TenantKpiSnapshot[]> {
   const { data, error } = await supabase
     .from("tenant_kpi_snapshots")
-    .select("id, window, captured_at, gmv_cents, aov_cents, attach_rate, prep_sla_p95_minutes, ai_acceptance_rate, safety_blocks")
+    .select("id, time_window, captured_at, gmv_cents, aov_cents, attach_rate, prep_sla_p95_minutes, ai_acceptance_rate, safety_blocks")
     .eq("tenant_id", tenantId)
     .order("captured_at", { ascending: false });
 
@@ -26,7 +26,7 @@ async function fetchTenantKpis(tenantId: string): Promise<TenantKpiSnapshot[]> {
 
   return (data ?? []).map((row) => ({
     id: row.id!,
-    window: row.window ?? "7d",
+    timeWindow: row.time_window ?? "7d",
     capturedAt: row.captured_at ?? new Date().toISOString(),
     gmvCents: Number(row.gmv_cents ?? 0),
     aovCents: Number(row.aov_cents ?? 0),

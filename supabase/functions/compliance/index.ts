@@ -1,14 +1,16 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { handleDsr } from "./dsr/index.ts";
+import { handleVerifyClerk } from "./verify_clerk/index.ts";
 
 function extractSubPath(req: Request, prefix: string): string | null {
   const url = new URL(req.url);
-  const basePath = url.pathname.replace(/^\/?functions\/v1\//, "");
+  let basePath = url.pathname.replace(/^\/?functions\/v1\//, "");
+  basePath = basePath.replace(/^\/+/, "");
   if (!basePath.startsWith(prefix)) {
     return null;
   }
   const remainder = basePath.slice(prefix.length);
-  return remainder.replace(/^\//, "");
+  return remainder.replace(/^\/+/, "");
 }
 
 serve(async (req) => {
@@ -16,6 +18,8 @@ serve(async (req) => {
   switch (subPath) {
     case "dsr":
       return handleDsr(req);
+    case "verify_clerk":
+      return handleVerifyClerk(req);
     default:
       return new Response(JSON.stringify({ error: "Not Found" }), {
         status: 404,

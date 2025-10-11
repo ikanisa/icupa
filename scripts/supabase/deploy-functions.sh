@@ -30,54 +30,43 @@ function deploy() {
   fi
 }
 
-# Payments
-deploy payments/stripe/checkout
-deploy payments/stripe/webhook
-deploy payments/momo/request_to_pay
-deploy payments/momo/webhook
-deploy payments/airtel/request_to_pay
-deploy payments/airtel/webhook
+# Payments (aggregated under `payments`)
+deploy payments
 
-# Receipts pipeline
-deploy receipts/issue_ebm_rwanda
-deploy receipts/issue_fiscal_malta
-deploy receipts/process_queue
+# Receipts pipeline (aggregated under `receipts`)
+deploy receipts
 
 # OCR ingestion lifecycle
 deploy ingest_menu_start
 deploy ingest_menu_process
 deploy ingest_menu_publish
 
-# Auth flows
-deploy auth/whatsapp_send_otp
-deploy auth/whatsapp_verify_otp
-deploy auth/whatsapp_webhook
-deploy auth/admin_email_magiclink
+# Auth flows (aggregated under `auth`)
+deploy auth
 
-# Merchant onboarding helpers
-deploy merchant/onboarding_update
+# Merchant (aggregated under `merchant`)
+deploy merchant
 
-# Merchant inventory
-deploy merchant/inventory/auto_86
+# Reconciliation (aggregated under `reconciliation`)
+deploy reconciliation
 
-# Reconciliation
-deploy reconciliation/reconcile_daily
+# Menu embeddings (aggregated under `menu`)
+deploy menu
 
-# Menu embeddings refresh
-deploy menu/embed_items
-
-# Notifications
-deploy notifications/subscribe_push
-deploy notifications/send_push
+# Notifications (aggregated under `notifications`)
+deploy notifications
 
 # QR session + admin tools
 deploy create_table_session
-deploy admin/reissue_table_qr
+deploy admin
 
-# Compliance / Auth bridges
-deploy compliance/verify_clerk
+# Compliance / Auth bridges (aggregated under `compliance`)
+deploy compliance
 
-# Voice waiter
-deploy voice/session
+# Voice waiter (aggregated under `voice`)
+deploy voice
+
+# Ops tools
+deploy ops
 
 echo "✅ Deployment complete"

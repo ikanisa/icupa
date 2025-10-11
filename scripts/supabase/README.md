@@ -36,9 +36,14 @@ Deploy all functions to the current project:
 ./scripts/supabase/deploy-functions.sh
 ```
 
+Aggregator functions
+
+- The CLI does not accept nested names (e.g. `payments/stripe/checkout`).
+- Use aggregators instead: `payments`, `receipts`, `auth`, `merchant`, `menu`, `notifications`, `reconciliation`, `admin`, `voice`.
+- Nested routes (like `payments/stripe/checkout`) are routed by the aggregator at runtime.
+
 Deploy to a specific project and enforce JWT verification:
 
 ```bash
 ./scripts/supabase/deploy-functions.sh --project <your-ref> --verify-jwt
 ```
-

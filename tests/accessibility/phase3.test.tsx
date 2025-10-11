@@ -1,12 +1,28 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import { axe } from 'vitest-axe';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ActionDock } from '@/components/client/ActionDock';
 import { AIChatScreen } from '@/components/client/AIChatScreen';
 import { MenuItemDrawer } from '@/components/client/MenuItemDrawer';
 import { menuItems } from '@/data/menu';
 
 describe.sequential('Phase 3 diner experience accessibility', () => {
+  let originalScrollIntoView: ((options?: ScrollIntoViewOptions | boolean) => void) | undefined;
+
+  beforeAll(() => {
+    originalScrollIntoView = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+
+  afterAll(() => {
+    if (originalScrollIntoView) {
+      Element.prototype.scrollIntoView = originalScrollIntoView;
+    }
+  });
+
+  const queryClient = new QueryClient();
+
   it('action dock navigation has no critical accessibility issues', async () => {
     const { container } = render(
       <ActionDock activeTab="menu" onTabChange={() => {}} cartItemCount={4} />,
@@ -23,7 +39,11 @@ describe.sequential('Phase 3 diner experience accessibility', () => {
   }, 10_000);
 
   it('AI chat placeholder respects accessible form semantics', async () => {
-    const { container } = render(<AIChatScreen />);
+    const { container } = render(
+      <QueryClientProvider client={queryClient}>
+        <AIChatScreen />
+      </QueryClientProvider>,
+    );
 
     const results = await axe(container, {
       runOnly: {

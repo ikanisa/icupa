@@ -1,0 +1,30 @@
+name: Post-Deploy Health
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Supabase Functions base URL (https://<ref>.functions.supabase.co)"
+        required: true
+  workflow_call:
+    inputs:
+      base_url:
+        description: "Supabase Functions base URL (https://<ref>.functions.supabase.co)"
+        required: true
+        type: string
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+      - name: Run health checks
+        env:
+          BASE: ${{ inputs.base_url }}
+          ALLOW_RECEIPTS_500: "true"
+        run: |
+          chmod +x scripts/ops/health-check.sh
+          bash scripts/ops/health-check.sh
+

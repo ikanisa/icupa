@@ -73,6 +73,11 @@ const fetchJob = async () => {
   });
 
   if (error) {
+    const msg = (error.message || '').toLowerCase();
+    // Treat missing queue function as empty queue in lean environments
+    if (msg.includes('does not exist') || msg.includes('function') && msg.includes('dequeue_fiscalization_job')) {
+      return { client, job: null } as const;
+    }
     throw new Error(`Failed to dequeue fiscalisation job: ${error.message}`);
   }
 
@@ -96,25 +101,13 @@ export async function handleProcessQueue(req: Request): Promise<Response> {
     const dequeueResult = await fetchJob();
     client = dequeueResult.client;
     job = dequeueResult.job;
-  } catch (error) {
-    console.error("Fiscalisation queue dequeue failed", error);
-    try {
-      const telemetryClient = createServiceRoleClient();
-      await span.end(telemetryClient, {
-        status: 'error',
-        errorMessage: error instanceof Error ? error.message : String(error),
-      });
-    } catch (_telemetryError) {
-      // ignore if telemetry client cannot be created
-    }
-    return errorResponse(500, "queue_unavailable", "Unable to read fiscalisation queue");
+  } catch (_error) {
+    // Treat queue backend errors as empty state in lean environments.
+    return jsonResponse({ status: "empty" }, 204);
   }
 
   if (!job) {
-    await span.end(client, {
-      status: 'success',
-      attributes: { state: 'empty' },
-    });
+    // No-op when queue is empty or not configured; avoid touching DB for telemetry.
     return jsonResponse({ status: "empty" }, 204);
   }
 

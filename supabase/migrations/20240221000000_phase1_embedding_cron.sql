@@ -1,5 +1,4 @@
--- Phase 1 follow-up: schedule automatic embedding refresh via pg_cron
-set search_path = public;
+set search_path = public, extensions;
 
 -- Enable HTTP client capabilities for invoking Edge Functions from cron jobs
 create extension if not exists http with schema extensions;
@@ -12,7 +11,8 @@ create table if not exists public.scheduler_config (
 
 alter table public.scheduler_config enable row level security;
 
-create policy if not exists "Service role manages scheduler config"
+drop policy if exists "Service role manages scheduler config" on public.scheduler_config;
+create policy "Service role manages scheduler config"
   on public.scheduler_config
   for all
   using (
@@ -74,8 +74,7 @@ begin
     perform cron.schedule(
       'menu_embed_items_hourly',
       '10 * * * *',
-      $$select public.invoke_menu_embedding_refresh();$$
+      'select public.invoke_menu_embedding_refresh();'
     );
   end if;
 end $$;
-

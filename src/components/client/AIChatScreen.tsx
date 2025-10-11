@@ -1,14 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { toast } from '@/components/ui/use-toast';
+import { Card, CardContent, CardHeader, CardTitle, Badge, useToast } from '@/modules/common';
 import { z } from 'zod';
-import {
-  AgentRunDetailsDialog,
-  ChatComposer,
-  ChatTranscript,
-} from '@/components/ai';
-import { useAgentChat } from '@/hooks/useAgentChat';
+import { AgentRunDetailsDialog, ChatComposer, ChatTranscript } from '@/modules/agents-ui';
+import { useAgentChat } from '@/modules/agents-ui';
 import type { AgentChatMessage, AgentFeedbackRating } from '@/types/agents';
 import { parseAgentStreamEvent } from '@/lib/chat-stream';
 import { AgentMetadataSchema } from '@/lib/agent-schemas';
@@ -94,6 +88,7 @@ export function AIChatScreen({
   cartItems = [],
   onAddToCart,
 }: AIChatScreenProps) {
+  const { toast } = useToast();
   const [inputValue, setInputValue] = useState('');
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [inspectedMessage, setInspectedMessage] = useState<AgentChatMessage | null>(null);
@@ -224,7 +219,7 @@ export function AIChatScreen({
         variant: 'destructive',
       });
     }
-  }, [waiterChat.error]);
+  }, [waiterChat.error, toast]);
 
   const handleSend = () => {
     const trimmed = inputValue.trim();

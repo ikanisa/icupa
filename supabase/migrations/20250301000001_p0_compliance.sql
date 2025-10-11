@@ -1,4 +1,4 @@
-set search_path = public;
+set search_path = public, extensions;
 
 create table if not exists public.dsr_requests (
   id uuid primary key default uuid_generate_v4(),
@@ -17,11 +17,13 @@ create index if not exists dsr_requests_tenant_status_idx on public.dsr_requests
 
 alter table public.dsr_requests enable row level security;
 
-create policy if not exists "Service role manages dsr requests" on public.dsr_requests
+drop policy if exists "Service role manages dsr requests" on public.dsr_requests;
+create policy "Service role manages dsr requests" on public.dsr_requests
   for all using (auth.role() = 'service_role')
   with check (auth.role() = 'service_role');
 
-create policy if not exists "Staff view dsr requests" on public.dsr_requests
+drop policy if exists "Staff view dsr requests" on public.dsr_requests;
+create policy "Staff view dsr requests" on public.dsr_requests
   for select using (
     tenant_id is null
       or is_staff_for_tenant(tenant_id, array['owner','manager','admin','support']::role_t[])

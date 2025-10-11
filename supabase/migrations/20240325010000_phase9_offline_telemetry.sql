@@ -1,5 +1,7 @@
 -- Phase 9 offline sync telemetry storage
 
+set search_path = public, extensions;
+
 create table if not exists public.offline_sync_events (
     id uuid primary key default uuid_generate_v4(),
     tenant_id uuid references public.tenants(id) on delete cascade,
@@ -28,34 +30,48 @@ create index if not exists offline_sync_events_location_created_idx
 
 alter table public.offline_sync_events enable row level security;
 
-create policy if not exists "service role manages offline sync events"
+drop policy if exists "service role manages offline sync events" on public.offline_sync_events;
+create policy "service role manages offline sync events"
     on public.offline_sync_events
     for all
     using (auth.role() = 'service_role')
     with check (auth.role() = 'service_role');
 
-create policy if not exists "diners log offline sync events"
+drop policy if exists "diners log offline sync events" on public.offline_sync_events;
+create policy "diners log offline sync events"
     on public.offline_sync_events
     for insert with check (
         nullif(coalesce(current_setting('request.headers', true), '{}')::jsonb ->> 'x-icupa-session', '')::uuid = table_session_id
     );
 
-create policy if not exists "diners read their offline sync events"
+drop policy if exists "diners read their offline sync events" on public.offline_sync_events;
+create policy "diners read their offline sync events"
     on public.offline_sync_events
     for select using (
         nullif(coalesce(current_setting('request.headers', true), '{}')::jsonb ->> 'x-icupa-session', '')::uuid = table_session_id
     );
 
-create policy if not exists "merchant staff read offline sync events"
-    on public.offline_sync_events
-    for select using (
-        exists (
-            select 1
-            from public.merchant_profiles mp
-            where mp.user_id = auth.uid()
-              and mp.tenant_id = public.offline_sync_events.tenant_id
-        )
-    );
+do $$
+begin
+    if to_regclass('public.merchant_profiles') is not null then
+        execute 'drop policy if exists "merchant staff read offline sync events" on public.offline_sync_events';
+        execute '
+            create policy "merchant staff read offline sync events"
+                on public.offline_sync_events
+                for select using (
+                    exists (
+                        select 1
+                        from public.merchant_profiles mp
+                        where mp.user_id = auth.uid()
+                          and mp.tenant_id = public.offline_sync_events.tenant_id
+                    )
+                )
+        ';
+    else
+        raise notice 'Skipping merchant staff policy: public.merchant_profiles not present';
+    end if;
+end;
+$$;
 
 create or replace function public.populate_offline_sync_event()
 returns trigger

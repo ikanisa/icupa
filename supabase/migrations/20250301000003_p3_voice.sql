@@ -1,4 +1,4 @@
-set search_path = public;
+set search_path = public, extensions;
 
 create table if not exists public.voice_sessions (
   id uuid primary key default uuid_generate_v4(),
@@ -14,12 +14,14 @@ create index if not exists voice_sessions_table_idx on public.voice_sessions(tab
 
 alter table public.voice_sessions enable row level security;
 
-create policy if not exists "service role manages voice sessions"
+drop policy if exists "service role manages voice sessions" on public.voice_sessions;
+create policy "service role manages voice sessions"
   on public.voice_sessions
   for all using (auth.role() = 'service_role')
   with check (auth.role() = 'service_role');
 
-create policy if not exists "table session reads own voice token"
+drop policy if exists "table session reads own voice token" on public.voice_sessions;
+create policy "table session reads own voice token"
   on public.voice_sessions
   for select using (
     table_session_id = nullif(coalesce(current_setting('request.headers', true), '{}')::jsonb ->> 'x-icupa-session', '')::uuid

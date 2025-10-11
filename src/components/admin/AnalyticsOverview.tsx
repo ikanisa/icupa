@@ -29,8 +29,8 @@ function MetricCard({ label, value, helper }: MetricCardProps) {
   );
 }
 
-function selectLatest(data: TenantKpiSnapshot[] | undefined, window: string) {
-  return data?.find((snapshot) => snapshot.window === window) ?? null;
+function selectLatest(data: TenantKpiSnapshot[] | undefined, targetWindow: string) {
+  return data?.find((snapshot) => snapshot.timeWindow === targetWindow) ?? null;
 }
 
 export function AnalyticsOverview({ tenantId, currency }: AnalyticsOverviewProps) {
@@ -44,7 +44,7 @@ export function AnalyticsOverview({ tenantId, currency }: AnalyticsOverviewProps
       .slice()
       .sort((a, b) => new Date(a.capturedAt).getTime() - new Date(b.capturedAt).getTime())
       .map((snapshot) => ({
-        label: `${snapshot.window} • ${new Date(snapshot.capturedAt).toLocaleDateString()}`,
+        label: `${snapshot.timeWindow} • ${new Date(snapshot.capturedAt).toLocaleDateString()}`,
         gmv: snapshot.gmvCents / 100,
         attachRate: snapshot.attachRate * 100,
       }));

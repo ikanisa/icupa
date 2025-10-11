@@ -2,8 +2,25 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { getTableSessionHeader } from '@/lib/table-session';
 
-const SUPABASE_URL = 'https://elhlcdiosomutugpneoc.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsaGxjZGlvc29tdXR1Z3BuZW9jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg5MDU3NTMsImV4cCI6MjA3NDQ4MTc1M30.d92ZJG5E_9r7bOlRLBXRI6gcB_7ERVbL-Elp7fk4avY';
+const env = import.meta.env as Record<string, string | undefined>;
+const normalize = (value?: string) => {
+  const trimmed = value?.trim();
+  return trimmed && trimmed !== 'undefined' ? trimmed : undefined;
+};
+const url =
+  normalize(env.VITE_SUPABASE_URL) ||
+  normalize(env.NEXT_PUBLIC_SUPABASE_URL) ||
+  '';
+const anonKey =
+  normalize(env.VITE_SUPABASE_ANON_KEY) ||
+  normalize(env.NEXT_PUBLIC_SUPABASE_ANON_KEY) ||
+  '';
+
+if (!url || !anonKey) {
+  throw new Error(
+    'Supabase environment is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY before running the app.',
+  );
+}
 
 const authStorage = typeof window !== 'undefined' ? window.localStorage : undefined;
 
@@ -18,7 +35,7 @@ const withTableSession: typeof fetch = (input, init = {}) => {
   return fetch(input, { ...init, headers });
 };
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
+export const supabase = createClient<Database>(url, anonKey, {
   auth: {
     storage: authStorage,
     persistSession: true,

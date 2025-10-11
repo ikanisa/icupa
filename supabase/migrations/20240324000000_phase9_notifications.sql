@@ -1,6 +1,8 @@
 -- Phase 9 notifications and push subscription support
 -- Creates storage for web push subscriptions and supporting helpers
 
+set search_path = public, extensions;
+
 create table if not exists public.notification_subscriptions (
     id uuid primary key default uuid_generate_v4(),
     tenant_id uuid references public.tenants(id) on delete cascade,
@@ -29,27 +31,31 @@ create index if not exists notification_subscriptions_tenant_id_idx
 
 alter table public.notification_subscriptions enable row level security;
 
-create policy if not exists "service role manages notification subscriptions"
+drop policy if exists "service role manages notification subscriptions" on public.notification_subscriptions;
+create policy "service role manages notification subscriptions"
     on public.notification_subscriptions
     for all
     using (auth.role() = 'service_role')
     with check (auth.role() = 'service_role');
 
-create policy if not exists "diners manage their table subscriptions"
+drop policy if exists "diners manage their table subscriptions" on public.notification_subscriptions;
+create policy "diners manage their table subscriptions"
     on public.notification_subscriptions
     for select using (
         table_session_id is not null
         and nullif(coalesce(current_setting('request.headers', true), '{}')::jsonb ->> 'x-icupa-session', '')::uuid = table_session_id
     );
 
-create policy if not exists "diners insert their table subscriptions"
+drop policy if exists "diners insert their table subscriptions" on public.notification_subscriptions;
+create policy "diners insert their table subscriptions"
     on public.notification_subscriptions
     for insert with check (
         table_session_id is not null
         and nullif(coalesce(current_setting('request.headers', true), '{}')::jsonb ->> 'x-icupa-session', '')::uuid = table_session_id
     );
 
-create policy if not exists "diners delete their table subscriptions"
+drop policy if exists "diners delete their table subscriptions" on public.notification_subscriptions;
+create policy "diners delete their table subscriptions"
     on public.notification_subscriptions
     for delete using (
         table_session_id is not null

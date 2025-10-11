@@ -40,7 +40,7 @@ export function useBackgroundSyncToast(options?: BackgroundSyncToastOptions): vo
 
   useEffect(() => {
     contextRef.current = options;
-  }, [options?.locationId, options?.tableSessionId, options?.tenantId]);
+  }, [options]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) {

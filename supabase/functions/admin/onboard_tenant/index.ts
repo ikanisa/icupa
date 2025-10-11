@@ -268,7 +268,7 @@ export async function handleOnboardTenant(req: Request): Promise<Response> {
 
     const kpiResult = await supabase.from("tenant_kpi_snapshots").insert({
       tenant_id: tenantId,
-      window: "7d",
+      time_window: "7d",
       gmv_cents: 0,
       aov_cents: 0,
       attach_rate: 0,

@@ -323,7 +323,7 @@ export function useAgentChat<TResponse>(options: UseAgentChatOptions<TResponse>)
         setIsStreaming(false);
       }
     },
-    []
+    [options.agent]
   );
 
   const submitFeedback = useCallback(

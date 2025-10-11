@@ -1,5 +1,4 @@
--- Phase 4 payments queue and helpers
-set search_path = public;
+set search_path = public, extensions;
 
 do $$
 begin
@@ -8,7 +7,7 @@ begin
     from pgmq.list_queues()
     where queue_name = 'fiscalization_jobs'
   ) then
-    perform pgmq.create_queue('fiscalization_jobs');
+    perform pgmq.create('fiscalization_jobs');
   end if;
 end;
 $$;
@@ -17,7 +16,7 @@ create or replace function public.enqueue_fiscalization_job(order_uuid uuid, pay
 returns bigint
 language plpgsql
 security definer
-set search_path = public, pgmq
+set search_path = public, extensions
 as $$
 declare
   result bigint;

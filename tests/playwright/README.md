@@ -30,7 +30,7 @@ The `specs` folder is pre-seeded with placeholder suites that exercise the diner
    export PLAYWRIGHT_BASE_URL="http://localhost:5173"
    ```
 
-3. Execute the suites:
+3. Execute the suites (this command auto-starts the Vite dev server when `PLAYWRIGHT_BASE_URL` is unset):
 
    ```sh
    npm run test:e2e

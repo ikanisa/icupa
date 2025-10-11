@@ -9,6 +9,7 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
+    "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview --port 5000",
     "dev:ocr:converter": "node apps/ocr-converter/server.mjs",
@@ -21,7 +22,9 @@
     "test:accessibility": "vitest run tests/accessibility",
     "test:e2e": "playwright test --config tests/playwright/playwright.config.ts",
     "test:perf": "npx --yes @lhci/cli@0.12.2 autorun",
-    "analyze:pwa": "npx --yes lighthouse http://localhost:5000 --only-categories=pwa --preset=desktop || true"
+    "analyze:pwa": "npx --yes lighthouse http://localhost:5000 --only-categories=pwa --preset=desktop || true",
+    "format": "npm run lint:fix",
+    "verify": "npm run lint && npm run typecheck && npm run test"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

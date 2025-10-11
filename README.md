@@ -36,12 +36,20 @@ ICUPA is a three-surface, multi-tenant Progressive Web Application that powers d
    - Copy `.env.example` to `.env.local` (ignored by Git) and provide the Supabase project details you intend to use.
    - Copy `agents-service/.env.example` to `agents-service/.env` when running the OpenAI Agents service locally.
 
-3. **Install dependencies**
+3. **Link your Supabase project** *(optional but recommended for deploy scripts)*
+   ```bash
+   supabase login              # uses SUPABASE_ACCESS_TOKEN from your .env
+   supabase link --project-ref <your-project-ref>
+   supabase secrets set --env-file .env.supabase
+   ```
+   Linking stores the project reference in `.supabase/config.json`, allowing the deploy scripts under `scripts/supabase/` to run without additional flags.
+
+4. **Install dependencies**
    ```bash
    npm install
    ```
 
-4. **Start Supabase locally**
+5. **Start Supabase locally**
    ```bash
    supabase start
    supabase db reset
@@ -51,20 +59,20 @@ ICUPA is a three-surface, multi-tenant Progressive Web Application that powers d
    tenants, locations, menus, table sessions, orders, and agent telemetry. The Phase 1 migration introduces pgvector-powered
    embeddings, hardened RLS policies, and staff role helpers.
 
-5. **Validate database policies and semantic search**
+6. **Validate database policies and semantic search**
    ```bash
    supabase db test
    ```
    The SQL tests in `supabase/tests` assert that diners bound by the `x-icupa-session` header cannot read other table orders,
    that staff with tenant roles can, and that cosine similarity queries surface the correct item using the seeded embeddings.
 
-6. **Run the development server**
+7. **Run the development server**
    ```bash
    npm run dev
    ```
    The application is served at `http://localhost:5173/` by default. Hot module reload is enabled through Vite.
 
-7. **(Optional) Start the agents service**
+8. **(Optional) Start the agents service**
    ```bash
    cd agents-service
    npm install
@@ -76,12 +84,12 @@ ICUPA is a three-surface, multi-tenant Progressive Web Application that powers d
 
    > ℹ️  The agents service honours kill switches and spend caps defined in `agent_runtime_configs`. Defaults can be tuned via `AGENT_SESSION_BUDGET_USD` and `AGENT_DAILY_BUDGET_USD` in `.env`.
 
-8. **Lint the project** (optional but recommended before submitting patches)
+9. **Lint the project** (optional but recommended before submitting patches)
    ```bash
    npm run lint
    ```
 
-9. **Type-check the project**
+10. **Type-check the project**
    ```bash
    npm run typecheck
    ```
@@ -117,6 +125,7 @@ Configure the following secrets in the Supabase dashboard (or via `supabase secr
 | `SUPABASE_FUNCTIONS_URL` | ➖ | Optional override for the Edge Functions domain. Defaults to the derived `https://<project>.functions.supabase.co` host; set explicitly when running behind a custom gateway. |
 | `TABLE_QR_ADMIN_SECRET` | ➖ | Bearer token required by `admin/reissue_table_qr` when rotating table QR payloads. |
 | `ADMIN_ONBOARDING_SECRET` | ➖ | Bearer token required by `admin/onboard_tenant` to create tenants, locations, and default agent settings. |
+| `ADMIN_INVITE_REDIRECT_URL` | ➖ | Optional. Redirect target used by staff invites issued through `admin/user_roles`; falls back to the Supabase dashboard invite link when unset. |
 
 Environment variables are consumed via `import.meta.env` and validated during module initialisation. Missing required values will throw explicit errors to prevent accidental usage of leaked credentials at build time.【F:src/integrations/supabase/client.ts†L1-L24】
 
@@ -169,7 +178,7 @@ The migrations create enums, helper functions, ivfflat indexes, and row-level se
 `supabase/functions/menu/embed_items` calls OpenAI's embeddings API (`text-embedding-3-large` by default) to populate or refresh item vectors in batches. It accepts optional `item_ids` and `force` flags via JSON body and honours a `limit` query parameter (default 32). Configure `OPENAI_API_KEY` (and optionally `OPENAI_EMBEDDING_MODEL`) in the Supabase dashboard before deploying, then trigger with:
 
 ```bash
-supabase functions deploy menu/embed_items
+supabase functions deploy menu
 supabase functions invoke menu/embed_items --project-ref <ref> --no-verify-jwt
 ```
 
@@ -262,6 +271,7 @@ npm run dev:all
 
 - **Invocation flow** – Merchants invoke `ingest_menu_start` (returns `ingestion_id` + signed upload URL), upload the asset to `raw_menus`, call `ingest_menu_process` to run OCR + OpenAI structuring, then review/publish via the merchant PWA. Publish uses `ingest_menu_publish` which wraps a transactional stored procedure and triggers `menu/embed_items` for refreshed embeddings.
 - **Observability** – Each function writes timeline events to `agent_events` (`ingestion.started`, `processing`, `awaiting_review`, `published`, `failed`) with counters for pages processed, items extracted, and confidence buckets. Grafana/DataDog dashboards can pivot on these payloads for throughput and error monitoring.
+- **Queue & cron metrics** – The `monitoring.pgmq_queue_metrics` and `monitoring.cron_job_metrics` views expose queue depth and pg_cron health; call `rpc.list_queue_metrics` / `rpc.list_cron_jobs` from the admin console for live dashboards or alerts.
 
 ### Table session Edge Function & QR tooling
 
@@ -274,7 +284,7 @@ Deploy and test locally:
 
 ```bash
 supabase functions deploy create_table_session --no-verify-jwt
-supabase functions deploy admin/reissue_table_qr --no-verify-jwt
+supabase functions deploy admin --no-verify-jwt
 supabase functions invoke admin/reissue_table_qr \
   --project-ref <ref> \
   --no-verify-jwt \
@@ -289,7 +299,7 @@ The React admin stub at `/admin/tools/qr` wraps the reissue endpoint so operatio
 If you are using Clerk for the web UI but keeping Supabase as the application database and RLS authority, you can verify a Clerk user token from Supabase Edge Functions using `compliance/verify_clerk`:
 
 ```bash
-supabase functions deploy compliance/verify_clerk --no-verify-jwt
+supabase functions deploy compliance --no-verify-jwt
 supabase functions invoke compliance/verify_clerk \
   --project-ref <ref> \
   --no-verify-jwt \
@@ -412,6 +422,7 @@ copy, adjust inventory automation flags, and seed promo audits without violating
 Phase 8 equips central operations with a governance console at `/admin` that wraps onboarding, AI configuration, analytics, and compliance tooling in a single gradient surface.【F:src/components/admin/AdminShell.tsx†L1-L132】【F:src/pages/AdminConsole.tsx†L1-L6】 Highlights include:
 
 - **Onboarding wizard** drives the new `admin/onboard_tenant` Edge Function so authorised staff can create tenants, seed venues/menus, and pre-load agent policies in one step. The form accepts a bearer token (`ADMIN_ONBOARDING_SECRET`) and hydrates the tenant selector automatically after success.【F:src/components/admin/OnboardingWizard.tsx†L1-L171】【F:supabase/functions/admin/onboard_tenant/index.ts†L1-L220】
+- **Staff access management** calls the `admin/user_roles` Edge Function so owners/admins/support can invite or revoke staff from the console. Invites emit Supabase magic links (using `ADMIN_INVITE_REDIRECT_URL`) and immediately upsert `user_roles`, allowing the new staff member to inherit merchant permissions and trigger automated profile creation.【F:apps/web/components/admin/RoleManagerPanel.tsx†L1-L192】【F:supabase/functions/admin/manage_user_roles/index.ts†L1-L209】
 - **AI agent settings** renders live rows from `agent_runtime_configs`, exposing instructions, tool allow-lists, autonomy levels, budgets, and experiment flags with inline validation. Every update flips the sync flag, writes to `agent_config_audit_events`, and surfaces a human-readable audit timeline so ops can trace who changed what before the agents service ingests the patch.【F:src/components/admin/AgentSettingsPanel.tsx†L1-L318】【F:src/hooks/useAgentConfigs.ts†L1-L110】【F:src/hooks/useAgentConfigAudits.ts†L1-L40】【F:supabase/migrations/20240322000000_phase8_admin_console.sql†L1-L135】
 - **Analytics overview** consumes `tenant_kpi_snapshots` to surface GMV, AOV, attach rates, and AI acceptance KPIs with a trendline, keeping finance and merchandising aligned across regions.【F:src/components/admin/AnalyticsOverview.tsx†L1-L129】【F:src/hooks/useTenantKpis.ts†L1-L37】【F:supabase/seed/seed.sql†L161-L186】
 - **Compliance dashboard** lists outstanding fiscalisation, AI disclosure, and KYBC tasks with severity badges and due dates backed by the new `compliance_tasks` table.【F:src/components/admin/CompliancePanel.tsx†L1-L52】【F:src/hooks/useComplianceTasks.ts†L1-L39】【F:supabase/migrations/20240322000000_phase8_admin_console.sql†L21-L74】
@@ -439,3 +450,95 @@ Phase 10 closes the pre-GA quality gates by introducing automated end-to-end cov
 - **k6 load tests** against `create_table_session` and the payment webhooks to confirm latency and error-rate budgets under peak concurrency, keeping the Supabase Edge Functions within their p95 targets.【F:docs/implementation-plan.md†L199-L201】
 - **Security hardening review** covering CSP/HSTS/SameSite policies, dependency audits, secrets scanning, and RLS black-box probes mapped to the OWASP ASVS checklist so launch blockers are remediated quickly.【F:docs/implementation-plan.md†L201-L202】
 - **Incident response runbooks** for payments timeouts, fiscalisation outages, and AI kill-switch activation that document detection, mitigation, and rollback steps for the on-call rotation.【F:docs/runbooks/payments-timeout.md†L1-L94】【F:docs/runbooks/fiscalization.md†L1-L137】【F:docs/runbooks/ai-kill-switch.md†L1-L108】
+### Deploy Aggregators
+
+Use aggregator function names when deploying with the Supabase CLI (nested names like `payments/stripe/checkout` are deployed under `payments`):
+
+```bash
+./scripts/supabase/deploy-functions.sh --project <project-ref>
+# or, individually
+supabase functions deploy payments --no-verify-jwt
+supabase functions deploy admin --no-verify-jwt
+supabase functions deploy compliance --no-verify-jwt
+supabase functions deploy ops --no-verify-jwt
+```
+
+Typical nested routes served by aggregators:
+- `payments/stripe/checkout`, `payments/stripe/webhook`, `payments/momo/request_to_pay`, `payments/airtel/webhook`
+- `admin/user_roles`, `admin/onboard_tenant`, `admin/reissue_table_qr`
+- `notifications/subscribe_push`, `notifications/send_push`
+- `menu/embed_items`
+
+### Endpoint Smoke (curl)
+
+Expect 405 on GET for POST-only handlers; use `-X POST` to exercise:
+
+```bash
+BASE="https://<project-ref>.functions.supabase.co"
+curl -i "$BASE/payments/stripe/checkout"           # 405 (method not allowed)
+curl -i "$BASE/admin/user_roles"                    # 405 without auth
+curl -i -X POST "$BASE/compliance/verify_clerk"     # 503 until Clerk env is set
+curl -i "$BASE/ops/db_health"                        # 200 with rpc/tables/scheduler report
+```
+
+### Ops Endpoints
+
+- `GET /ops/db_health`
+  - Returns `{ ok, rpc, tables, scheduler }` with booleans for required RPCs/tables and your scheduler URL.
+  - Example: `curl -s "$BASE/ops/db_health" | jq`
+
+- `POST /ops/update_scheduler`
+  - Upserts a scheduler_config key (default `menu_embed_items_url`) to a provided URL.
+  - Auth: `Authorization: Bearer` header using either `SUPABASE_SERVICE_ROLE_KEY` or `ADMIN_ONBOARDING_SECRET`.
+  - Example:
+    ```bash
+    BASE="https://<project-ref>.functions.supabase.co"
+    SRK="<service-role-key>"  # or AOS=<admin-onboarding-secret>
+    curl -s -X POST "$BASE/ops/update_scheduler" \
+      -H "Authorization: Bearer $SRK" \
+      -H 'Content-Type: application/json' \
+      -d '{"url":"'"$BASE"/menu/embed_items"' }' | jq
+    ```
+
+- `POST /ops/enqueue_test_receipt`
+  - Enqueues a fiscalisation job for a recently captured payment (or returns 204 if none found).
+  - Auth: `Authorization: Bearer` using `SUPABASE_SERVICE_ROLE_KEY` or `ADMIN_ONBOARDING_SECRET`.
+  - Example:
+    ```bash
+    BASE="https://<project-ref>.functions.supabase.co"
+    SRK="<service-role-key>"
+    curl -s -X POST "$BASE/ops/enqueue_test_receipt" -H "Authorization: Bearer $SRK" | jq
+    ```
+
+### CI/CD
+
+- Supabase deploy workflow: `.github/workflows/supabase-deploy.yml`
+  - Dispatch with `project_ref` and optional `verify_jwt`.
+  - Automatically triggers the post-deploy health workflow.
+
+- Post-deploy health checks: `.github/workflows/post-deploy-health.yml`
+  - Inputs: `base_url` (e.g., `https://<ref>.functions.supabase.co`).
+  - Runs `scripts/ops/health-check.sh`, which validates:
+    - Ops db health endpoint (rpc/table/scheduler)
+    - Reconciliation dry-run (200)
+    - Receipts queue (204/202/200, or 500 in lean envs)
+
+- Environment matrix option: `.github/workflows/post-deploy-health-matrix.yml`
+  - Define repository environments `staging` and `production` with environment variable `FUNCTIONS_BASE_URL` set to the Functions base URL for each.
+  - Dispatch this workflow to run health against both.
+### Functions Smoke Script
+
+Run quick endpoint checks against a hosted Supabase project:
+
+```bash
+export BASE="https://<project-ref>.functions.supabase.co"
+# optional
+export SRK="<service-role-key>"           # for admin-only checks
+export AOS="<admin_onboarding_secret>"    # to test admin/onboard_tenant
+export TABLE_SESSION_ID="<uuid>"          # to test checkout POST
+export SUB_ENDPOINT="<push_endpoint>"     # to test send_push dry run
+
+./scripts/smoke/functions-smoke.sh
+```
+   # Apply migrations to hosted project
+   ./scripts/supabase/db-push.sh --project <your-project-ref>

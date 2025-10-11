@@ -139,7 +139,7 @@ values
   ('00000000-0000-4000-8000-000000000002', 'EU', 'gdpr', 'Confirm DSR runbook for deletion requests', 'in_progress', 'high', now() + interval '5 days', '{"owner":"ops@icupa.test"}'::jsonb)
 on conflict (id) do nothing;
 
-insert into public.tenant_kpi_snapshots (tenant_id, window, captured_at, gmv_cents, aov_cents, attach_rate, prep_sla_p95_minutes, ai_acceptance_rate, safety_blocks)
+insert into public.tenant_kpi_snapshots (tenant_id, time_window, captured_at, gmv_cents, aov_cents, attach_rate, prep_sla_p95_minutes, ai_acceptance_rate, safety_blocks)
 values
   ('00000000-0000-4000-8000-000000000001', '7d', now(), 248000, 124000, 0.420, 11.5, 0.780, 1),
   ('00000000-0000-4000-8000-000000000001', '30d', now() - interval '1 day', 1088000, 118000, 0.390, 12.2, 0.755, 3),
