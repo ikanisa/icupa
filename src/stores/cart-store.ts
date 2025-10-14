@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { persist, createJSONStorage, type StateStorage } from "zustand/middleware";
 
 export type CartModifier = {
   name: string;
@@ -32,9 +32,15 @@ interface CartState {
   setSplitGuests: (count: number) => void;
 }
 
+const noopStorage: StateStorage = {
+  getItem: () => null,
+  setItem: () => undefined,
+  removeItem: () => undefined,
+};
+
 const storage =
   typeof window === "undefined"
-    ? undefined
+    ? noopStorage
     : createJSONStorage(() => window.localStorage);
 
 export const useCartStore = create<CartState>()(
