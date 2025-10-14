@@ -48,15 +48,10 @@ async function persistSubscription(
 
   const { data, error } = await supabase.functions.invoke<SubscribeResponse>(
     "notifications/subscribe_push",
-    {
-      body: payload,
-    },
+    { body: payload },
   );
 
-  if (error) {
-    throw error;
-  }
-
+  if (error) throw error;
   return data ?? {};
 }
 
@@ -83,13 +78,11 @@ export function usePushSubscription(
     let cancelled = false;
     void (async () => {
       const registration = await navigator.serviceWorker.ready;
-      if (cancelled) {
-        return;
-      }
+      if (cancelled) return;
+
       const existing = await registration.pushManager.getSubscription();
-      if (cancelled) {
-        return;
-      }
+      if (cancelled) return;
+
       if (existing) {
         setIsSubscribed(true);
         if (!hasPersistedRef.current) {
@@ -127,20 +120,19 @@ export function usePushSubscription(
       const currentPermission = Notification.permission;
       if (currentPermission === "denied") {
         setPermission("denied");
-        setError(
-          "Notifications are blocked. Update your browser settings to re-enable alerts.",
-        );
-        return;
+        setError("Notifications are blocked. Update your browser settings to re-enable alerts.");
+        return false;
       }
 
-      const requested = currentPermission === "default" ? await Notification.requestPermission() : currentPermission;
+      const requested =
+        currentPermission === "default"
+          ? await Notification.requestPermission()
+          : currentPermission;
       setPermission(requested);
 
       if (requested !== "granted") {
         if (requested === "denied") {
-          setError(
-            "Notifications are blocked. Update your browser settings to re-enable alerts.",
-          );
+          setError("Notifications are blocked. Update your browser settings to re-enable alerts.");
         }
         return false;
       }
@@ -188,30 +180,43 @@ export function usePushSubscription(
       }
 
       const endpoint = existing.endpoint;
-      const { error: deleteError } = await supabase.functions.invoke(
-        "notifications/unsubscribe_push",
-        {
-          body: {
-            subscription_id: subscriptionId ?? undefined,
-            endpoint,
-            table_session_id: options.tableSessionId ?? undefined,
-            location_id: options.locationId ?? undefined,
-            tenant_id: options.tenantId ?? undefined,
-          },
-        },
-      );
 
-      if (deleteError) {
-        console.error("Failed to remove stored push subscription", deleteError);
-        setError("We could not disable notifications. Please try again.");
-        return false;
+      // Try to remove server-side record, but don't block local unsubscribe if it fails.
+      let backendError: unknown = null;
+      try {
+        const { error: deleteError } = await supabase.functions.invoke(
+          "notifications/unsubscribe_push",
+          {
+            body: {
+              subscription_id: subscriptionId ?? undefined,
+              endpoint,
+              table_session_id: options.tableSessionId ?? undefined,
+              location_id: options.locationId ?? undefined,
+              tenant_id: options.tenantId ?? undefined,
+            },
+          },
+        );
+        if (deleteError) backendError = deleteError;
+      } catch (invokeError) {
+        backendError = invokeError;
       }
 
-      await existing.unsubscribe();
+      // Always try to remove the browser subscription
+      try {
+        await existing.unsubscribe();
+      } finally {
+        setIsSubscribed(false);
+        setSubscriptionId(null);
+        hasPersistedRef.current = false;
+      }
 
-      setIsSubscribed(false);
-      setSubscriptionId(null);
-      hasPersistedRef.current = false;
+      if (backendError) {
+        console.error("Failed to remove stored push subscription", backendError);
+        setError(
+          "Notifications were disabled on this device, but we could not update the server."
+        );
+      }
+
       return true;
     } catch (unsubscribeError) {
       console.error("Failed to unsubscribe from push notifications", unsubscribeError);
@@ -276,8 +281,6 @@ export function usePushSubscription(
     unsubscribe,
     sendTestNotification,
     error,
-    shouldShowIosInstallHint: supportsPush
-      ? detectIsIos() && !detectStandalone()
-      : false,
+    shouldShowIosInstallHint: supportsPush ? detectIsIos() && !detectStandalone() : false,
   };
 }

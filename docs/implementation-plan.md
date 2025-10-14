@@ -182,7 +182,7 @@ This implementation plan translates the ICUPA programme brief, regulatory requir
 **Deliverables**
 - Workbox runtime caching strategies: CacheFirst with expiry for images, StaleWhileRevalidate for menu JSON, NetworkFirst + Background Sync queue for API mutations (orders, payments).
 - Service worker hooks for `sync`, `push`, and `notificationclick` events.
-- Edge Functions: `notifications/subscribe_push` storing VAPID subscriptions; `notifications/send_push` stub delivering structured payloads.
+- Edge Functions: `notifications/subscribe_push` storing VAPID subscriptions; `notifications/unsubscribe_push` enforcing diner session headers on opt-out cleanup; `notifications/send_push` stub delivering structured payloads.
 - iOS install banner with instructions for enabling push (A2HS requirement).
 - Offline cart persistence tests (write, reload, sync once online).
 - Offline sync telemetry recorded in `offline_sync_events` so background queue latency and failures are auditable from the admin console.
