@@ -276,7 +276,7 @@ async function createPaymentIntent(
         mode: "live",
       };
     } catch (error) {
-      console.warn(`MOCK_INTENT fallback: ${String(error)}`);
+      await recordStripeFallback("create_payment_intent_error", error);
       useMock = true;
     }
   }
@@ -317,6 +317,8 @@ async function updatePaymentRecord(
     const text = await response.text();
     throw new Error(`Failed to update payment record: ${text}`);
   }
+
+  await trackPaymentStatusMetric(mappedStatus, intent.mode);
 }
 
 function mapPaymentStatus(status: string): string {
@@ -329,7 +331,108 @@ function mapPaymentStatus(status: string): string {
       return "voided";
     case "payment_failed":
       return "failed";
+    case "requires_action":
+    case "requires_customer_action":
+    case "requires_source_action":
+      return "requires_action";
+    case "requires_payment_method":
+    case "requires_source":
+      return "requires_payment_method";
+    case "requires_capture":
+      return "requires_capture";
+    case "requires_confirmation":
+      return "requires_confirmation";
+    case "processing":
+    case "requires_review":
+      return "processing";
     default:
       return "processing";
+  }
+}
+
+async function trackPaymentStatusMetric(status: string, mode: string) {
+  const normalized = status.toLowerCase();
+  await incrementMetric(`payments.checkout.status.${normalized}`);
+  if (mode === "mock") {
+    await incrementMetric("payments.checkout.mode.mock");
+  } else {
+    await incrementMetric("payments.checkout.mode.live");
+  }
+
+  if (
+    normalized === "requires_action" ||
+    normalized === "requires_payment_method" ||
+    normalized === "failed"
+  ) {
+    await incrementMetric("payments.checkout.requires_attention");
+  }
+}
+
+async function incrementMetric(name: string, delta = 1) {
+  if (!SUPABASE_URL || !SERVICE_ROLE_KEY) return;
+  try {
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/rpc/metrics_increment_counter`,
+      {
+        method: "POST",
+        headers: {
+          apikey: SERVICE_ROLE_KEY,
+          Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
+          "Content-Type": "application/json",
+          "Accept-Profile": "metrics",
+          Prefer: "params=single-object",
+        },
+        body: JSON.stringify({ p_name: name, p_delta: delta }),
+      },
+    );
+
+    if (!response.ok) {
+      const text = await response.text();
+      console.warn(
+        JSON.stringify({
+          level: "WARN",
+          event: "metrics.increment_failed",
+          fn: "bff-checkout",
+          name,
+          status: response.status,
+          message: text.slice(0, 180),
+        }),
+      );
+    }
+  } catch (error) {
+    console.warn(
+      JSON.stringify({
+        level: "WARN",
+        event: "metrics.increment_error",
+        fn: "bff-checkout",
+        name,
+        message: safeErrorMessage(error),
+      }),
+    );
+  }
+}
+
+async function recordStripeFallback(reason: string, error: unknown) {
+  console.error(
+    JSON.stringify({
+      level: "ERROR",
+      event: "payments.stripe.fallback",
+      fn: "bff-checkout",
+      reason,
+      message: safeErrorMessage(error),
+    }),
+  );
+  await incrementMetric("payments.stripe.mock_fallback");
+  await incrementMetric(`payments.stripe.fallback.${reason}`);
+}
+
+function safeErrorMessage(error: unknown): string {
+  if (!error) return "";
+  if (typeof error === "string") return error.slice(0, 200);
+  if (error instanceof Error) return (error.message || error.name).slice(0, 200);
+  try {
+    return JSON.stringify(error).slice(0, 200);
+  } catch (_err) {
+    return "unknown_error";
   }
 }

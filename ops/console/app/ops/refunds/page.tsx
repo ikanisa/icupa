@@ -9,12 +9,15 @@ import {
   readSupabaseConfig,
 } from "../../lib/env";
 import { createBadgeStyle, createTableStyles, monospaceTextStyle } from "../../lib/ui";
+import Pagination from "../components/pagination";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
 type RefundFilters = {
   status?: string;
 };
+
+const DEFAULT_PAGE_SIZE = 20;
 
 type FixtureRow = {
   id: string;
@@ -55,6 +58,9 @@ type RefundLoadSuccess = {
   rows: RefundRow[];
   source: "fixtures" | "edge";
   requestId: string | null;
+  total: number;
+  page: number;
+  pageSize: number;
 };
 
 type RefundLoadError = {
@@ -85,18 +91,15 @@ export default function RefundsPage({
   const filters = extractFilters(searchParams);
   const notice = parseNotice(searchParams);
   const selectedId = parseSelectedId(searchParams);
+  const page = parsePage(searchParams);
 
   return (
     <section>
       <h1>Refunds & Credits</h1>
-      <p>Create credit notes, track refunds, and export ledger records.</p>
-      <ul>
-        <li>Table: refund ledger with filters for status, supplier, traveler.</li>
-        <li>Detail drawer: request metadata, approvals, attachments.</li>
-        <li>Action toolbar: initiate refund, approve, mark paid.</li>
-        <li>Download controls: export CSV snapshots.</li>
-        <li>Toast notifications: confirm write actions.</li>
-      </ul>
+      <p>
+        Create credit notes, monitor refund progress, and surface finance-ready summaries from a
+        single ledger view.
+      </p>
 
       {notice ? <NoticeBanner notice={notice} /> : null}
 
@@ -105,15 +108,24 @@ export default function RefundsPage({
       <div style={{ marginBottom: "2rem" }}>
         <h2 style={{ marginBottom: "0.75rem" }}>Initiate Refund</h2>
         {/* @ts-ignore -- Async Server Action binding */}
-        <RefundForm filters={filters} />
+        <RefundForm filters={filters} page={page} />
       </div>
 
       <Suspense fallback={<p>Loading refund ledger…</p>}>
         {/* @ts-ignore -- Async Server Component */}
-        <RefundsData filters={filters} selectedId={selectedId} />
+        <RefundsData filters={filters} selectedId={selectedId} page={page} />
       </Suspense>
     </section>
   );
+}
+
+function parsePage(searchParams?: SearchParams): number {
+  if (!searchParams) return 1;
+  const raw = searchParams.page;
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 1) return 1;
+  return Math.floor(parsed);
 }
 
 function extractFilters(searchParams?: SearchParams): RefundFilters {
@@ -260,9 +272,9 @@ function FilterControls({ filters }: { filters: RefundFilters }) {
 }
 
 async function RefundsData(
-  { filters, selectedId }: { filters: RefundFilters; selectedId?: string },
+  { filters, selectedId, page }: { filters: RefundFilters; selectedId?: string; page: number },
 ) {
-  const result = await loadRefunds(filters);
+  const result = await loadRefunds(filters, page);
 
   if (!result.ok) {
     return (
@@ -289,22 +301,51 @@ async function RefundsData(
   return (
     <div style={{ marginTop: "1rem" }}>
       <p style={{ fontSize: "0.85rem", marginBottom: "0.75rem", opacity: 0.8 }}>
-        Showing {result.rows.length} refund
-        {result.rows.length === 1 ? "" : "s"} sourced from
+        Showing page {result.page} of {Math.max(1, Math.ceil(result.total / result.pageSize))} ·
+        {" "}
+        {result.rows.length} of {result.total} refunds sourced from
         {" "}
         {result.source === "fixtures" ? "offline fixtures" : "Supabase view"}
         {result.requestId ? ` · request_id ${result.requestId}` : ""}
       </p>
-      <RefundTable rows={result.rows} filters={filters} selectedId={selectedId} />
+      <RefundTable
+        rows={result.rows}
+        filters={filters}
+        selectedId={selectedId}
+        page={result.page}
+      />
+      <Pagination
+        page={result.page}
+        pageSize={result.pageSize}
+        total={result.total}
+        buildPageHref={(nextPage) => buildPageLink(filters, nextPage)}
+      />
       {selectedId ? renderRefundDetail(result.rows, selectedId) : null}
     </div>
   );
 }
 
-async function loadRefunds(filters: RefundFilters): Promise<RefundLoadResult> {
+async function loadRefunds(
+  filters: RefundFilters,
+  page: number,
+): Promise<RefundLoadResult> {
+  const safePage = Math.max(1, Number.isFinite(page) ? Math.floor(page) : 1);
+  const pageSize = DEFAULT_PAGE_SIZE;
+
   if (opsConsoleOfflineModeEnabled()) {
-    const rows = (refundsFixture as FixtureRow[]).map((item) => mapFixtureRow(item));
-    return { ok: true, rows, source: "fixtures", requestId: null };
+    const allRows = (refundsFixture as FixtureRow[]).map((item) => mapFixtureRow(item));
+    const total = allRows.length;
+    const start = (safePage - 1) * pageSize;
+    const rows = allRows.slice(start, start + pageSize);
+    return {
+      ok: true,
+      rows,
+      source: "fixtures",
+      requestId: null,
+      total,
+      page: safePage,
+      pageSize,
+    };
   }
 
   const configState = readSupabaseConfig();
@@ -333,6 +374,8 @@ async function loadRefunds(filters: RefundFilters): Promise<RefundLoadResult> {
   }
 
   const requestUrl = `${configState.config.url}/rest/v1/ops.v_refunds?${params.toString()}`;
+  const start = (safePage - 1) * pageSize;
+  const end = start + pageSize - 1;
 
   let response: Response;
   try {
@@ -341,6 +384,7 @@ async function loadRefunds(filters: RefundFilters): Promise<RefundLoadResult> {
         apikey: configState.config.anonKey,
         Authorization: `Bearer ${accessToken}`,
         Prefer: "count=exact",
+        Range: `${start}-${end}`,
       },
       cache: "no-store",
     });
@@ -373,11 +417,17 @@ async function loadRefunds(filters: RefundFilters): Promise<RefundLoadResult> {
   }
 
   const rows = (payload as EdgeRow[]).map((row, index) => mapEdgeRow(row, index));
+  const totalHeader = response.headers.get("content-range");
+  const total = parseContentRangeTotal(totalHeader);
+  const normalizedTotal = typeof total === "number" ? total : Math.max(rows.length + start, rows.length);
   return {
     ok: true,
     rows,
     source: "edge",
     requestId: null,
+    total: normalizedTotal,
+    page: safePage,
+    pageSize,
   };
 }
 
@@ -431,8 +481,9 @@ function RefundTable(
     rows,
     filters,
     selectedId,
+    page,
   }:
-    { rows: RefundRow[]; filters: RefundFilters; selectedId?: string },
+    { rows: RefundRow[]; filters: RefundFilters; selectedId?: string; page: number },
 ) {
   const tableStyles = createTableStyles({ minWidth: "760px" });
   const wrapperStyle = tableStyles.wrapper;
@@ -464,7 +515,7 @@ function RefundTable(
             >
               <td style={cellStyle}>
                 <div style={{ fontWeight: 600 }}>
-                  <Link href={buildRefundLink(row.id, filters)}>{row.id}</Link>
+                  <Link href={buildRefundLink(row.id, filters, page)}>{row.id}</Link>
                 </div>
                 {row.itineraryId ? (
                   <div style={monoStyle}>itinerary: {row.itineraryId}</div>
@@ -492,11 +543,23 @@ function RefundTable(
   );
 }
 
-function buildRefundLink(id: string, filters: RefundFilters): string {
+function buildRefundLink(id: string, filters: RefundFilters, page: number): string {
+  const params = createFilterParams(filters);
+  params.set("selected", id);
+  params.set("page", String(page));
+  return `/ops/refunds?${params.toString()}`;
+}
+
+function buildPageLink(filters: RefundFilters, page: number): string {
+  const params = createFilterParams(filters);
+  params.set("page", String(Math.max(1, page)));
+  return `/ops/refunds?${params.toString()}`;
+}
+
+function createFilterParams(filters: RefundFilters): URLSearchParams {
   const params = new URLSearchParams();
   if (filters.status) params.set("status", filters.status);
-  params.set("selected", id);
-  return `/ops/refunds?${params.toString()}`;
+  return params;
 }
 
 function renderStatus(status?: string) {
@@ -614,7 +677,16 @@ function renderRefundDetail(rows: RefundRow[], selectedId: string) {
   );
 }
 
-async function RefundForm({ filters }: { filters: RefundFilters }) {
+function parseContentRangeTotal(header: string | null): number | null {
+  if (!header) return null;
+  const match = /\/(\d+)$/u.exec(header.trim());
+  if (!match) return null;
+  const total = Number(match[1]);
+  if (!Number.isFinite(total) || total < 0) return null;
+  return Math.floor(total);
+}
+
+async function RefundForm({ filters, page }: { filters: RefundFilters; page: number }) {
   const formStyle: CSSProperties = {
     display: "grid",
     gap: "0.75rem",
@@ -648,6 +720,7 @@ async function RefundForm({ filters }: { filters: RefundFilters }) {
   return (
     <form action={createRefundAction} style={formStyle}>
       <input type="hidden" name="current_status" value={filters.status ?? ""} />
+      <input type="hidden" name="current_page" value={String(Math.max(1, page))} />
       <label style={fieldStyle}>
         <span>Itinerary ID</span>
         <input
@@ -706,10 +779,15 @@ async function createRefundAction(formData: FormData) {
   const currencyRaw = String(formData.get("currency") ?? "USD").trim();
   const reason = String(formData.get("reason") ?? "").trim();
   const currentStatus = String(formData.get("current_status") ?? "").trim();
+  const currentPageRaw = String(formData.get("current_page") ?? "").trim();
 
   const params = new URLSearchParams();
   if (currentStatus) {
     params.set("status", currentStatus);
+  }
+  const parsedPage = Number(currentPageRaw);
+  if (Number.isFinite(parsedPage) && parsedPage >= 1) {
+    params.set("page", String(Math.floor(parsedPage)));
   }
 
   const uuidRegex =
