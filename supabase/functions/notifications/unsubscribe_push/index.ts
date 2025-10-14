@@ -30,7 +30,9 @@ function errorResponse(status: number, code: string, message: string): Response 
 
 function isUuid(value: Maybe<string>): value is string {
   if (!value) return false;
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
 }
 
 serve(async (req) => {
@@ -43,13 +45,12 @@ serve(async (req) => {
     return errorResponse(500, "config_missing", "Server configuration incomplete");
   }
 
+  // Require session header and validate (defensive delete)
   const sessionHeader =
     req.headers.get("x-icupa-session") ?? req.headers.get("x-ICUPA-session") ?? "";
-
   if (!sessionHeader) {
     return errorResponse(401, "missing_session", "x-icupa-session header is required");
   }
-
   if (!isUuid(sessionHeader)) {
     return errorResponse(400, "invalid_session", "x-icupa-session must be a valid UUID");
   }
@@ -62,7 +63,7 @@ serve(async (req) => {
   let body: UnsubscribeRequest;
   try {
     body = (await req.json()) as UnsubscribeRequest;
-  } catch (_error) {
+  } catch {
     return errorResponse(400, "invalid_json", "Request body could not be parsed");
   }
 
@@ -72,7 +73,6 @@ serve(async (req) => {
   if (subscriptionId && !isUuid(subscriptionId)) {
     return errorResponse(400, "invalid_subscription_id", "subscription_id must be a valid UUID");
   }
-
   if (!subscriptionId && !endpoint) {
     return errorResponse(
       400,
@@ -81,15 +81,14 @@ serve(async (req) => {
     );
   }
 
+  // Enforce table_session_id present (either body or header) and valid, must match header
   const tableSessionIdFromBody = body.table_session_id ?? null;
   if (tableSessionIdFromBody && !isUuid(tableSessionIdFromBody)) {
     return errorResponse(400, "invalid_table_session", "table_session_id must be a valid UUID");
   }
-
   if (tableSessionIdFromBody && tableSessionIdFromBody !== sessionHeader) {
     return errorResponse(403, "session_mismatch", "table_session_id must match x-icupa-session");
   }
-
   const tableSessionId = tableSessionIdFromBody ?? sessionHeader;
 
   const locationId = body.location_id ?? null;
@@ -117,15 +116,11 @@ serve(async (req) => {
     deleteQuery.eq("endpoint", endpoint);
   }
 
+  // Always scope by table_session_id for safety
   deleteQuery.eq("table_session_id", tableSessionId);
 
-  if (locationId) {
-    deleteQuery.eq("location_id", locationId);
-  }
-
-  if (tenantId) {
-    deleteQuery.eq("tenant_id", tenantId);
-  }
+  if (locationId) deleteQuery.eq("location_id", locationId);
+  if (tenantId) deleteQuery.eq("tenant_id", tenantId);
 
   const { error: deleteError, count } = await deleteQuery;
 
@@ -134,11 +129,12 @@ serve(async (req) => {
       subscriptionId,
       endpoint,
       tableSessionId,
+      locationId,
+      tenantId,
     });
     return errorResponse(500, "subscription_delete_failed", "Could not delete subscription");
   }
 
   const status = count && count > 0 ? "deleted" : "not_found";
-
   return jsonResponse({ status, deleted: count ?? 0 });
 });
