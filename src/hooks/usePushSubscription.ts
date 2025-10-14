@@ -188,30 +188,48 @@ export function usePushSubscription(
       }
 
       const endpoint = existing.endpoint;
-      const { error: deleteError } = await supabase.functions.invoke(
-        "notifications/unsubscribe_push",
-        {
-          body: {
-            subscription_id: subscriptionId ?? undefined,
-            endpoint,
-            table_session_id: options.tableSessionId ?? undefined,
-            location_id: options.locationId ?? undefined,
-            tenant_id: options.tenantId ?? undefined,
-          },
-        },
-      );
+      let backendError: unknown = null;
 
-      if (deleteError) {
-        console.error("Failed to remove stored push subscription", deleteError);
-        setError("We could not disable notifications. Please try again.");
-        return false;
+      try {
+        const { error: deleteError } = await supabase.functions.invoke(
+          "notifications/unsubscribe_push",
+          {
+            body: {
+              subscription_id: subscriptionId ?? undefined,
+              endpoint,
+              table_session_id: options.tableSessionId ?? undefined,
+              location_id: options.locationId ?? undefined,
+              tenant_id: options.tenantId ?? undefined,
+            },
+          },
+        );
+
+        if (deleteError) {
+          backendError = deleteError;
+        }
+      } catch (invokeError) {
+        backendError = invokeError;
       }
 
-      await existing.unsubscribe();
+      let unsubscribed = false;
+      try {
+        await existing.unsubscribe();
+        unsubscribed = true;
+      } finally {
+        if (unsubscribed) {
+          setIsSubscribed(false);
+          setSubscriptionId(null);
+          hasPersistedRef.current = false;
+        }
+      }
 
-      setIsSubscribed(false);
-      setSubscriptionId(null);
-      hasPersistedRef.current = false;
+      if (backendError) {
+        console.error("Failed to remove stored push subscription", backendError);
+        setError(
+          "Notifications were disabled on this device, but we could not update the server.",
+        );
+      }
+
       return true;
     } catch (unsubscribeError) {
       console.error("Failed to unsubscribe from push notifications", unsubscribeError);
