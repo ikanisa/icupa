@@ -4,12 +4,15 @@ import { cookies } from "next/headers";
 import exceptionsFixture from "../../../../fixtures/exceptions.json";
 import { opsConsoleOfflineModeEnabled, readSupabaseConfig } from "../../lib/env";
 import { createBadgeStyle, createTableStyles, monospaceTextStyle } from "../../lib/ui";
+import Pagination from "../components/pagination";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
 type ExceptionFilters = {
   status?: string;
 };
+
+const DEFAULT_PAGE_SIZE = 20;
 
 type FixtureRow = {
   id: string;
@@ -45,6 +48,9 @@ type ExceptionLoadSuccess = {
   rows: ExceptionRow[];
   source: "fixtures" | "edge";
   requestId: string | null;
+  total: number;
+  page: number;
+  pageSize: number;
 };
 
 type ExceptionLoadError = {
@@ -63,26 +69,32 @@ export default function ExceptionsPage({
 }) {
   const filters = extractFilters(searchParams);
   const selectedId = parseSelectedId(searchParams);
+  const page = parsePage(searchParams);
 
   return (
     <section>
       <h1>Exceptions</h1>
-      <p>Queue of failed webhooks, partial payments, and permit rejections with remediation actions.</p>
-      <ul>
-        <li>Table: exception events with status and age indicators.</li>
-        <li>Filter controls: type, supplier, severity.</li>
-        <li>Detail drawer: payload inspection, history, SLA clock.</li>
-        <li>Action toolbar: retry, escalate to supplier, rebook workflows.</li>
-        <li>Alerts/toasts: success, failure, audit references.</li>
-      </ul>
+      <p>
+        Track failed webhooks, partial payments, and supplier rejections with actionable metadata and
+        escalation notes.
+      </p>
 
       <FilterControls filters={filters} />
       <Suspense fallback={<p>Loading exceptions…</p>}>
         {/* @ts-ignore -- Async Server Component */}
-        <ExceptionsData filters={filters} selectedId={selectedId} />
+        <ExceptionsData filters={filters} selectedId={selectedId} page={page} />
       </Suspense>
     </section>
   );
+}
+
+function parsePage(searchParams?: SearchParams): number {
+  if (!searchParams) return 1;
+  const raw = searchParams.page;
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 1) return 1;
+  return Math.floor(parsed);
 }
 
 function extractFilters(searchParams?: SearchParams): ExceptionFilters {
@@ -167,9 +179,9 @@ function FilterControls({ filters }: { filters: ExceptionFilters }) {
 }
 
 async function ExceptionsData(
-  { filters, selectedId }: { filters: ExceptionFilters; selectedId?: string },
+  { filters, selectedId, page }: { filters: ExceptionFilters; selectedId?: string; page: number },
 ) {
-  const result = await loadExceptions(filters);
+  const result = await loadExceptions(filters, page);
 
   if (!result.ok) {
     return (
@@ -196,22 +208,51 @@ async function ExceptionsData(
   return (
     <div style={{ marginTop: "1rem" }}>
       <p style={{ fontSize: "0.85rem", marginBottom: "0.75rem", opacity: 0.8 }}>
-        Showing {result.rows.length} exception
-        {result.rows.length === 1 ? "" : "s"} from
+        Showing page {result.page} of {Math.max(1, Math.ceil(result.total / result.pageSize))} ·
+        {" "}
+        {result.rows.length} of {result.total} exceptions from
         {" "}
         {result.source === "fixtures" ? "offline fixtures" : "Supabase Edge Function"}
         {result.requestId ? ` · request_id ${result.requestId}` : ""}
       </p>
-      <ExceptionTable rows={result.rows} filters={filters} selectedId={selectedId} />
+      <ExceptionTable
+        rows={result.rows}
+        filters={filters}
+        selectedId={selectedId}
+        page={result.page}
+      />
+      <Pagination
+        page={result.page}
+        pageSize={result.pageSize}
+        total={result.total}
+        buildPageHref={(nextPage) => buildPageLink(filters, nextPage)}
+      />
       {selectedId ? renderExceptionDetail(result.rows, selectedId) : null}
     </div>
   );
 }
 
-async function loadExceptions(filters: ExceptionFilters): Promise<ExceptionLoadResult> {
+async function loadExceptions(
+  filters: ExceptionFilters,
+  page: number,
+): Promise<ExceptionLoadResult> {
+  const safePage = Math.max(1, Number.isFinite(page) ? Math.floor(page) : 1);
+  const pageSize = DEFAULT_PAGE_SIZE;
+
   if (opsConsoleOfflineModeEnabled()) {
-    const rows = (exceptionsFixture as FixtureRow[]).map((item) => mapFixtureRow(item));
-    return { ok: true, rows, source: "fixtures", requestId: null };
+    const allRows = (exceptionsFixture as FixtureRow[]).map((item) => mapFixtureRow(item));
+    const total = allRows.length;
+    const start = (safePage - 1) * pageSize;
+    const rows = allRows.slice(start, start + pageSize);
+    return {
+      ok: true,
+      rows,
+      source: "fixtures",
+      requestId: null,
+      total,
+      page: safePage,
+      pageSize,
+    };
   }
 
   const configState = readSupabaseConfig();
@@ -232,6 +273,8 @@ async function loadExceptions(filters: ExceptionFilters): Promise<ExceptionLoadR
 
   const params = new URLSearchParams();
   if (filters.status) params.append("status", filters.status);
+  params.append("page", String(safePage));
+  params.append("page_size", String(pageSize));
 
   const query = params.toString();
   const requestUrl = `${configState.config.url}/functions/v1/ops-exceptions${
@@ -272,17 +315,37 @@ async function loadExceptions(filters: ExceptionFilters): Promise<ExceptionLoadR
     };
   }
 
-  const parsed = payload as { ok?: boolean; data?: unknown; request_id?: unknown };
+  const parsed = payload as {
+    ok?: boolean;
+    data?: unknown;
+    request_id?: unknown;
+    total?: unknown;
+    page?: unknown;
+    page_size?: unknown;
+  };
   if (parsed?.ok !== true || !Array.isArray(parsed.data)) {
     return { ok: false, message: "Unexpected ops-exceptions payload." };
   }
 
   const rows = (parsed.data as EdgeRow[]).map((row, index) => mapEdgeRow(row, index));
+  const total = Number(parsed.total);
+  const normalizedTotal = Number.isFinite(total) && total >= 0 ? Math.floor(total) : rows.length;
+  const responsePage = Number(parsed.page);
+  const normalizedPage = Number.isFinite(responsePage) && responsePage >= 1
+    ? Math.floor(responsePage)
+    : safePage;
+  const responsePageSize = Number(parsed.page_size);
+  const normalizedPageSize = Number.isFinite(responsePageSize) && responsePageSize > 0
+    ? Math.floor(responsePageSize)
+    : pageSize;
   return {
     ok: true,
     rows,
     source: "edge",
     requestId: typeof parsed.request_id === "string" ? parsed.request_id : null,
+    total: normalizedTotal,
+    page: normalizedPage,
+    pageSize: normalizedPageSize,
   };
 }
 
@@ -328,8 +391,9 @@ function ExceptionTable(
     rows,
     filters,
     selectedId,
+    page,
   }:
-    { rows: ExceptionRow[]; filters: ExceptionFilters; selectedId?: string },
+    { rows: ExceptionRow[]; filters: ExceptionFilters; selectedId?: string; page: number },
 ) {
   const tableStyles = createTableStyles({ minWidth: "640px" });
   const wrapperStyle = tableStyles.wrapper;
@@ -361,7 +425,7 @@ function ExceptionTable(
             >
               <td style={cellStyle}>
                 <div style={{ fontWeight: 600 }}>
-                  <Link href={buildExceptionLink(row.id, filters)}>{row.id}</Link>
+                  <Link href={buildExceptionLink(row.id, filters, page)}>{row.id}</Link>
                 </div>
                 {row.kind ? (
                   <div style={monoStyle}>kind: {row.kind}</div>
@@ -388,11 +452,23 @@ function ExceptionTable(
   );
 }
 
-function buildExceptionLink(id: string, filters: ExceptionFilters): string {
+function buildExceptionLink(id: string, filters: ExceptionFilters, page: number): string {
+  const params = createFilterParams(filters);
+  params.set("selected", id);
+  params.set("page", String(page));
+  return `/ops/exceptions?${params.toString()}`;
+}
+
+function buildPageLink(filters: ExceptionFilters, page: number): string {
+  const params = createFilterParams(filters);
+  params.set("page", String(Math.max(1, page)));
+  return `/ops/exceptions?${params.toString()}`;
+}
+
+function createFilterParams(filters: ExceptionFilters): URLSearchParams {
   const params = new URLSearchParams();
   if (filters.status) params.set("status", filters.status);
-  params.set("selected", id);
-  return `/ops/exceptions?${params.toString()}`;
+  return params;
 }
 
 function renderStatus(status?: string) {

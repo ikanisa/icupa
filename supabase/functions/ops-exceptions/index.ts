@@ -32,6 +32,9 @@ const exceptions = (exceptionsFixture as ExceptionFixture[]).map((item) => ({
   ...item,
 }));
 
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 100;
+
 function auditLog(fields: Record<string, unknown>) {
   console.log(
     JSON.stringify({
@@ -59,9 +62,35 @@ function filterFixtures(statusParam: string | null) {
     : exceptions;
 }
 
+function parsePageParam(raw: string | null): number {
+  if (!raw) return 1;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 1) return 1;
+  return Math.floor(parsed);
+}
+
+function parsePageSizeParam(raw: string | null): number {
+  if (!raw) return DEFAULT_PAGE_SIZE;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 1) return DEFAULT_PAGE_SIZE;
+  const normalized = Math.floor(parsed);
+  return Math.min(MAX_PAGE_SIZE, Math.max(1, normalized));
+}
+
+function parseContentRangeTotal(header: string | null): number | null {
+  if (!header) return null;
+  const match = /\/(\d+)$/u.exec(header.trim());
+  if (!match) return null;
+  const total = Number(match[1]);
+  if (!Number.isFinite(total) || total < 0) return null;
+  return Math.floor(total);
+}
+
 async function fetchViewData(
   statusParam: string | null,
-): Promise<ExceptionFixture[]> {
+  page: number,
+  pageSize: number,
+): Promise<{ rows: ExceptionFixture[]; total: number }> {
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
     throw new Error("Supabase configuration missing for live view");
   }
@@ -72,6 +101,9 @@ async function fetchViewData(
     params.append("status", `eq.${statusParam}`);
   }
 
+  const start = (page - 1) * pageSize;
+  const end = start + pageSize - 1;
+
   const response = await fetch(
     `${SUPABASE_URL}/rest/v1/ops.v_exceptions?${params.toString()}`,
     {
@@ -79,6 +111,7 @@ async function fetchViewData(
         apikey: SERVICE_ROLE_KEY,
         Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
         Prefer: "count=exact",
+        Range: `${start}-${end}`,
       },
     },
   );
@@ -91,11 +124,7 @@ async function fetchViewData(
   }
 
   const data = (await response.json()) as ExceptionViewRow[];
-  if (!Array.isArray(data)) {
-    return [];
-  }
-
-  return data.map((row) => ({
+  const rows = (Array.isArray(data) ? data : []).map((row) => ({
     id: row.id,
     type: row.kind,
     status: row.status,
@@ -103,6 +132,10 @@ async function fetchViewData(
     last_error: row.last_error ?? "",
     occurred_at: row.created_at,
   }));
+  const totalHeader = response.headers.get("content-range");
+  const total = parseContentRangeTotal(totalHeader);
+  const normalizedTotal = typeof total === "number" ? total : Math.max(rows.length + start, rows.length);
+  return { rows, total: normalizedTotal };
 }
 Deno.serve(withObs(async (req) => {
   const requestId = getRequestId(req) ?? crypto.randomUUID();
@@ -116,6 +149,8 @@ Deno.serve(withObs(async (req) => {
     return toJson({ ok: false, error: "GET only" }, { status: 405 });
   }
   const statusParam = url.searchParams.get("status")?.toLowerCase() ?? null;
+  const page = parsePageParam(url.searchParams.get("page"));
+  const pageSize = parsePageSizeParam(url.searchParams.get("page_size"));
 
   if (statusParam && !VALID_STATUSES.has(statusParam)) {
     return toJson(
@@ -130,23 +165,46 @@ Deno.serve(withObs(async (req) => {
   try {
     if (USE_FIXTURES) {
       const filtered = filterFixtures(statusParam);
+      const total = filtered.length;
+      const start = (page - 1) * pageSize;
+      const paged = filtered.slice(start, start + pageSize);
       auditLog({
         requestId,
         source: "fixtures",
         status: statusParam ?? "",
-        results: filtered.length,
+        page,
+        pageSize,
+        total,
+        results: paged.length,
       });
-      return toJson({ ok: true, data: filtered, request_id: requestId });
+      return toJson({
+        ok: true,
+        data: paged,
+        request_id: requestId,
+        total,
+        page,
+        page_size: pageSize,
+      });
     }
 
-    const rows = await fetchViewData(statusParam);
+    const { rows, total } = await fetchViewData(statusParam, page, pageSize);
     auditLog({
       requestId,
       source: "view",
       status: statusParam ?? "",
+      page,
+      pageSize,
+      total,
       results: rows.length,
     });
-    return toJson({ ok: true, data: rows, request_id: requestId });
+    return toJson({
+      ok: true,
+      data: rows,
+      request_id: requestId,
+      total,
+      page,
+      page_size: pageSize,
+    });
   } catch (error) {
     auditLog({
       requestId,

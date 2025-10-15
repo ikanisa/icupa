@@ -34,6 +34,9 @@ const bookings = (bookingsFixture as BookingFixture[]).map((item) => ({
   ...item,
 }));
 
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 100;
+
 function auditLog(fields: Record<string, unknown>) {
   console.log(
     JSON.stringify({
@@ -88,11 +91,37 @@ function filterFixtures(
   });
 }
 
+function parsePageParam(raw: string | null): number {
+  if (!raw) return 1;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 1) return 1;
+  return Math.floor(parsed);
+}
+
+function parsePageSizeParam(raw: string | null): number {
+  if (!raw) return DEFAULT_PAGE_SIZE;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 1) return DEFAULT_PAGE_SIZE;
+  const normalized = Math.floor(parsed);
+  return Math.min(MAX_PAGE_SIZE, Math.max(1, normalized));
+}
+
+function parseContentRangeTotal(header: string | null): number | null {
+  if (!header) return null;
+  const match = /\/(\d+)$/u.exec(header.trim());
+  if (!match) return null;
+  const total = Number(match[1]);
+  if (!Number.isFinite(total) || total < 0) return null;
+  return Math.floor(total);
+}
+
 async function fetchViewData(
   from: Date | null,
   to: Date | null,
   supplierParam: string | null,
-): Promise<BookingViewRow[]> {
+  page: number,
+  pageSize: number,
+): Promise<{ rows: BookingViewRow[]; total: number }> {
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
     throw new Error("Supabase configuration missing for live view");
   }
@@ -115,6 +144,9 @@ async function fetchViewData(
     params.append("primary_supplier", `ilike.%${supplierParam}%`);
   }
 
+  const start = (page - 1) * pageSize;
+  const end = start + pageSize - 1;
+
   const response = await fetch(
     `${SUPABASE_URL}/rest/v1/ops.v_bookings?${params.toString()}`,
     {
@@ -122,6 +154,7 @@ async function fetchViewData(
         apikey: SERVICE_ROLE_KEY,
         Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
         Prefer: "count=exact",
+        Range: `${start}-${end}`,
       },
     },
   );
@@ -134,7 +167,11 @@ async function fetchViewData(
   }
 
   const data = (await response.json()) as BookingViewRow[];
-  return Array.isArray(data) ? data : [];
+  const rows = Array.isArray(data) ? data : [];
+  const totalHeader = response.headers.get("content-range");
+  const total = parseContentRangeTotal(totalHeader);
+  const normalizedTotal = typeof total === "number" ? total : Math.max(rows.length + start, rows.length);
+  return { rows, total: normalizedTotal };
 }
 
 Deno.serve(withObs(async (req) => {
@@ -153,6 +190,9 @@ Deno.serve(withObs(async (req) => {
   const supplierRaw = url.searchParams.get("supplier");
   const supplierParam = supplierRaw?.trim().toLowerCase() || null;
 
+  const page = parsePageParam(url.searchParams.get("page"));
+  const pageSize = parsePageSizeParam(url.searchParams.get("page_size"));
+
   if (supplierRaw && supplierRaw.length > 64) {
     return toJson({ ok: false, error: "supplier must be <= 64 characters" }, {
       status: 400,
@@ -169,27 +209,56 @@ Deno.serve(withObs(async (req) => {
   try {
     if (USE_FIXTURES) {
       const filtered = filterFixtures(from, to, supplierParam);
+      const total = filtered.length;
+      const start = (page - 1) * pageSize;
+      const paged = filtered.slice(start, start + pageSize);
       auditLog({
         requestId,
         source: "fixtures",
         from: from ? from.toISOString().slice(0, 10) : "",
         to: to ? to.toISOString().slice(0, 10) : "",
         supplier: supplierParam ?? "",
-        results: filtered.length,
+        page,
+        pageSize,
+        total,
+        results: paged.length,
       });
-      return toJson({ ok: true, data: filtered, request_id: requestId });
+      return toJson({
+        ok: true,
+        data: paged,
+        request_id: requestId,
+        total,
+        page,
+        page_size: pageSize,
+      });
     }
 
-    const rows = await fetchViewData(from, to, supplierParam);
+    const { rows, total } = await fetchViewData(
+      from,
+      to,
+      supplierParam,
+      page,
+      pageSize,
+    );
     auditLog({
       requestId,
       source: "view",
       from: from ? from.toISOString().slice(0, 10) : "",
       to: to ? to.toISOString().slice(0, 10) : "",
       supplier: supplierParam ?? "",
+      page,
+      pageSize,
+      total,
       results: rows.length,
     });
-    return toJson({ ok: true, data: rows, request_id: requestId });
+    return toJson({
+      ok: true,
+      data: rows,
+      request_id: requestId,
+      total,
+      page,
+      page_size: pageSize,
+    });
   } catch (error) {
     auditLog({
       requestId,

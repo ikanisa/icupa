@@ -4,12 +4,15 @@ import { cookies } from "next/headers";
 import supplierSlasFixture from "../../../../fixtures/supplier_slas.json";
 import { opsConsoleOfflineModeEnabled, readSupabaseConfig } from "../../lib/env";
 import { createBadgeStyle, createTableStyles } from "../../lib/ui";
+import Pagination from "../components/pagination";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
 type SlaFilters = {
   breach?: string;
 };
+
+const DEFAULT_PAGE_SIZE = 20;
 
 type FixtureRow = {
   supplier: string;
@@ -47,6 +50,9 @@ type SupplierLoadSuccess = {
   rows: SupplierRow[];
   source: "fixtures" | "edge";
   requestId: string | null;
+  total: number;
+  page: number;
+  pageSize: number;
 };
 
 type SupplierLoadError = {
@@ -65,26 +71,32 @@ export default function SupplierSlasPage({
 }) {
   const filters = extractFilters(searchParams);
   const selected = parseSelectedSupplier(searchParams);
+  const page = parsePage(searchParams);
 
   return (
     <section>
       <h1>Supplier SLAs</h1>
-      <p>Monitor supplier confirmation cadences, cancellations, and breach alerts.</p>
-      <ul>
-        <li>Table: suppliers with SLA metrics and trend columns.</li>
-        <li>Filters: supplier tier, breach state, time window.</li>
-        <li>Detail drawer: raw events, escalation targets, notes.</li>
-        <li>Action toolbar: acknowledge breach, trigger reminder, schedule review.</li>
-        <li>Alerts: highlight overdue confirmations.</li>
-      </ul>
+      <p>
+        Monitor confirmation cadences, cancellation rates, and breach alerts to proactively manage
+        supplier relationships.
+      </p>
 
       <FilterControls filters={filters} />
       <Suspense fallback={<p>Loading supplier SLA metrics…</p>}>
         {/* @ts-ignore -- Async Server Component */}
-        <SupplierSlasData filters={filters} selected={selected} />
+        <SupplierSlasData filters={filters} selected={selected} page={page} />
       </Suspense>
     </section>
   );
+}
+
+function parsePage(searchParams?: SearchParams): number {
+  if (!searchParams) return 1;
+  const raw = searchParams.page;
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 1) return 1;
+  return Math.floor(parsed);
 }
 
 function extractFilters(searchParams?: SearchParams): SlaFilters {
@@ -170,9 +182,9 @@ function FilterControls({ filters }: { filters: SlaFilters }) {
 }
 
 async function SupplierSlasData(
-  { filters, selected }: { filters: SlaFilters; selected?: string },
+  { filters, selected, page }: { filters: SlaFilters; selected?: string; page: number },
 ) {
-  const result = await loadSupplierMetrics(filters);
+  const result = await loadSupplierMetrics(filters, page);
 
   if (!result.ok) {
     return (
@@ -199,22 +211,51 @@ async function SupplierSlasData(
   return (
     <div style={{ marginTop: "1rem" }}>
       <p style={{ fontSize: "0.85rem", marginBottom: "0.75rem", opacity: 0.8 }}>
-        Showing {result.rows.length} supplier
-        {result.rows.length === 1 ? "" : "s"} sourced from
+        Showing page {result.page} of {Math.max(1, Math.ceil(result.total / result.pageSize))} ·
+        {" "}
+        {result.rows.length} of {result.total} suppliers sourced from
         {" "}
         {result.source === "fixtures" ? "offline fixtures" : "Supabase view"}
         {result.requestId ? ` · request_id ${result.requestId}` : ""}
       </p>
-      <SupplierTable rows={result.rows} filters={filters} selected={selected} />
+      <SupplierTable
+        rows={result.rows}
+        filters={filters}
+        selected={selected}
+        page={result.page}
+      />
+      <Pagination
+        page={result.page}
+        pageSize={result.pageSize}
+        total={result.total}
+        buildPageHref={(nextPage) => buildPageLink(filters, nextPage)}
+      />
       {selected ? renderSupplierDetail(result.rows, selected) : null}
     </div>
   );
 }
 
-async function loadSupplierMetrics(filters: SlaFilters): Promise<SupplierLoadResult> {
+async function loadSupplierMetrics(
+  filters: SlaFilters,
+  page: number,
+): Promise<SupplierLoadResult> {
+  const safePage = Math.max(1, Number.isFinite(page) ? Math.floor(page) : 1);
+  const pageSize = DEFAULT_PAGE_SIZE;
+
   if (opsConsoleOfflineModeEnabled()) {
-    const rows = (supplierSlasFixture as FixtureRow[]).map((item) => mapFixtureRow(item));
-    return { ok: true, rows, source: "fixtures", requestId: null };
+    const allRows = (supplierSlasFixture as FixtureRow[]).map((item) => mapFixtureRow(item));
+    const total = allRows.length;
+    const start = (safePage - 1) * pageSize;
+    const rows = allRows.slice(start, start + pageSize);
+    return {
+      ok: true,
+      rows,
+      source: "fixtures",
+      requestId: null,
+      total,
+      page: safePage,
+      pageSize,
+    };
   }
 
   const configState = readSupabaseConfig();
@@ -243,6 +284,8 @@ async function loadSupplierMetrics(filters: SlaFilters): Promise<SupplierLoadRes
   }
 
   const requestUrl = `${configState.config.url}/rest/v1/ops.v_supplier_slas?${params.toString()}`;
+  const start = (safePage - 1) * pageSize;
+  const end = start + pageSize - 1;
 
   let response: Response;
   try {
@@ -251,6 +294,7 @@ async function loadSupplierMetrics(filters: SlaFilters): Promise<SupplierLoadRes
         apikey: configState.config.anonKey,
         Authorization: `Bearer ${accessToken}`,
         Prefer: "count=exact",
+        Range: `${start}-${end}`,
       },
       cache: "no-store",
     });
@@ -283,11 +327,17 @@ async function loadSupplierMetrics(filters: SlaFilters): Promise<SupplierLoadRes
   }
 
   const rows = (payload as EdgeRow[]).map((row) => mapEdgeRow(row));
+  const totalHeader = response.headers.get("content-range");
+  const total = parseContentRangeTotal(totalHeader);
+  const normalizedTotal = typeof total === "number" ? total : Math.max(rows.length + start, rows.length);
   return {
     ok: true,
     rows,
     source: "edge",
     requestId: null,
+    total: normalizedTotal,
+    page: safePage,
+    pageSize,
   };
 }
 
@@ -327,13 +377,23 @@ function mapEdgeRow(row: EdgeRow): SupplierRow {
   };
 }
 
+function parseContentRangeTotal(header: string | null): number | null {
+  if (!header) return null;
+  const match = /\/(\d+)$/u.exec(header.trim());
+  if (!match) return null;
+  const total = Number(match[1]);
+  if (!Number.isFinite(total) || total < 0) return null;
+  return Math.floor(total);
+}
+
 function SupplierTable(
   {
     rows,
     filters,
     selected,
+    page,
   }:
-    { rows: SupplierRow[]; filters: SlaFilters; selected?: string },
+    { rows: SupplierRow[]; filters: SlaFilters; selected?: string; page: number },
 ) {
   const tableStyles = createTableStyles({ minWidth: "720px" });
   const wrapperStyle = tableStyles.wrapper;
@@ -365,7 +425,7 @@ function SupplierTable(
             >
               <td style={cellStyle}>
                 <div style={{ fontWeight: 600 }}>
-                  <Link href={buildSupplierLink(row.supplier, filters)}>{row.supplier}</Link>
+                  <Link href={buildSupplierLink(row.supplier, filters, page)}>{row.supplier}</Link>
                 </div>
                 <div style={{ fontSize: "0.75rem", opacity: 0.6 }}>
                   {row.source === "fixtures" ? "fixture" : "live"}
@@ -385,11 +445,23 @@ function SupplierTable(
   );
 }
 
-function buildSupplierLink(name: string, filters: SlaFilters): string {
+function buildSupplierLink(name: string, filters: SlaFilters, page: number): string {
+  const params = createFilterParams(filters);
+  params.set("selected", name);
+  params.set("page", String(page));
+  return `/ops/supplier-slas?${params.toString()}`;
+}
+
+function buildPageLink(filters: SlaFilters, page: number): string {
+  const params = createFilterParams(filters);
+  params.set("page", String(Math.max(1, page)));
+  return `/ops/supplier-slas?${params.toString()}`;
+}
+
+function createFilterParams(filters: SlaFilters): URLSearchParams {
   const params = new URLSearchParams();
   if (filters.breach) params.set("breach", filters.breach);
-  params.set("selected", name);
-  return `/ops/supplier-slas?${params.toString()}`;
+  return params;
 }
 
 function formatHours(value?: number) {

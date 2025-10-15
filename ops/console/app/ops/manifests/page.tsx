@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import bookingsFixture from "../../../../fixtures/bookings.json";
 import { opsConsoleOfflineModeEnabled, readSupabaseConfig } from "../../lib/env";
 import { createBadgeStyle, createTableStyles } from "../../lib/ui";
+import Pagination from "../components/pagination";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -12,6 +13,8 @@ type ManifestFilters = {
   to?: string;
   supplier?: string;
 };
+
+const DEFAULT_PAGE_SIZE = 20;
 
 type FixtureRow = {
   id: string;
@@ -55,6 +58,9 @@ type ManifestLoadSuccess = {
   rows: ManifestRow[];
   source: "fixtures" | "edge";
   requestId: string | null;
+  total: number;
+  page: number;
+  pageSize: number;
 };
 
 type ManifestLoadError = {
@@ -71,25 +77,32 @@ export default function ManifestsPage({
 }) {
   const filters = extractFilters(searchParams);
   const selectedId = parseSelectedId(searchParams);
+  const page = parsePage(searchParams);
 
   return (
     <section>
       <h1>Manifests</h1>
-      <p>Upcoming bookings with supplier/date filters and traveler voucher details.</p>
-      <ul>
-        <li>Table: booking manifests with filter controls.</li>
-        <li>Detail drawer: traveler context, vouchers, contact points.</li>
-        <li>Action toolbar: mark ready, issue reminders.</li>
-        <li>Toast notifications for status updates.</li>
-      </ul>
+      <p>
+        Upcoming booking departures with live supplier confirmations, traveler context, and
+        ledger-ready totals for finance reconciliation.
+      </p>
 
       <FilterControls filters={filters} />
       <Suspense fallback={<p>Loading manifests…</p>}>
         {/* @ts-ignore -- Async Server Component */}
-        <ManifestsData filters={filters} selectedId={selectedId} />
+        <ManifestsData filters={filters} selectedId={selectedId} page={page} />
       </Suspense>
     </section>
   );
+}
+
+function parsePage(searchParams?: SearchParams): number {
+  if (!searchParams) return 1;
+  const raw = searchParams.page;
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 1) return 1;
+  return Math.floor(parsed);
 }
 
 function extractFilters(searchParams?: SearchParams): ManifestFilters {
@@ -204,9 +217,9 @@ function FilterControls({ filters }: { filters: ManifestFilters }) {
 }
 
 async function ManifestsData(
-  { filters, selectedId }: { filters: ManifestFilters; selectedId?: string },
+  { filters, selectedId, page }: { filters: ManifestFilters; selectedId?: string; page: number },
 ) {
-  const result = await loadManifests(filters);
+  const result = await loadManifests(filters, page);
 
   if (!result.ok) {
     return (
@@ -233,22 +246,51 @@ async function ManifestsData(
   return (
     <div style={{ marginTop: "1rem" }}>
       <p style={{ fontSize: "0.85rem", marginBottom: "0.75rem", opacity: 0.8 }}>
-        Showing {result.rows.length} booking
-        {result.rows.length === 1 ? "" : "s"} from
+        Showing page {result.page} of {Math.max(1, Math.ceil(result.total / result.pageSize))} ·
+        {" "}
+        {result.rows.length} of {result.total} bookings from
         {" "}
         {result.source === "fixtures" ? "offline fixtures" : "Supabase Edge Function"}
         {result.requestId ? ` · request_id ${result.requestId}` : ""}
       </p>
-      <ManifestTable rows={result.rows} filters={filters} selectedId={selectedId} />
+      <ManifestTable
+        rows={result.rows}
+        filters={filters}
+        selectedId={selectedId}
+        page={result.page}
+      />
+      <Pagination
+        page={result.page}
+        pageSize={result.pageSize}
+        total={result.total}
+        buildPageHref={(nextPage) => buildPageLink(filters, nextPage)}
+      />
       {selectedId ? renderManifestDetail(result.rows, selectedId) : null}
     </div>
   );
 }
 
-async function loadManifests(filters: ManifestFilters): Promise<ManifestLoadResult> {
+async function loadManifests(
+  filters: ManifestFilters,
+  page: number,
+): Promise<ManifestLoadResult> {
+  const safePage = Math.max(1, Number.isFinite(page) ? Math.floor(page) : 1);
+  const pageSize = DEFAULT_PAGE_SIZE;
+
   if (opsConsoleOfflineModeEnabled()) {
-    const rows = (bookingsFixture as FixtureRow[]).map((item) => mapFixtureRow(item));
-    return { ok: true, rows, source: "fixtures", requestId: null };
+    const allRows = (bookingsFixture as FixtureRow[]).map((item) => mapFixtureRow(item));
+    const total = allRows.length;
+    const start = (safePage - 1) * pageSize;
+    const rows = allRows.slice(start, start + pageSize);
+    return {
+      ok: true,
+      rows,
+      source: "fixtures",
+      requestId: null,
+      total,
+      page: safePage,
+      pageSize,
+    };
   }
 
   const configState = readSupabaseConfig();
@@ -271,6 +313,8 @@ async function loadManifests(filters: ManifestFilters): Promise<ManifestLoadResu
   if (filters.from) params.append("from", filters.from);
   if (filters.to) params.append("to", filters.to);
   if (filters.supplier) params.append("supplier", filters.supplier);
+  params.append("page", String(safePage));
+  params.append("page_size", String(pageSize));
 
   const query = params.toString();
   const requestUrl = `${configState.config.url}/functions/v1/ops-bookings${
@@ -311,17 +355,37 @@ async function loadManifests(filters: ManifestFilters): Promise<ManifestLoadResu
     };
   }
 
-  const parsed = payload as { ok?: boolean; data?: unknown; request_id?: unknown };
+  const parsed = payload as {
+    ok?: boolean;
+    data?: unknown;
+    request_id?: unknown;
+    total?: unknown;
+    page?: unknown;
+    page_size?: unknown;
+  };
   if (parsed?.ok !== true || !Array.isArray(parsed.data)) {
     return { ok: false, message: "Unexpected ops-bookings payload." };
   }
 
   const rows = (parsed.data as EdgeRow[]).map((row, index) => mapEdgeRow(row, index));
+  const total = Number(parsed.total);
+  const normalizedTotal = Number.isFinite(total) && total >= 0 ? Math.floor(total) : rows.length;
+  const responsePage = Number(parsed.page);
+  const normalizedPage = Number.isFinite(responsePage) && responsePage >= 1
+    ? Math.floor(responsePage)
+    : safePage;
+  const responsePageSize = Number(parsed.page_size);
+  const normalizedPageSize = Number.isFinite(responsePageSize) && responsePageSize > 0
+    ? Math.floor(responsePageSize)
+    : pageSize;
   return {
     ok: true,
     rows,
     source: "edge",
     requestId: typeof parsed.request_id === "string" ? parsed.request_id : null,
+    total: normalizedTotal,
+    page: normalizedPage,
+    pageSize: normalizedPageSize,
   };
 }
 
@@ -376,8 +440,9 @@ function ManifestTable(
     rows,
     filters,
     selectedId,
+    page,
   }:
-    { rows: ManifestRow[]; filters: ManifestFilters; selectedId?: string },
+    { rows: ManifestRow[]; filters: ManifestFilters; selectedId?: string; page: number },
 ) {
   const tableStyles = createTableStyles({ minWidth: "720px" });
   const wrapperStyle = tableStyles.wrapper;
@@ -408,7 +473,7 @@ function ManifestTable(
             >
               <td style={cellStyle}>
                 <div style={{ fontWeight: 600 }}>
-                  <Link href={buildManifestLink(row.id, filters)}>{row.id}</Link>
+                  <Link href={buildManifestLink(row.id, filters, page)}>{row.id}</Link>
                 </div>
                 {row.itineraryId ? (
                   <div style={{ fontSize: "0.8rem", opacity: 0.75 }}>
@@ -472,13 +537,25 @@ function renderStatus(status?: string) {
   return <span style={createBadgeStyle(colors)}>{status}</span>;
 }
 
-function buildManifestLink(id: string, filters: ManifestFilters): string {
+function buildManifestLink(id: string, filters: ManifestFilters, page: number): string {
+  const params = createFilterParams(filters);
+  params.set("selected", id);
+  params.set("page", String(page));
+  return `/ops/manifests?${params.toString()}`;
+}
+
+function buildPageLink(filters: ManifestFilters, page: number): string {
+  const params = createFilterParams(filters);
+  params.set("page", String(Math.max(1, page)));
+  return `/ops/manifests?${params.toString()}`;
+}
+
+function createFilterParams(filters: ManifestFilters): URLSearchParams {
   const params = new URLSearchParams();
   if (filters.from) params.set("from", filters.from);
   if (filters.to) params.set("to", filters.to);
   if (filters.supplier) params.set("supplier", filters.supplier);
-  params.set("selected", id);
-  return `/ops/manifests?${params.toString()}`;
+  return params;
 }
 
 function renderManifestDetail(rows: ManifestRow[], selectedId: string) {
