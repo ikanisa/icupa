@@ -32,15 +32,16 @@ interface CartState {
   setSplitGuests: (count: number) => void;
 }
 
-const noopStorage: StateStorage = {
-  getItem: () => null,
-  setItem: () => undefined,
-  removeItem: () => undefined,
-};
+// SSR-safe no-op storage (correct StateStorage signatures)
+const createNoopStorage = (): StateStorage => ({
+  getItem: (_name: string) => null,
+  setItem: (_name: string, _value: string) => undefined,
+  removeItem: (_name: string) => undefined,
+});
 
-const storage =
+const storage: StateStorage =
   typeof window === "undefined"
-    ? noopStorage
+    ? createNoopStorage()
     : createJSONStorage(() => window.localStorage);
 
 export const useCartStore = create<CartState>()(
@@ -51,6 +52,7 @@ export const useCartStore = create<CartState>()(
       customTipCents: undefined,
       splitMode: "none",
       splitGuests: 2,
+
       addItem: (item) =>
         set((state) => {
           const existing = state.items.find((line) => line.id === item.id);
@@ -75,12 +77,14 @@ export const useCartStore = create<CartState>()(
             ],
           };
         }),
+
       incrementItem: (id) =>
         set((state) => ({
           items: state.items.map((line) =>
             line.id === id ? { ...line, quantity: line.quantity + 1 } : line
           ),
         })),
+
       updateItemQuantity: (id, quantity) =>
         set((state) => ({
           items:
@@ -90,6 +94,7 @@ export const useCartStore = create<CartState>()(
                   line.id === id ? { ...line, quantity } : line
                 ),
         })),
+
       clearCart: () =>
         set({
           items: [],
@@ -98,11 +103,15 @@ export const useCartStore = create<CartState>()(
           splitMode: "none",
           splitGuests: 2,
         }),
+
       setTipPercent: (percent) =>
         set({ tipPercent: percent, customTipCents: undefined }),
+
       setCustomTipCents: (cents) =>
         set({ customTipCents: cents, tipPercent: cents === undefined ? 10 : 0 }),
+
       setSplitMode: (mode) => set({ splitMode: mode }),
+
       setSplitGuests: (count) => set({ splitGuests: Math.max(1, count) }),
     }),
     {
@@ -120,17 +129,14 @@ export const useCartStore = create<CartState>()(
 );
 
 export const selectCartItems = (state: CartState) => state.items;
+
 export const selectCartTotals = (state: CartState) => {
   const subtotalCents = state.items.reduce((sum, item) => {
     const modifierTotal = item.modifiers?.reduce(
       (modSum, mod) => modSum + mod.priceCents,
       0
     );
-    return (
-      sum +
-      (item.priceCents + (modifierTotal ?? 0)) *
-        item.quantity
-    );
+    return sum + (item.priceCents + (modifierTotal ?? 0)) * item.quantity;
   }, 0);
 
   const tipCents =
