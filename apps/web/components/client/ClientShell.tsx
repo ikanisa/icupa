@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Fuse from "fuse.js";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { ActionDock } from "./ActionDock";
@@ -37,6 +37,7 @@ import { useMenuData } from "@/hooks/useMenuData";
 import { useReceiptNotifications } from "@/hooks/useReceiptNotifications";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
 import { useBackgroundSyncToast } from "@/hooks/useBackgroundSyncToast";
+import { emitClientEvent } from "@/lib/client-events";
 
 const DEFAULT_FILTERS: MenuFilters = {
   excludedAllergens: [],
@@ -53,7 +54,6 @@ export function ClientShell() {
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const { session: tableSession, status: tableSessionStatus } = useTableSession();
-  useBackgroundSyncToast();
   useReceiptNotifications({
     tableSessionId: tableSession?.id ?? null,
     enabled: tableSessionStatus === "ready",
@@ -84,6 +84,48 @@ export function ClientShell() {
   const splitGuests = useCartStore((state) => state.splitGuests);
   const setSplitMode = useCartStore((state) => state.setSplitMode);
   const setSplitGuests = useCartStore((state) => state.setSplitGuests);
+
+  const reportStorageFailure = useCallback((operation: "get" | "set" | "remove", key: string, error: unknown) => {
+    emitClientEvent({
+      type: "storage_error",
+      payload: {
+        storage: "localStorage",
+        operation,
+        key,
+        message: error instanceof Error ? error.message : String(error ?? "unknown error"),
+        quotaExceeded: error instanceof DOMException && error.name === "QuotaExceededError",
+      },
+    });
+  }, []);
+
+  const readFromStorage = useCallback(
+    (key: string): string | null => {
+      if (typeof window === "undefined") {
+        return null;
+      }
+      try {
+        return window.localStorage.getItem(key);
+      } catch (error) {
+        reportStorageFailure("get", key, error);
+        return null;
+      }
+    },
+    [reportStorageFailure]
+  );
+
+  const persistToStorage = useCallback(
+    (key: string, value: string) => {
+      if (typeof window === "undefined") {
+        return;
+      }
+      try {
+        window.localStorage.setItem(key, value);
+      } catch (error) {
+        reportStorageFailure("set", key, error);
+      }
+    },
+    [reportStorageFailure]
+  );
 
   useEffect(() => {
     if (menuSource === "loading") {
@@ -116,6 +158,12 @@ export function ClientShell() {
     [locations, selectedLocationId]
   );
 
+  useBackgroundSyncToast({
+    tenantId: selectedLocation?.tenantId ?? null,
+    locationId: selectedLocation?.id ?? null,
+    tableSessionId: tableSession?.id ?? null,
+  });
+
   const pushSubscription = usePushSubscription({
     tableSessionId: tableSession?.id ?? null,
     locationId: tableSession?.locationId ?? selectedLocation?.id ?? null,
@@ -129,6 +177,26 @@ export function ClientShell() {
 
   const pushButtonDisabled =
     pushSubscription.permission === "denied" || pushSubscription.isSubscribing;
+
+  useEffect(() => {
+    const stored = readFromStorage("icupa_install_banner_dismissed");
+    if (stored === "true") {
+      setDismissInstallBanner(true);
+    }
+  }, [readFromStorage]);
+
+  useEffect(() => {
+    if (!installStatus.isStandalone) {
+      return;
+    }
+    setDismissInstallBanner(true);
+    persistToStorage("icupa_install_banner_dismissed", "true");
+  }, [installStatus.isStandalone, persistToStorage]);
+
+  const handleInstallDismiss = () => {
+    setDismissInstallBanner(true);
+    persistToStorage("icupa_install_banner_dismissed", "true");
+  };
 
   useEffect(() => {
     clearCart();
@@ -433,7 +501,7 @@ export function ClientShell() {
                     size="icon"
                     className="rounded-full"
                     aria-label="Dismiss install guidance"
-                    onClick={() => setDismissInstallBanner(true)}
+                    onClick={handleInstallDismiss}
                   >
                     ×
                   </Button>
@@ -583,6 +651,7 @@ export function ClientShell() {
                   items={cartItems}
                   currency={selectedLocation.currency}
                   locale={selectedLocation.locale}
+                  taxRate={selectedLocation.taxRate}
                   tipPercent={tipPercent}
                   customTipCents={customTipCents}
                   splitMode={splitMode}
@@ -602,6 +671,7 @@ export function ClientShell() {
                   currency={selectedLocation.currency}
                   locale={selectedLocation.locale}
                   region={selectedLocation.region}
+                  taxRate={selectedLocation.taxRate}
                   tipPercent={tipPercent}
                   customTipCents={customTipCents}
                   splitMode={splitMode}

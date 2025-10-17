@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { subscribeToClientEvents } from "@/lib/client-events";
 
 const SYNC_COMPLETE_MESSAGE = "icupa-sync-complete";
 
@@ -41,6 +42,43 @@ export function useBackgroundSyncToast(options?: BackgroundSyncToastOptions): vo
   useEffect(() => {
     contextRef.current = options;
   }, [options]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const unsubscribe = subscribeToClientEvents((event) => {
+      if (event.type !== "storage_error") {
+        return;
+      }
+      const context = contextRef.current;
+      if (!context?.tableSessionId) {
+        return;
+      }
+
+      void (async () => {
+        try {
+          await supabase.functions.invoke("client-events-log-storage-error", {
+            body: {
+              table_session_id: context.tableSessionId,
+              location_id: context.locationId,
+              tenant_id: context.tenantId,
+              key: event.payload.key,
+              operation: event.payload.operation,
+              message: event.payload.message,
+              storage: event.payload.storage,
+              quota_exceeded: event.payload.quotaExceeded ?? false,
+            },
+          });
+        } catch (error) {
+          console.error("Failed to log client storage error", error);
+        }
+      })();
+    });
+
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) {

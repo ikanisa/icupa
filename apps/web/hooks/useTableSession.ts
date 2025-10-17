@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase-client";
 import { toast } from "@icupa/ui/use-toast";
 import {
@@ -50,6 +50,7 @@ export function useTableSession() {
     }
     return null;
   });
+  const previousSessionRef = useRef<StoredTableSession | null>(session);
 
   const initializeSession = useCallback(
     async (token: string, signature: string) => {
@@ -114,14 +115,22 @@ export function useTableSession() {
     }
     const stored = getStoredTableSession();
     if (!stored) {
+      if (previousSessionRef.current && status !== "linking") {
+        toast({
+          title: "Table session ended",
+          description: "Scan the table QR code again to relink this device and resume ordering.",
+        });
+      }
       clearTableSession();
       setSession(null);
       if (status !== "linking") {
         setStatus("idle");
       }
+      previousSessionRef.current = null;
       return;
     }
     setSession(stored);
+    previousSessionRef.current = stored;
     if (status === "idle") {
       setStatus("ready");
     }

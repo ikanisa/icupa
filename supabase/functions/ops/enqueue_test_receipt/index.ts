@@ -32,7 +32,11 @@ export async function handleEnqueueTestReceipt(req: Request): Promise<Response> 
   }
 
   let body: { order_id?: string; payment_id?: string } = {};
-  try { body = (await req.json()) as typeof body; } catch (_) {}
+  try {
+    body = (await req.json()) as typeof body;
+  } catch (error) {
+    console.warn('Failed to parse enqueue_test_receipt payload', error);
+  }
 
   const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 

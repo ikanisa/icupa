@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "dev:agents": "npm --prefix agents-service run dev",
+    "prebuild": "node scripts/ci/check-supabase-env.mjs",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
@@ -24,7 +25,8 @@
     "test:perf": "npx --yes @lhci/cli@0.12.2 autorun",
     "analyze:pwa": "npx --yes lighthouse http://localhost:5000 --only-categories=pwa --preset=desktop || true",
     "format": "npm run lint:fix",
-    "verify": "npm run lint && npm run typecheck && npm run test"
+    "verify": "npm run lint && npm run typecheck && npm run test",
+    "verify:full": "npm run verify && npm run test:e2e && npm run supabase:test"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

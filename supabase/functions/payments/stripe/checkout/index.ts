@@ -84,18 +84,6 @@ export async function handleStripeCheckout(req: Request): Promise<Response> {
     );
 
     if (!STRIPE_SECRET_KEY) {
-      console.error("Stripe secret not configured; returning pending status", { orderId, paymentId });
-      const pendingResponse = jsonResponse(
-        {
-          order_id: orderId,
-          payment_id: paymentId,
-          payment_status: "pending",
-          payment_method: "stripe",
-          message:
-            "Stripe secret is not configured in this environment. Configure STRIPE_SECRET_KEY to enable live checkout.",
-        },
-        202
-      );
       await span.end(client, {
         status: 'error',
         tenantId: sessionContext.tenantId,
@@ -103,7 +91,11 @@ export async function handleStripeCheckout(req: Request): Promise<Response> {
         tableSessionId: sessionContext.tableSessionId,
         errorMessage: 'stripe_secret_missing',
       });
-      return pendingResponse;
+      return errorResponse(
+        503,
+        "stripe_not_configured",
+        "Stripe secret is not configured for this deployment. Configure STRIPE_SECRET_KEY and redeploy before enabling card payments.",
+      );
     }
 
     const stripe = new Stripe(STRIPE_SECRET_KEY, {

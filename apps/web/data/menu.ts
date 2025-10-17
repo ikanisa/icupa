@@ -8,6 +8,7 @@ export interface MenuLocation {
   locale: string;
   timezone: string;
   tenantId?: string;
+  taxRate: number;
 }
 
 export type AllergenCode =
@@ -61,6 +62,7 @@ export const menuLocations: MenuLocation[] = [
     locale: "en-RW",
     timezone: "Africa/Kigali",
     tenantId: "00000000-0000-4000-8000-demo-rw",
+    taxRate: 0.18,
   },
   {
     id: "valletta-bistro",
@@ -70,6 +72,7 @@ export const menuLocations: MenuLocation[] = [
     locale: "en-MT",
     timezone: "Europe/Malta",
     tenantId: "00000000-0000-4000-8000-demo-eu",
+    taxRate: 0.07,
   },
 ];
 

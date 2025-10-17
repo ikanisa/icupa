@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -55,6 +55,7 @@ interface PaymentScreenProps {
   splitGuests: number;
   onPaymentComplete: () => void;
   isOffline?: boolean;
+  taxRate: number;
 }
 
 interface PaymentDetailsSummary {
@@ -139,6 +140,7 @@ export function PaymentScreen({
   splitGuests,
   onPaymentComplete,
   isOffline = false,
+  taxRate,
 }: PaymentScreenProps) {
   const [selectedMethod, setSelectedMethod] = useState<PaymentUiMethod | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>("idle");
@@ -166,14 +168,16 @@ export function PaymentScreen({
   const currentMethod: PaymentUiMethod =
     paymentDetails?.method ?? selectedMethod ?? "card";
 
-  const { subtotalCents, taxCents, totalCents, taxRate, tipCents } = useMemo(() => {
+  const offlineNoticeId = useId();
+
+  const { subtotalCents, taxCents, totalCents, tipCents, normalizedTaxRate } = useMemo(() => {
     const subtotal = cartItems.reduce((sum, item) => {
       const modifierTotal = item.modifiers?.reduce((modSum, mod) => modSum + mod.priceCents, 0) ?? 0;
       return sum + (item.priceCents + modifierTotal) * item.quantity;
     }, 0);
 
-    const computedTaxRate = 0.18; // Country defaults
-    const tax = Math.round(subtotal * computedTaxRate);
+    const boundedTaxRate = Number.isFinite(taxRate) ? Math.max(0, Math.min(taxRate, 1)) : 0;
+    const tax = Math.round(subtotal * boundedTaxRate);
     const tip =
       customTipCents !== undefined
         ? customTipCents
@@ -182,10 +186,12 @@ export function PaymentScreen({
       subtotalCents: subtotal,
       taxCents: tax,
       totalCents: subtotal + tax + tip,
-      taxRate: computedTaxRate,
+      normalizedTaxRate: boundedTaxRate,
       tipCents: tip,
     };
-  }, [cartItems, customTipCents, tipPercent]);
+  }, [cartItems, customTipCents, taxRate, tipPercent]);
+
+  const effectiveTaxRate = normalizedTaxRate;
 
   const availableMethods = useMemo(
     () => PAYMENT_METHODS.filter((method) => method.regions.includes(region)),
@@ -972,15 +978,19 @@ export function PaymentScreen({
           role="status"
           aria-live="polite"
         >
-          <Card className="glass-card border border-warning/40 bg-warning/10 text-warning-foreground">
+          <Card
+            className="glass-card border border-warning/40 bg-warning/10 text-warning-foreground"
+            id={offlineNoticeId}
+          >
             <CardContent className="p-4 flex gap-3">
               <div className="mt-0.5">
                 <WifiOff className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold">Waiting for connection</h3>
+                <h3 className="text-sm font-semibold">Payments paused offline</h3>
                 <p className="text-xs opacity-90">
-                  Stay on this screen and we’ll finish checkout the moment you’re back online.
+                  Stay on this screen and we’ll finish checkout the moment you’re back online. The Pay button is temporarily
+                  disabled until we detect a stable connection.
                 </p>
               </div>
             </CardContent>
@@ -1023,7 +1033,7 @@ export function PaymentScreen({
                 <span>{formatCurrency(subtotalCents, currency, locale)}</span>
               </div>
               <div className="flex justify-between">
-                <span>Tax ({Math.round(taxRate * 100)}%)</span>
+                <span>Tax ({Math.round(effectiveTaxRate * 100)}%)</span>
                 <span>{formatCurrency(taxCents, currency, locale)}</span>
               </div>
               <div className="flex justify-between">
@@ -1110,6 +1120,7 @@ export function PaymentScreen({
           size="lg"
           disabled={disablePaymentButton}
           aria-disabled={disablePaymentButton}
+          aria-describedby={isOffline ? offlineNoticeId : undefined}
           onClick={handlePayment}
         >
           {paymentStatus === "processing" && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}

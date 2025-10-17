@@ -76,6 +76,12 @@ export function MenuGrid({ items, currency, locale, onItemSelect, onAddToCart }:
               onClick={() => onItemSelect(menuItem)}
               role="button"
               tabIndex={0}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onItemSelect(menuItem);
+                }
+              }}
             >
               <div className="aspect-video bg-gradient-to-br from-primary/20 to-accent/20 relative">
                 {!menuItem.isAvailable && (
