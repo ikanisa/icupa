@@ -9,12 +9,6 @@ export default defineConfig({
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
-  webServer: {
-    command: process.env.PLAYWRIGHT_WEB_SERVER_COMMAND ?? "npm run dev",
-    url: process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000",
-    reuseExistingServer: process.env.CI ? false : true,
-    timeout: Number(process.env.PLAYWRIGHT_WEB_SERVER_TIMEOUT ?? 120_000),
-  },
   projects: [
     {
       name: "chromium",

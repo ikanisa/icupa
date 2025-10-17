@@ -38,12 +38,12 @@ async function readErrorMessage(response: Response) {
           return first.trim();
         }
       }
-    } catch (_jsonError) {
-      // fall back to raw text below
+    } catch {
+      // fall through to raw text
     }
 
     return raw.trim().length > 0 ? raw.trim() : fallback;
-  } catch (_error) {
+  } catch {
     return fallback;
   }
 }
@@ -84,15 +84,15 @@ export function LeadCaptureForm() {
       try {
         const response = await fetch("/api/leads", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
+
         if (!response.ok) {
           const message = await readErrorMessage(response);
           throw new Error(message || "Unable to submit lead right now.");
         }
+
         const result = (await response.json()) as { leadName?: string };
         setState({ status: "success", leadName: result.leadName ?? payload.name });
         setPayload({
@@ -127,31 +127,34 @@ export function LeadCaptureForm() {
         Tell us how you like to travel and an ecoTrips operator will craft a proposal with carbon insights,
         vetted suppliers, and a service agreement you can review with your stakeholders.
       </p>
+
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="grid gap-1 text-sm font-medium text-emerald-100/90">
           Full name
           <input
             name="name"
             value={payload.name}
-            onChange={(event) => updateField("name", event.target.value)}
+            onChange={(e) => updateField("name", e.target.value)}
             className="rounded-xl border border-emerald-500/40 bg-slate-950/60 px-3 py-2 text-base text-white outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-400/60"
             placeholder="Rivera Collective"
             required
           />
         </label>
+
         <label className="grid gap-1 text-sm font-medium text-emerald-100/90">
           Email
           <input
             name="email"
             type="email"
             value={payload.email}
-            onChange={(event) => updateField("email", event.target.value)}
+            onChange={(e) => updateField("email", e.target.value)}
             className="rounded-xl border border-emerald-500/40 bg-slate-950/60 px-3 py-2 text-base text-white outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-400/60"
             placeholder="hello@organization.com"
             required
           />
         </label>
       </div>
+
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="grid gap-1 text-sm font-medium text-emerald-100/90">
           Preferred departure month
@@ -159,16 +162,17 @@ export function LeadCaptureForm() {
             name="travelMonth"
             type="month"
             value={payload.travelMonth}
-            onChange={(event) => updateField("travelMonth", event.target.value)}
+            onChange={(e) => updateField("travelMonth", e.target.value)}
             className="rounded-xl border border-emerald-500/40 bg-slate-950/60 px-3 py-2 text-base text-white outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-400/60"
           />
         </label>
+
         <label className="grid gap-1 text-sm font-medium text-emerald-100/90">
           Who&apos;s traveling?
           <select
             name="groupType"
             value={payload.groupType}
-            onChange={(event) => updateField("groupType", event.target.value)}
+            onChange={(e) => updateField("groupType", e.target.value)}
             className="rounded-xl border border-emerald-500/40 bg-slate-950/60 px-3 py-2 text-base text-white outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-400/60"
           >
             <option value="">Select group type</option>
@@ -180,28 +184,31 @@ export function LeadCaptureForm() {
           </select>
         </label>
       </div>
+
       <label className="grid gap-1 text-sm font-medium text-emerald-100/90">
         What kind of impact or experiences are you after?
         <textarea
           name="message"
           value={payload.message}
-          onChange={(event) => updateField("message", event.target.value)}
+          onChange={(e) => updateField("message", e.target.value)}
           rows={4}
           className="rounded-xl border border-emerald-500/40 bg-slate-950/60 px-3 py-2 text-base text-white outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-400/60"
           placeholder="Think regenerative wine regions, youth climate curriculum, or rainforest conservation site visits."
         />
       </label>
+
       <label className="flex items-start gap-3 text-sm text-emerald-100/80">
         <input
           name="consent"
           type="checkbox"
           checked={payload.consent}
-          onChange={(event) => updateField("consent", event.target.checked)}
+          onChange={(e) => updateField("consent", e.target.checked)}
           className="mt-1 h-4 w-4 rounded border border-emerald-500/50 bg-slate-950/80 text-emerald-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
           required
         />
         I agree to ecoTrips storing my details to follow up with itineraries and understand I can opt-out anytime.
       </label>
+
       <div className="flex flex-wrap gap-3">
         <button
           type="submit"
@@ -210,15 +217,18 @@ export function LeadCaptureForm() {
         >
           {disabled ? "Sending..." : "Request tailored proposals"}
         </button>
-        <p className="text-sm text-emerald-100/70">
-          Response SLA: under two business hours for funded travelers.
-        </p>
+        <p className="text-sm text-emerald-100/70">Response SLA: under two business hours for funded travelers.</p>
       </div>
+
       {state.status === "error" ? (
-        <p role="alert" className="rounded-xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
+        <p
+          role="alert"
+          className="rounded-xl border border-rose-400/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-100"
+        >
           {state.error}
         </p>
       ) : null}
+
       {state.status === "success" ? (
         <p
           role="status"
@@ -230,3 +240,4 @@ export function LeadCaptureForm() {
     </form>
   );
 }
+
