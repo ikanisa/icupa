@@ -105,6 +105,32 @@ function resolveLocale(region: RegionCode, settings: Record<string, unknown> | n
   return fallbackLocationByRegion.get("RW")?.locale ?? "en-RW";
 }
 
+function resolveTaxRate(region: RegionCode, settings: Record<string, unknown> | null): number {
+  let fromSettings: number | undefined;
+
+  if (settings && typeof settings === "object") {
+    const rawRate = (settings as Record<string, unknown>)["tax_rate"];
+    if (typeof rawRate === "number" && Number.isFinite(rawRate)) {
+      fromSettings = rawRate;
+    } else {
+      const rawPercent = (settings as Record<string, unknown>)["tax_rate_percent"];
+      if (typeof rawPercent === "number" && Number.isFinite(rawPercent)) {
+        fromSettings = rawPercent / 100;
+      }
+    }
+  }
+
+  if (typeof fromSettings === "number") {
+    const clamped = Math.max(0, Math.min(fromSettings, 1));
+    if (clamped > 0) {
+      return clamped;
+    }
+  }
+
+  const fallback = fallbackLocationByRegion.get(region);
+  return fallback?.taxRate ?? 0.18;
+}
+
 function defaultPreparationMinutes(fallback?: MenuItem): number {
   if (fallback) {
     return fallback.preparationMinutes;
@@ -156,6 +182,7 @@ async function fetchMenuFromSupabase(): Promise<MenuDataPayload> {
         currency: row.currency === "EUR" ? "EUR" : fallback?.currency ?? "RWF",
         locale: resolveLocale(region, row.settings),
         timezone: row.timezone ?? fallback?.timezone ?? "UTC",
+        taxRate: resolveTaxRate(region, row.settings),
       } satisfies MenuLocation;
     });
 

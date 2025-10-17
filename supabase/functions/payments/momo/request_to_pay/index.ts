@@ -154,6 +154,21 @@ export async function handleMtnRequestToPay(req: Request): Promise<Response> {
       "mtn_momo"
     );
 
+    if (!MOMO_API_BASE || !MOMO_SUBSCRIPTION_KEY || !MOMO_CLIENT_ID || !MOMO_CLIENT_SECRET) {
+      await span.end(client, {
+        status: 'error',
+        tenantId: sessionContext.tenantId,
+        locationId: sessionContext.locationId,
+        tableSessionId: sessionContext.tableSessionId,
+        errorMessage: 'mtn_momo_credentials_missing',
+      });
+      return errorResponse(
+        503,
+        "momo_not_configured",
+        "MTN MoMo credentials are not configured. Provide MOMO_API_BASE, MOMO_SUBSCRIPTION_KEY, MOMO_CLIENT_ID, and MOMO_CLIENT_SECRET before enabling mobile money payments.",
+      );
+    }
+
     const providerRef = crypto.randomUUID();
     const token = await obtainMtnAccessToken();
     await initiateRequestToPay({
