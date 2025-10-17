@@ -2,7 +2,8 @@ import { Suspense, type CSSProperties } from "react";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import bookingsFixture from "../../../../fixtures/bookings.json";
-import { opsConsoleOfflineModeEnabled, readSupabaseConfig } from "../../lib/env";
+import { determineOpsDataMode, readSupabaseConfig } from "../../lib/env";
+import { emitBypassAlert } from "../../lib/bypass-alert";
 import { createBadgeStyle, createTableStyles } from "../../lib/ui";
 import Pagination from "../components/pagination";
 
@@ -277,7 +278,25 @@ async function loadManifests(
   const safePage = Math.max(1, Number.isFinite(page) ? Math.floor(page) : 1);
   const pageSize = DEFAULT_PAGE_SIZE;
 
-  if (opsConsoleOfflineModeEnabled()) {
+  const mode = determineOpsDataMode();
+  if (mode.mode === "blocked") {
+    await emitBypassAlert({
+      page: "manifests",
+      toggles: mode.toggles,
+      reason: mode.reason,
+    });
+    return {
+      ok: false,
+      message: `${mode.reason} Disable toggles: ${mode.toggles.join(', ')}`.trim(),
+    };
+  }
+
+  if (mode.mode === "fixtures") {
+    await emitBypassAlert({
+      page: "manifests",
+      toggles: mode.toggles,
+      reason: "Fixture mode requested for manifests page",
+    });
     const allRows = (bookingsFixture as FixtureRow[]).map((item) => mapFixtureRow(item));
     const total = allRows.length;
     const start = (safePage - 1) * pageSize;

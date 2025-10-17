@@ -5,9 +5,10 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import refundsFixture from "../../../../fixtures/refunds.json";
 import {
-  opsConsoleOfflineModeEnabled,
+
   readSupabaseConfig,
 } from "../../lib/env";
+import { emitBypassAlert } from "../../lib/bypass-alert";
 import { createBadgeStyle, createTableStyles, monospaceTextStyle } from "../../lib/ui";
 import Pagination from "../components/pagination";
 
@@ -332,7 +333,25 @@ async function loadRefunds(
   const safePage = Math.max(1, Number.isFinite(page) ? Math.floor(page) : 1);
   const pageSize = DEFAULT_PAGE_SIZE;
 
-  if (opsConsoleOfflineModeEnabled()) {
+  const mode = determineOpsDataMode();
+  if (mode.mode === "blocked") {
+    await emitBypassAlert({
+      page: "refunds",
+      toggles: mode.toggles,
+      reason: mode.reason,
+    });
+    return {
+      ok: false,
+      message: `${mode.reason} Disable toggles: ${mode.toggles.join(', ')}`.trim(),
+    };
+  }
+
+  if (mode.mode === "fixtures") {
+    await emitBypassAlert({
+      page: "refunds",
+      toggles: mode.toggles,
+      reason: "Fixture mode requested for refunds page",
+    });
     const allRows = (refundsFixture as FixtureRow[]).map((item) => mapFixtureRow(item));
     const total = allRows.length;
     const start = (safePage - 1) * pageSize;
@@ -815,7 +834,24 @@ async function createRefundAction(formData: FormData) {
     redirect(`/ops/refunds?${params.toString()}`);
   }
 
-  if (opsConsoleOfflineModeEnabled()) {
+  const mode = determineOpsDataMode();
+  if (mode.mode === "blocked") {
+    await emitBypassAlert({
+      page: "refunds",
+      toggles: mode.toggles,
+      reason: "Refund attempt blocked while offline toggles were active",
+    });
+    params.set("result", "error");
+    params.set("message", encodeURIComponent(`${mode.reason} Disable toggles: ${mode.toggles.join(', ')}`));
+    redirect(`/ops/refunds?${params.toString()}`);
+  }
+
+  if (mode.mode === "fixtures") {
+    await emitBypassAlert({
+      page: "refunds",
+      toggles: mode.toggles,
+      reason: "Refund simulated because fixture mode is enabled",
+    });
     revalidatePath("/ops/refunds");
     params.set("result", "simulated");
     redirect(`/ops/refunds?${params.toString()}`);

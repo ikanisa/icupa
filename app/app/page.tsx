@@ -1,3 +1,7 @@
+import Link from "next/link";
+import { LeadCaptureForm } from "./components/LeadCaptureForm";
+import { itineraries } from "./itineraries/data";
+
 const highlights = [
   {
     title: "Curated by experts",
@@ -20,6 +24,31 @@ const sustainabilityStats = [
   { label: "Average emissions saved", value: "38% vs. traditional tours" },
   { label: "Verified suppliers", value: "62 local partners" },
   { label: "Traveler satisfaction", value: "4.9★ post-trip surveys" },
+];
+
+const featuredItineraries = itineraries.slice(0, 2);
+const trustBadges = [
+  "Certified B-Corp operators",
+  "Global Sustainable Tourism Council member",
+  "Stripe Climate climate-action partner",
+];
+
+const faqs = [
+  {
+    question: "How fast do you turn around a custom itinerary?",
+    answer:
+      "Funded trips receive three curated routes within two business days, including pricing bands and sustainability impact models tailored to your group size.",
+  },
+  {
+    question: "Can you support corporate or educational compliance requirements?",
+    answer:
+      "Yes. We map activities to ESG frameworks, provide vendor insurance documentation, and deliver post-trip carbon accounting ready for stakeholder reviews.",
+  },
+  {
+    question: "Do you work with travelers outside the Americas?",
+    answer:
+      "Our operator network spans LATAM, Europe, and APAC. We partner with on-the-ground hosts that meet our social impact and safety bar before any departure.",
+  },
 ];
 
 const testimonials = [
@@ -74,6 +103,17 @@ export default function Home() {
                 </div>
               ))}
             </dl>
+            <div className="flex flex-wrap gap-3 text-sm text-slate-300">
+              {trustBadges.map((badge) => (
+                <span
+                  key={badge}
+                  className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-2"
+                >
+                  <span className="inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+                  {badge}
+                </span>
+              ))}
+            </div>
           </div>
           <div className="relative overflow-hidden rounded-3xl border border-emerald-600/40 bg-gradient-to-br from-emerald-400/20 via-emerald-500/5 to-slate-950 p-8">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.35),_transparent_55%)]" aria-hidden />
@@ -133,6 +173,43 @@ export default function Home() {
                 <div className="mt-6 text-sm text-emerald-300">Included in every departure</div>
               </article>
             ))}
+          </div>
+          <div className="mt-12 space-y-8">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h3 className="text-2xl font-semibold text-white">Featured itineraries</h3>
+                <p className="text-sm text-slate-400">Deep dive into sample departures with sustainability metrics and group suitability.</p>
+              </div>
+              <Link
+                href="/itineraries"
+                className="inline-flex items-center gap-2 rounded-full border border-emerald-500/40 px-4 py-2 text-sm font-semibold text-emerald-200 transition hover:border-emerald-300 hover:text-emerald-100"
+              >
+                Browse more departures
+                <span aria-hidden>→</span>
+              </Link>
+            </div>
+            <div className="grid gap-6 md:grid-cols-2">
+              {featuredItineraries.map((itinerary) => (
+                <Link
+                  key={itinerary.slug}
+                  href={{ pathname: `/itineraries/${itinerary.slug}` }}
+                  className="group relative overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/50 p-6 transition hover:border-emerald-400/60"
+                >
+                  <p className="text-sm font-medium uppercase tracking-[0.25em] text-emerald-300">{itinerary.duration}</p>
+                  <h4 className="mt-3 text-2xl font-semibold text-white">{itinerary.name}</h4>
+                  <p className="mt-2 text-base text-slate-300">{itinerary.summary}</p>
+                  <div className="mt-6 flex flex-wrap gap-3 text-xs text-emerald-200">
+                    <span className="rounded-full border border-emerald-500/30 px-3 py-1">{itinerary.impact}</span>
+                    {itinerary.trustSignals.slice(0, 2).map((signal) => (
+                      <span key={signal} className="rounded-full border border-emerald-500/20 px-3 py-1">
+                        {signal}
+                      </span>
+                    ))}
+                  </div>
+                  <span className="absolute right-6 top-6 inline-flex h-10 w-10 items-center justify-center rounded-full border border-emerald-500/40 text-lg text-emerald-200 transition group-hover:bg-emerald-500/20">→</span>
+                </Link>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -210,24 +287,76 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="contact" className="rounded-3xl border border-emerald-600/40 bg-gradient-to-r from-emerald-500/20 via-emerald-400/10 to-slate-950 p-10 text-slate-100">
-          <div className="space-y-6">
-            <h2 className="text-3xl font-semibold text-white sm:text-4xl">Ready to co-create your next itinerary?</h2>
-            <p className="max-w-3xl text-lg text-emerald-100/90">
-              Share your travel goals and our operator team will assemble route options, supplier recommendations, and an impact snapshot within two business days.
-            </p>
-            <div className="flex flex-wrap gap-4">
-              <a
-                className="rounded-full bg-white px-6 py-3 text-base font-semibold text-emerald-700 transition hover:bg-emerald-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-                href="mailto:hello@ecotrips.example"
-              >
-                hello@ecotrips.example
-              </a>
-              <span className="flex items-center gap-2 rounded-full border border-emerald-400/60 px-5 py-3 text-sm text-emerald-100">
-                <span className="inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-                Average reply time · 2h
-              </span>
+        <section className="space-y-8 rounded-3xl border border-slate-800 bg-slate-900/60 p-8">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="text-3xl font-semibold text-white sm:text-4xl">Frequently asked questions</h2>
+              <p className="mt-3 max-w-2xl text-lg text-slate-300">We bring operational rigor to bespoke trips. If you need procurement paperwork, carbon modeling, or group safety plans, we have you covered.</p>
             </div>
+            <a
+              className="inline-flex items-center gap-2 text-sm font-semibold text-emerald-200 transition hover:text-emerald-100"
+              href="mailto:hello@ecotrips.example"
+            >
+              Ask something else
+              <span aria-hidden>→</span>
+            </a>
+          </div>
+          <dl className="grid gap-6 md:grid-cols-2">
+            {faqs.map((faq) => (
+              <div key={faq.question} className="rounded-2xl border border-slate-800 bg-slate-950/70 p-6">
+                <dt className="text-lg font-semibold text-white">{faq.question}</dt>
+                <dd className="mt-3 text-sm text-slate-300">{faq.answer}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+
+        <section id="contact" className="rounded-3xl border border-emerald-600/40 bg-gradient-to-r from-emerald-500/20 via-emerald-400/10 to-slate-950 p-10 text-slate-100">
+          <div className="grid gap-10 lg:grid-cols-[0.65fr_0.35fr] lg:items-start">
+            <div className="space-y-6">
+              <h2 className="text-3xl font-semibold text-white sm:text-4xl">Ready to co-create your next itinerary?</h2>
+              <p className="max-w-3xl text-lg text-emerald-100/90">
+                Share your travel goals and our operator team will assemble route options, supplier recommendations, and an impact snapshot within two business days.
+              </p>
+              <LeadCaptureForm />
+              <div className="flex flex-wrap gap-4">
+                <a
+                  className="rounded-full bg-white px-6 py-3 text-base font-semibold text-emerald-700 transition hover:bg-emerald-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                  href="mailto:hello@ecotrips.example"
+                >
+                  hello@ecotrips.example
+                </a>
+                <span className="flex items-center gap-2 rounded-full border border-emerald-400/60 px-5 py-3 text-sm text-emerald-100">
+                  <span className="inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+                  Average reply time · 2h
+                </span>
+              </div>
+            </div>
+            <aside className="space-y-4 rounded-2xl border border-emerald-500/30 bg-slate-950/50 p-6 text-sm text-emerald-100">
+              <h3 className="text-lg font-semibold text-white">What happens next</h3>
+              <ol className="space-y-3 text-emerald-100/90">
+                <li className="flex items-start gap-3">
+                  <span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full border border-emerald-400/60 text-xs font-semibold">1</span>
+                  Operators qualify your goals and assign a lead specialist in under two hours.
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full border border-emerald-400/60 text-xs font-semibold">2</span>
+                  Receive three itinerary directions with emissions modeling, pricing bands, and supplier bios.
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full border border-emerald-400/60 text-xs font-semibold">3</span>
+                  Approve, iterate, or request compliance documents—everything stays tracked in our ops console.
+                </li>
+              </ol>
+              <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-100">
+                <p className="text-sm font-medium uppercase tracking-[0.2em]">Certifications</p>
+                <ul className="mt-2 space-y-2 text-xs">
+                  <li>• B-Corp verified operator partners</li>
+                  <li>• GSTC-aligned itinerary review</li>
+                  <li>• GDPR & SOC2-ready data handling</li>
+                </ul>
+              </div>
+            </aside>
           </div>
         </section>
       </main>

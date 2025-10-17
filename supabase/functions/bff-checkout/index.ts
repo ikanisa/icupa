@@ -10,6 +10,9 @@ const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
 const STRIPE_API_BASE = "https://api.stripe.com/v1";
 const STRIPE_TIMEOUT_MS = Number(Deno.env.get("STRIPE_TIMEOUT_MS") ?? "15000");
 const MOCK_STRIPE_MODE = Deno.env.get("STRIPE_MOCK_MODE") === "1";
+const DEPLOY_ENV = (Deno.env.get("VERCEL_ENV") ?? Deno.env.get("ENVIRONMENT") ?? Deno.env.get("STAGE") ?? "development").toLowerCase();
+const STRICT_STRIPE_MODE = (Deno.env.get("STRIPE_REQUIRE_LIVE") ?? (DEPLOY_ENV === "production" ? "1" : "0")) === "1";
+const DEGRADATION_WEBHOOK_URL = Deno.env.get("CHECKOUT_DEGRADATION_WEBHOOK_URL") ?? "";
 
 if (!MOCK_STRIPE_MODE && !STRIPE_SECRET_KEY) {
   throw new Error(
@@ -171,7 +174,7 @@ const handler = withObs(async (req) => {
       idempotencyKey,
     );
 
-    const intent = await createPaymentIntent(
+    const intentResult = await createPaymentIntent(
       paymentId,
       itineraryId,
       amountCents,
@@ -179,6 +182,30 @@ const handler = withObs(async (req) => {
       idempotencyKey,
     );
 
+    if (!intentResult.ok) {
+      await appendLedgerEntry({
+        entry_type: "intent_failed",
+        amount_cents: amountCents,
+        currency,
+        payment_id: paymentId,
+        itinerary_id: itineraryId,
+        provider_ref: intentResult.mode,
+        requestId,
+        note: intentResult.reason,
+      });
+      return jsonResponse(
+        {
+          ok: false,
+          error: "stripe_unavailable",
+          request_id: requestId,
+          fallback_mode: intentResult.mode,
+          message: intentResult.reason,
+        },
+        { status: 503 },
+      );
+    }
+
+    const intent = intentResult.intent;
     await updatePaymentRecord(paymentId, intent);
 
     await appendLedgerEntry({
@@ -208,6 +235,10 @@ const handler = withObs(async (req) => {
       responseBody.client_secret = intent.client_secret;
     }
 
+    if (intent.mode === "mock") {
+      responseBody.fallback = true;
+    }
+
     return jsonResponse(responseBody);
   } catch (error) {
     console.log(
@@ -229,12 +260,17 @@ async function createPaymentIntent(
   amountCents: number,
   currency: string,
   idempotencyKey: string,
-) {
+): Promise<
+  | { ok: true; intent: { id: string; client_secret?: string; status: string; mode: string } }
+  | { ok: false; reason: string; mode: "mock" }
+> {
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
     throw new Error("Supabase configuration missing");
   }
 
   let useMock = MOCK_STRIPE_MODE;
+  let fallbackReason: string | null = null;
+
   const headers: Record<string, string> = {
     "content-type": "application/x-www-form-urlencoded",
     Authorization: `Bearer ${STRIPE_SECRET_KEY}`,
@@ -270,25 +306,43 @@ async function createPaymentIntent(
 
       const data = await response.json();
       return {
-        id: data.id as string,
-        client_secret: data.client_secret as string | undefined,
-        status: String(data.status ?? "processing"),
-        mode: "live",
+        ok: true,
+        intent: {
+          id: data.id as string,
+          client_secret: data.client_secret as string | undefined,
+          status: String(data.status ?? "processing"),
+          mode: "live",
+        },
       };
     } catch (error) {
-      await recordStripeFallback("create_payment_intent_error", error);
+      fallbackReason = safeErrorMessage(error);
+      await recordStripeFallback("create_payment_intent_error", error, { strict: STRICT_STRIPE_MODE });
       useMock = true;
     }
   }
 
-  const mockId = `pi_mock_${paymentId}`;
-  return {
-    id: mockId,
-    client_secret: undefined,
-    status: "requires_confirmation",
-    mode: "mock",
-  };
+  if (useMock) {
+    if (STRICT_STRIPE_MODE) {
+      const reason =
+        fallbackReason ?? "Stripe mock mode is disallowed while STRIPE_REQUIRE_LIVE=1 or production deployment";
+      return { ok: false, reason, mode: "mock" };
+    }
+
+    const mockId = `pi_mock_${paymentId}`;
+    return {
+      ok: true,
+      intent: {
+        id: mockId,
+        client_secret: undefined,
+        status: "requires_confirmation",
+        mode: "mock",
+      },
+    };
+  }
+
+  throw new Error("Unable to create payment intent");
 }
+
 
 async function updatePaymentRecord(
   paymentId: string,
@@ -412,16 +466,46 @@ async function incrementMetric(name: string, delta = 1) {
   }
 }
 
-async function recordStripeFallback(reason: string, error: unknown) {
-  console.error(
-    JSON.stringify({
-      level: "ERROR",
-      event: "payments.stripe.fallback",
-      fn: "bff-checkout",
-      reason,
-      message: safeErrorMessage(error),
-    }),
-  );
+async function recordStripeFallback(reason: string, error: unknown, opts: { strict?: boolean } = {}) {
+  const message = safeErrorMessage(error);
+  const payload = {
+    level: "ERROR",
+    event: "payments.stripe.fallback",
+    fn: "bff-checkout",
+    reason,
+    strict: opts.strict ?? false,
+    message,
+    timestamp: new Date().toISOString(),
+  };
+  console.error(JSON.stringify(payload));
+
+  if (DEGRADATION_WEBHOOK_URL) {
+    try {
+      const response = await fetch(DEGRADATION_WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        console.error(
+          JSON.stringify({
+            ...payload,
+            event: "payments.stripe.fallback_webhook_failed",
+            status: response.status,
+          }),
+        );
+      }
+    } catch (hookError) {
+      console.error(
+        JSON.stringify({
+          ...payload,
+          event: "payments.stripe.fallback_webhook_error",
+          message: safeErrorMessage(hookError),
+        }),
+      );
+    }
+  }
+
   await incrementMetric("payments.stripe.mock_fallback");
   await incrementMetric(`payments.stripe.fallback.${reason}`);
 }
