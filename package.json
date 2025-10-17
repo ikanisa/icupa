@@ -1,7 +1,12 @@
 {
   "name": "ecotrips",
   "private": true,
-  "workspaces": ["apps/*", "packages/*", "services/*", "ops/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "services/*",
+    "ops/*"
+  ],
   "scripts": {
     "db:migrate": "supabase migration up",
     "db:new": "supabase migration new",
@@ -9,6 +14,7 @@
     "typecheck": "echo 'Add TS checks later'",
     "test:contracts": "node ./tools/tests/contracts.mjs",
     "test:observability": "node ./tools/tests/observability.mjs",
-    "test:ci": "npm run test:contracts && npm run test:observability"
+    "test:ci": "npm run test:contracts && npm run test:observability",
+    "guard:live": "node ./scripts/audit/ensure-live-mode.mjs"
   }
 }
