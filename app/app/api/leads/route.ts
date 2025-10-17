@@ -17,10 +17,8 @@ function invalid(message: string, status = 400) {
 export async function POST(request: Request) {
   const supabaseUrl = process.env.SUPABASE_URL;
   const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !serviceRole) {
-    return invalid("Supabase credentials missing. Configure SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.", 500);
-  }
 
+  // Parse JSON safely
   let payload: LeadPayload;
   try {
     payload = (await request.json()) as LeadPayload;
@@ -28,6 +26,7 @@ export async function POST(request: Request) {
     return invalid(`Invalid JSON payload: ${(error as Error).message}`);
   }
 
+  // Normalize & validate
   const name = payload.name?.trim();
   const email = payload.email?.trim();
   const travelMonth = payload.travelMonth?.trim() ?? null;
@@ -39,6 +38,26 @@ export async function POST(request: Request) {
   if (!email || !/.+@.+\..+/.test(email)) return invalid("Valid email is required.");
   if (!consent) return invalid("Consent is required.");
 
+  // Graceful fallback if env is missing (kept from main)
+  if (!supabaseUrl || !serviceRole) {
+    const emailDomain = email.includes("@") ? email.split("@").pop() ?? "" : "";
+    console.warn(
+      JSON.stringify({
+        level: "WARN",
+        event: "marketing.lead.fallback",
+        message: "Supabase credentials missing; returning synthetic success response.",
+        hasUrl: Boolean(supabaseUrl),
+        hasServiceRole: Boolean(serviceRole),
+        leadEmailDomain: emailDomain,
+      }),
+    );
+    return NextResponse.json(
+      { ok: true, leadName: name, fallback: "env_missing" },
+      { status: 202 },
+    );
+  }
+
+  // Persist to Supabase
   const client = createClient(supabaseUrl, serviceRole, {
     auth: { persistSession: false },
   });
