@@ -56,3 +56,5 @@ Use this checklist before promoting ecoTrips to a production environment. The va
 - CI is running with network access re-enabled so dependency and migration regressions are caught before deploy.
 
 Keep this checklist alongside the runbooks and update it whenever new external integrations are added.
+
+- Run `npm run guard:live` before promoting builds to verify Supabase credentials and confirm offline toggles are disabled.

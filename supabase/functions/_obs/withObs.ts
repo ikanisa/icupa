@@ -5,6 +5,8 @@ import {
   OBS_EVENTS,
 } from "./constants.ts";
 
+const OBS_FORWARD_WEBHOOK_URL = Deno.env.get("OBS_FORWARD_WEBHOOK_URL") ?? "";
+
 type ObsHandler = (req: Request) => Promise<Response> | Response;
 
 interface WithObsOptions {
@@ -120,6 +122,25 @@ function log(shape: LogShape) {
     console.log(JSON.stringify(shape));
   } catch (_error) {
     console.log('{"level":"ERROR","event":"obs.log_failure"}');
+  }
+
+  if (OBS_FORWARD_WEBHOOK_URL) {
+    queueMicrotask(() => forwardLog(shape));
+  }
+}
+
+async function forwardLog(shape: LogShape) {
+  try {
+    const response = await fetch(OBS_FORWARD_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...shape, forwardedAt: new Date().toISOString() }),
+    });
+    if (!response.ok) {
+      console.log('{"level":"WARN","event":"obs.forward_failure","status":' + response.status + '}');
+    }
+  } catch (error) {
+    console.log('{"level":"WARN","event":"obs.forward_error","message":"' + safeMessage(error) + '"}');
   }
 }
 

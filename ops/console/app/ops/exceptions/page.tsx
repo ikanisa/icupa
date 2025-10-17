@@ -2,7 +2,8 @@ import { Suspense, type CSSProperties } from "react";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import exceptionsFixture from "../../../../fixtures/exceptions.json";
-import { opsConsoleOfflineModeEnabled, readSupabaseConfig } from "../../lib/env";
+import { determineOpsDataMode, readSupabaseConfig } from "../../lib/env";
+import { emitBypassAlert } from "../../lib/bypass-alert";
 import { createBadgeStyle, createTableStyles, monospaceTextStyle } from "../../lib/ui";
 import Pagination from "../components/pagination";
 
@@ -239,7 +240,25 @@ async function loadExceptions(
   const safePage = Math.max(1, Number.isFinite(page) ? Math.floor(page) : 1);
   const pageSize = DEFAULT_PAGE_SIZE;
 
-  if (opsConsoleOfflineModeEnabled()) {
+  const mode = determineOpsDataMode();
+  if (mode.mode === "blocked") {
+    await emitBypassAlert({
+      page: "exceptions",
+      toggles: mode.toggles,
+      reason: mode.reason,
+    });
+    return {
+      ok: false,
+      message: `${mode.reason} Disable toggles: ${mode.toggles.join(', ')}`.trim(),
+    };
+  }
+
+  if (mode.mode === "fixtures") {
+    await emitBypassAlert({
+      page: "exceptions",
+      toggles: mode.toggles,
+      reason: "Fixture mode requested for exceptions page",
+    });
     const allRows = (exceptionsFixture as FixtureRow[]).map((item) => mapFixtureRow(item));
     const total = allRows.length;
     const start = (safePage - 1) * pageSize;

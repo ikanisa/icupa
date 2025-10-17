@@ -8,6 +8,7 @@ if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
 
 type LedgerEntryType =
   | "intent_created"
+  | "intent_failed"
   | "capture_succeeded"
   | "capture_failed"
   | "refund_requested"

@@ -38,3 +38,17 @@ h1,
  h3 {
   margin-top: 0;
 }
+
+.ops-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.ops-nav a {
+  text-decoration: none;
+}
+
+.ops-nav li {
+  list-style: none;
+}

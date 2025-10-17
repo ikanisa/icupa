@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
-import { opsConsoleOfflineModeEnabled, readSupabaseConfig } from "./env";
+import { determineOpsDataMode, readSupabaseConfig } from "./env";
+import { emitBypassAlert } from "./bypass-alert";
 
 type AccessDeniedReason =
   | "config_missing"
@@ -27,7 +28,21 @@ export type OpsAccessGrant = {
 export type OpsAccessResult = OpsAccessGrant | OpsAccessFailure;
 
 export async function verifyOpsAccess(): Promise<OpsAccessResult> {
-  if (opsConsoleOfflineModeEnabled()) {
+  const mode = determineOpsDataMode();
+  if (mode.mode === "blocked") {
+    await emitBypassAlert({
+      page: "auth",
+      toggles: mode.toggles,
+      reason: mode.reason,
+    });
+    return {
+      ok: false,
+      reason: "config_missing",
+      message: `${mode.reason} Disable toggles: ${mode.toggles.join(', ')}`.trim(),
+    };
+  }
+
+  if (mode.mode === "fixtures") {
     return {
       ok: true,
       userId: "offline-ops",
