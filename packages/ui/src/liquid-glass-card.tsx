@@ -1,11 +1,13 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import type { HTMLAttributes } from 'react';
+import type { HTMLMotionProps } from 'framer-motion';
+import type { ReactNode } from 'react';
 import { cn } from './lib/utils';
 
-interface LiquidGlassCardProps extends HTMLAttributes<HTMLDivElement> {
+interface LiquidGlassCardProps extends HTMLMotionProps<'div'> {
   shimmer?: boolean;
+  children?: ReactNode;
 }
 
 export function LiquidGlassCard({ className, shimmer = true, children, ...props }: LiquidGlassCardProps) {

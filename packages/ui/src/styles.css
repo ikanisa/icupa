@@ -1,0 +1,95 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 252 16% 5%;
+    --foreground: 226 85% 97%;
+    --primary: 247 95% 72%;
+    --primary-foreground: 226 85% 97%;
+    --primary-glow: 247 95% 62%;
+    --secondary: 186 72% 58%;
+    --secondary-foreground: 202 90% 12%;
+    --muted: 248 22% 20%;
+    --muted-foreground: 226 70% 90%;
+    --accent: 317 85% 75%;
+    --accent-foreground: 280 60% 12%;
+    --destructive: 0 85% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --card: 249 35% 10%;
+    --card-foreground: 226 85% 97%;
+    --border: 248 35% 30%;
+    --input: 248 35% 30%;
+    --ring: 247 95% 72%;
+    --radius: 1.5rem;
+    --sidebar-background: hsla(248, 35%, 14%, 0.8);
+    --sidebar-foreground: hsla(226, 85%, 97%, 0.92);
+    --sidebar-primary: hsla(247, 95%, 72%, 0.9);
+    --sidebar-primary-foreground: hsla(226, 90%, 10%, 1);
+    --sidebar-accent: hsla(186, 72%, 58%, 0.9);
+    --sidebar-accent-foreground: hsla(202, 90%, 12%, 1);
+    --sidebar-border: hsla(248, 35%, 36%, 0.6);
+    --sidebar-ring: hsla(247, 95%, 72%, 0.6);
+    --aurora-primary: 247 95% 72%;
+    --aurora-secondary: 186 72% 58%;
+    --aurora-accent: 317 85% 75%;
+    --aurora-glow: 252 88% 88%;
+    --shadow-glass: 0 32px 120px rgba(13, 8, 39, 0.45);
+    --shadow-glow: 0 0 30px rgba(107, 91, 255, 0.55);
+    --shadow-aurora: 0 24px 64px rgba(35, 198, 215, 0.3);
+    --gradient-aurora: radial-gradient(circle at 20% 20%, rgba(107, 91, 255, 0.5), transparent 55%),
+      radial-gradient(circle at 80% 0%, rgba(35, 198, 215, 0.4), transparent 45%),
+      radial-gradient(circle at 10% 100%, rgba(252, 165, 244, 0.35), transparent 40%),
+      radial-gradient(circle at 90% 95%, rgba(111, 210, 255, 0.35), transparent 40%),
+      #050816;
+    --gradient-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+    --gradient-primary: linear-gradient(135deg, rgba(107, 91, 255, 0.85), rgba(35, 198, 215, 0.65));
+    --gradient-accent: linear-gradient(135deg, rgba(252, 165, 244, 0.75), rgba(111, 210, 255, 0.55));
+  }
+
+  html,
+  body {
+    min-height: 100%;
+  }
+
+  body {
+    @apply bg-gradient-to-br from-slate-950 via-slate-950 to-slate-950;
+    background: var(--gradient-aurora);
+    color: hsl(var(--foreground));
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-feature-settings: 'ss01' on, 'cv01' on;
+    letter-spacing: 0.01em;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    body {
+      background-size: cover;
+      animation: none !important;
+    }
+  }
+
+  ::selection {
+    background: hsla(247, 95%, 72%, 0.4);
+  }
+}
+
+@layer utilities {
+  .glass-surface,
+  .glass-card {
+    background: var(--gradient-glass);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(24px) saturate(120%);
+    box-shadow: var(--shadow-glass);
+    border-radius: var(--radius);
+  }
+
+  .focus-ring {
+    outline: none;
+  }
+
+  .focus-ring:focus-visible {
+    outline: 3px solid hsl(var(--primary));
+    outline-offset: 2px;
+  }
+}

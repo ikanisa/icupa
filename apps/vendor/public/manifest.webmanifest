@@ -1,0 +1,22 @@
+{
+  "name": "ICUPA Vendor",
+  "short_name": "ICUPA Vendor",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#13030a",
+  "theme_color": "#ff6f61",
+  "description": "Operate your ICUPA venue with live orders, menu workflows, and onboarding tools.",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%20512%20512%27%3E%0A%20%20%3Cdefs%3E%0A%20%20%20%20%3ClinearGradient%20id%3D%27g%27%20x1%3D%270%27%20y1%3D%271%27%20x2%3D%271%27%20y2%3D%270%27%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%270%25%27%20stop-color%3D%27%23ff8b4a%27/%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%27100%25%27%20stop-color%3D%27%23ff4d8d%27/%3E%0A%20%20%20%20%3C/linearGradient%3E%0A%20%20%3C/defs%3E%0A%20%20%3Crect%20width%3D%27512%27%20height%3D%27512%27%20rx%3D%27128%27%20fill%3D%27url%28%23g%29%27/%3E%0A%20%20%3Cpath%20d%3D%27M160%20352l40-192h112l40%20192h-52l-8-44H220l-8%2044zM232%20264h56l-12-72h-32z%27%20fill%3D%27%23fff%27%20fill-opacity%3D%270.94%27/%3E%0A%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%20512%20512%27%3E%0A%20%20%3Cdefs%3E%0A%20%20%20%20%3ClinearGradient%20id%3D%27g%27%20x1%3D%270%27%20y1%3D%271%27%20x2%3D%271%27%20y2%3D%270%27%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%270%25%27%20stop-color%3D%27%23ff8b4a%27/%3E%0A%20%20%20%20%20%20%3Cstop%20offset%3D%27100%25%27%20stop-color%3D%27%23ff4d8d%27/%3E%0A%20%20%20%20%3C/linearGradient%3E%0A%20%20%3C/defs%3E%0A%20%20%3Crect%20width%3D%27512%27%20height%3D%27512%27%20rx%3D%27128%27%20fill%3D%27url%28%23g%29%27/%3E%0A%20%20%3Cpath%20d%3D%27M160%20352l40-192h112l40%20192h-52l-8-44H220l-8%2044zM232%20264h56l-12-72h-32z%27%20fill%3D%27%23fff%27%20fill-opacity%3D%270.94%27/%3E%0A%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}

@@ -6,7 +6,16 @@
     "paths": {
       "@/*": ["./src/*"],
       "@icupa/ingestion-utils": ["./packages/ingestion-utils/src"],
-      "@icupa/ingestion-utils/*": ["./packages/ingestion-utils/src/*"]
+      "@icupa/ingestion-utils/*": ["./packages/ingestion-utils/src/*"],
+      "@icupa/ui": ["./packages/ui/src"],
+      "@icupa/ui/*": ["./packages/ui/src/*"],
+      "@icupa/config": ["./packages/config/src"],
+      "@icupa/config/*": ["./packages/config/src/*"],
+      "@icupa/config/tailwind-preset": ["./packages/config/tailwind-preset.ts"],
+      "@icupa/types": ["./packages/types/src"],
+      "@icupa/types/*": ["./packages/types/src/*"],
+      "@icupa/db": ["./packages/db/src"],
+      "@icupa/db/*": ["./packages/db/src/*"]
     },
     "noImplicitAny": false,
     "noUnusedParameters": false,

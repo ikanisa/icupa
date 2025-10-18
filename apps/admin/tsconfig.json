@@ -1,0 +1,62 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "jsx": "preserve",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "allowJs": false,
+    "incremental": true,
+    "target": "ES2021",
+    "paths": {
+      "@icupa/ui": [
+        "../../packages/ui/src"
+      ],
+      "@icupa/ui/*": [
+        "../../packages/ui/src/*"
+      ],
+      "@icupa/config": [
+        "../../packages/config/src"
+      ],
+      "@icupa/config/*": [
+        "../../packages/config/src/*"
+      ],
+      "@icupa/types": [
+        "../../packages/types/src"
+      ],
+      "@icupa/types/*": [
+        "../../packages/types/src/*"
+      ],
+      "@icupa/db": [
+        "../../packages/db/src"
+      ],
+      "@icupa/db/*": [
+        "../../packages/db/src/*"
+      ]
+    },
+    "strict": false,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}
