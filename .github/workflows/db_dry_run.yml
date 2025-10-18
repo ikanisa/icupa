@@ -1,0 +1,19 @@
+name: supabase db dry-run
+
+on:
+  push:
+    paths:
+      - 'supabase/migrations/**'
+      - '.github/workflows/db_dry_run.yml'
+  pull_request:
+    paths:
+      - 'supabase/migrations/**'
+      - '.github/workflows/db_dry_run.yml'
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+      - run: supabase db push --dry-run

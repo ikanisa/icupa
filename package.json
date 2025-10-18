@@ -15,6 +15,10 @@
     "test:contracts": "node ./tools/tests/contracts.mjs",
     "test:observability": "node ./tools/tests/observability.mjs",
     "test:ci": "npm run test:contracts && npm run test:observability",
-    "guard:live": "node ./scripts/audit/ensure-live-mode.mjs"
+    "guard:live": "node ./scripts/audit/ensure-live-mode.mjs",
+    "check:binaries": "node ./scripts/audit/ensure-no-binaries.mjs",
+    "perf:smoke": "deno run -A ops/perf/perf_runner.ts --scenario smoke",
+    "build:client": "npm run build --workspace @ecotrips/client",
+    "build:admin": "npm run build --workspace @ecotrips/admin"
   }
 }

@@ -1,0 +1,22 @@
+{
+  "app.title": "ecoTrips",
+  "app.tagline": "Ingendo zifite umwuka mushya mu Rwanda",
+  "home.cta": "Tegura urugendo rwawe",
+  "home.secondary": "Menya ingendo zateguwe, itsinda ry’ubwizigame, na serivisi ya concierge.",
+  "search.placeholder": "Shakisha intara, pariki, cyangwa ibikorwa",
+  "search.cta": "Shakisha",
+  "results.title": "Ibyatoranyijwe muri {destination}",
+  "results.empty": "Nta bikoresho biriho ubu. PlannerCoPilot ari gutegura amahitamo mashya.",
+  "itinerary.title": "Gahunda y'urugendo",
+  "itinerary.hold": "Bika & Sangira igiciro",
+  "checkout.title": "Kwishyura",
+  "checkout.summary": "Kwishyura gushingiye ku ncuti n’umuryango mu mutekano.",
+  "wallet.title": "Wallet & Paket ya offline",
+  "support.title": "Serivisi na Ubufasha",
+  "support.subtitle": "Turi online amasaha 24/7 dufite ubugenzuzi bw'abantu.",
+  "login.title": "Injira ukomeze",
+  "nav.home": "Ahabanza",
+  "nav.search": "Shakisha",
+  "nav.wallet": "Wallet",
+  "nav.support": "Ubufasha"
+}

@@ -32,6 +32,9 @@ jobs:
       - name: Install npm dependencies
         run: npm install
 
+      - name: Enforce no binary artifacts
+        run: npm run check:binaries
+
       - name: Check formatting
         run: |
           deno fmt --check supabase/functions

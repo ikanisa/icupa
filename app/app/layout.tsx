@@ -37,6 +37,11 @@ export const metadata: Metadata = {
     description:
       "Book immersive, sustainable adventures backed by real operator support and transparent impact data.",
   },
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export default function RootLayout({

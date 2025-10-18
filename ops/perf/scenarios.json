@@ -1,0 +1,18 @@
+{
+  "smoke": {
+    "description": "Ping health endpoints and inventory search",
+    "steps": [
+      { "name": "inventory-search", "method": "POST", "path": "/functions/v1/inventory-search", "body": { "destination": "Kigali", "startDate": "2024-05-05", "endDate": "2024-05-07", "party": { "adults": 2, "children": 0 } } },
+      { "name": "ops-bookings-health", "method": "GET", "path": "/functions/v1/ops-bookings/health" },
+      { "name": "synthetics-probe", "method": "GET", "path": "/functions/v1/synthetics-probe" }
+    ]
+  },
+  "checkout-path": {
+    "description": "Simulate quote to checkout",
+    "steps": [
+      { "name": "inventory-search", "method": "POST", "path": "/functions/v1/inventory-search", "body": { "destination": "Akagera", "startDate": "2024-05-10", "endDate": "2024-05-14", "party": { "adults": 2, "children": 1 } } },
+      { "name": "inventory-quote", "method": "POST", "path": "/functions/v1/inventory-quote", "body": { "quoteId": "perf-quote", "locale": "en" } },
+      { "name": "bff-checkout", "method": "POST", "path": "/functions/v1/bff-checkout", "body": { "itineraryId": "00000000-0000-0000-0000-000000000000", "quoteId": "perf-quote", "amountCents": 120000, "currency": "USD", "paymentProvider": "stripe", "idempotencyKey": "perf-intent" } }
+    ]
+  }
+}

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">ecoTrips Icon</title>
+  <desc id="desc">Circular gradient badge with stylized path to represent guided eco travel</desc>
+  <defs>
+    <radialGradient id="bgGradient" cx="50%" cy="50%" r="75%">
+      <stop offset="0%" stop-color="#00D1FF" />
+      <stop offset="50%" stop-color="#7C3AED" />
+      <stop offset="100%" stop-color="#1E1B4B" />
+    </radialGradient>
+    <linearGradient id="pathGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95" />
+      <stop offset="100%" stop-color="#E0F2FE" stop-opacity="0.7" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="128" fill="url(#bgGradient)" />
+  <path d="M120 352c32-80 120-120 168-144s120-72 104-144c64 64 40 160-24 208s-168 40-224 80z" fill="url(#pathGradient)" />
+  <circle cx="184" cy="192" r="36" fill="#F8FAFC" />
+  <circle cx="332" cy="148" r="26" fill="#BAE6FD" />
+</svg>
