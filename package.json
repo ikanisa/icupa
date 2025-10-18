@@ -3,6 +3,11 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "agents-service"
+  ],
   "scripts": {
     "dev": "vite",
     "dev:agents": "npm --prefix agents-service run dev",

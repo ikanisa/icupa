@@ -3,8 +3,19 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "main": "tailwind-preset.ts",
+  "main": "src/index.ts",
+  "module": "src/index.ts",
   "exports": {
-    "./tailwind-preset": "./tailwind-preset.ts"
+    ".": "./src/index.ts",
+    "./env": "./src/env.ts",
+    "./feature-flags": "./src/feature-flags.ts",
+    "./tailwind-preset": "./tailwind-preset.ts",
+    "./*": "./src/*"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "peerDependencies": {
+    "@icupa/types": "^0.1.0"
   }
 }
