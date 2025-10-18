@@ -176,6 +176,190 @@ let TOOL_REGISTRY: Map<string, ToolDefinition> | null = null;
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+const CANONICAL_TOOL_DEFINITIONS: Record<string, ToolDefinition> = {
+  "quote.search": {
+    key: "quote.search",
+    endpoint: "https://{project_ref}.supabase.co/functions/v1/bff-quote",
+    method: "POST",
+    auth: "user_jwt",
+    requiredFields: [
+      "destination",
+      "start_date",
+      "end_date",
+      "party",
+    ],
+  },
+  "checkout.intent": {
+    key: "checkout.intent",
+    endpoint: "https://{project_ref}.supabase.co/functions/v1/bff-checkout",
+    method: "POST",
+    auth: "user_jwt",
+    requiredFields: [
+      "quote_id",
+      "amount_cents",
+      "currency",
+      "idempotency_key",
+    ],
+  },
+  "webhook.stripe": {
+    key: "webhook.stripe",
+    endpoint: "https://{project_ref}.supabase.co/functions/v1/stripe-webhook",
+    method: "POST",
+    auth: "service_role",
+  },
+  "ops.bookings": {
+    key: "ops.bookings",
+    endpoint: "https://{project_ref}.supabase.co/functions/v1/ops-bookings",
+    method: "GET",
+    auth: "service_role",
+  },
+  "ops.exceptions": {
+    key: "ops.exceptions",
+    endpoint: "https://{project_ref}.supabase.co/functions/v1/ops-exceptions",
+    method: "GET",
+    auth: "service_role",
+  },
+  "ops.refund": {
+    key: "ops.refund",
+    endpoint: "https://{project_ref}.supabase.co/functions/v1/ops-refund",
+    method: "POST",
+    auth: "service_role",
+    requiredFields: ["itinerary_id", "amount_cents", "reason"],
+  },
+  "groups.create_escrow": {
+    key: "groups.create_escrow",
+    endpoint:
+      "https://{project_ref}.supabase.co/functions/v1/groups-create-escrow",
+    method: "POST",
+    auth: "user_jwt",
+    requiredFields: ["group_id", "target_cents", "min_members", "deadline"],
+  },
+  "groups.join": {
+    key: "groups.join",
+    endpoint: "https://{project_ref}.supabase.co/functions/v1/groups-join",
+    method: "POST",
+    auth: "user_jwt",
+    requiredFields: ["group_id"],
+  },
+  "groups.contribute": {
+    key: "groups.contribute",
+    endpoint:
+      "https://{project_ref}.supabase.co/functions/v1/groups-contribute",
+    method: "POST",
+    auth: "user_jwt",
+    requiredFields: ["escrow_id", "amount_cents", "currency"],
+  },
+  "groups.payout_now": {
+    key: "groups.payout_now",
+    endpoint:
+      "https://{project_ref}.supabase.co/functions/v1/groups-ops-payout-now",
+    method: "POST",
+    auth: "service_role",
+    requiredFields: ["escrow_id"],
+  },
+  "groups.payouts_report": {
+    key: "groups.payouts_report",
+    endpoint:
+      "https://{project_ref}.supabase.co/functions/v1/groups-payouts-report",
+    method: "GET",
+    auth: "service_role",
+  },
+  "permits.request": {
+    key: "permits.request",
+    endpoint: "https://{project_ref}.supabase.co/functions/v1/permits-request",
+    method: "POST",
+    auth: "user_jwt",
+    requiredFields: ["park", "visit_date", "pax_count"],
+  },
+  "permits.ops_approve": {
+    key: "permits.ops_approve",
+    endpoint:
+      "https://{project_ref}.supabase.co/functions/v1/permits-ops-approve",
+    method: "POST",
+    auth: "service_role",
+    requiredFields: ["request_id"],
+  },
+  "permits.ops_reject": {
+    key: "permits.ops_reject",
+    endpoint:
+      "https://{project_ref}.supabase.co/functions/v1/permits-ops-reject",
+    method: "POST",
+    auth: "service_role",
+    requiredFields: ["request_id", "note"],
+  },
+  "agent.log_goal": {
+    key: "agent.log_goal",
+    endpoint: "https://{project_ref}.supabase.co/functions/v1/agent-log-goal",
+    method: "POST",
+    auth: "service_role",
+  },
+  "inventory.search": {
+    key: "inventory.search",
+    endpoint:
+      "https://{project_ref}.supabase.co/functions/v1/inventory-search",
+    method: "POST",
+    auth: "anon",
+    requiredFields: ["city", "check_in", "check_out", "pax"],
+  },
+  "inventory.quote": {
+    key: "inventory.quote",
+    endpoint: "https://{project_ref}.supabase.co/functions/v1/inventory-quote",
+    method: "POST",
+    auth: "anon",
+    requiredFields: [
+      "supplier_hotel_id",
+      "check_in",
+      "check_out",
+      "pax",
+    ],
+  },
+  "inventory.hold": {
+    key: "inventory.hold",
+    endpoint: "https://{project_ref}.supabase.co/functions/v1/inventory-hold",
+    method: "POST",
+    auth: "user_jwt",
+    requiredFields: ["quote_id", "idempotency_key"],
+  },
+  "map.route": {
+    key: "map.route",
+    endpoint: "https://{project_ref}.supabase.co/functions/v1/map-route",
+    method: "POST",
+    auth: "service_role",
+    requiredFields: ["origin", "destination"],
+  },
+  "map.nearby": {
+    key: "map.nearby",
+    endpoint: "https://{project_ref}.supabase.co/functions/v1/map-nearby",
+    method: "POST",
+    auth: "service_role",
+    requiredFields: ["location", "category"],
+  },
+  "notify.whatsapp_send": {
+    key: "notify.whatsapp_send",
+    endpoint: "https://{project_ref}.supabase.co/functions/v1/wa-send",
+    method: "POST",
+    auth: "service_role",
+    requiredFields: ["to", "template"],
+  },
+  "notify.whatsapp": {
+    key: "notify.whatsapp",
+    endpoint: "https://{project_ref}.supabase.co/functions/v1/wa-send",
+    method: "POST",
+    auth: "service_role",
+    requiredFields: ["to", "template"],
+  },
+  "payout.now": {
+    key: "payout.now",
+    endpoint:
+      "https://{project_ref}.supabase.co/functions/v1/groups-ops-payout-now",
+    method: "POST",
+    auth: "service_role",
+    requiredFields: ["escrow_id"],
+  },
+};
+
+const TOOL_ALLOWLIST = new Set(Object.keys(CANONICAL_TOOL_DEFINITIONS));
+
 const handler = withObs(async (req) => {
   const requestId = getRequestId(req) ?? crypto.randomUUID();
   const url = new URL(req.url);
@@ -507,6 +691,13 @@ async function loadToolRegistry(): Promise<Map<string, ToolDefinition>> {
     for (const entry of EMBEDDED_REGISTRY) {
       fallback.set(entry.key, { ...entry });
     }
+    fallback.clear();
+    for (const [key, canonical] of Object.entries(
+      CANONICAL_TOOL_DEFINITIONS,
+    )) {
+      fallback.set(key, { ...canonical });
+    }
+    sanitizeRegistryMapInPlace(fallback);
     return fallback;
   }
 
@@ -537,6 +728,8 @@ async function loadToolRegistry(): Promise<Map<string, ToolDefinition>> {
   if (map.size === 0) {
     throw new Error("tools/registry.yaml could not be parsed");
   }
+
+  sanitizeRegistryMapInPlace(map);
 
   return map;
 }
@@ -799,4 +992,25 @@ function deepMerge(
     }
   }
   return output;
+}
+
+function sanitizeRegistryMapInPlace(map: Map<string, ToolDefinition>): void {
+  for (const key of Array.from(map.keys())) {
+    if (!TOOL_ALLOWLIST.has(key)) {
+      map.delete(key);
+    }
+  }
+
+  for (const [key, canonical] of Object.entries(CANONICAL_TOOL_DEFINITIONS)) {
+    const current = map.get(key);
+    if (current) {
+      map.set(key, {
+        ...current,
+        ...canonical,
+        requiredFields: canonical.requiredFields ?? current.requiredFields,
+      });
+    } else {
+      map.set(key, { ...canonical });
+    }
+  }
 }

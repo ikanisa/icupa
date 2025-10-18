@@ -342,6 +342,7 @@
       ok: { type: boolean }
       legs: { type: array, items: { type: object } }
   implementation_status: planned
+  # implemented stub handler in supabase/functions/map-route/index.ts
   rate_limit:
     calls_per_minute: 30
 - key: map.nearby
@@ -365,6 +366,7 @@
       ok: { type: boolean }
       results: { type: array, items: { type: object } }
   implementation_status: planned
+  # implemented stub handler in supabase/functions/map-nearby/index.ts
   rate_limit:
     calls_per_minute: 30
 - key: notify.whatsapp_send
@@ -388,6 +390,7 @@
       ok: { type: boolean }
       message_id: { type: string }
   implementation_status: planned
+  # Calls proxy to wa-send; see supabase/functions/wa-send/index.ts
   rate_limit:
     calls_per_minute: 60
 - key: agent.log_goal
@@ -412,3 +415,190 @@
   implementation_status: experimental
   rate_limit:
     calls_per_minute: 120
+- key: inventory.search
+  description: Search live inventory with cache-first fallback fixtures.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/inventory-search
+  method: POST
+  auth: anon
+  required:
+    - destination
+    - startDate
+    - endDate
+    - party
+  input_schema: |
+    type: object
+    required: [destination, startDate, endDate, party]
+    properties:
+      destination: { type: string }
+      startDate: { type: string, format: date }
+      endDate: { type: string, format: date }
+      party:
+        type: object
+        required: [adults]
+        properties:
+          adults: { type: integer, minimum: 1 }
+          children: { type: integer, minimum: 0 }
+      budgetHint: { type: string, enum: [value, balanced, premium] }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      cacheHit: { type: boolean }
+      items: { type: array, items: { type: object } }
+  rate_limit:
+    calls_per_minute: 10
+- key: inventory.quote
+  description: Fetch quote details for a previously selected inventory item.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/inventory-quote
+  method: POST
+  auth: anon
+  required:
+    - quoteId
+  input_schema: |
+    type: object
+    required: [quoteId]
+    properties:
+      quoteId: { type: string }
+      locale: { type: string, enum: [en, rw] }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      quote: { type: object }
+  rate_limit:
+    calls_per_minute: 12
+- key: inventory.hold
+  description: Create a 15-minute hold on inventory selections.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/inventory-hold
+  method: POST
+  auth: user_jwt
+  required:
+    - quoteId
+    - idempotencyKey
+  input_schema: |
+    type: object
+    required: [quoteId, idempotencyKey]
+    properties:
+      quoteId: { type: string }
+      idempotencyKey: { type: string }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      holdId: { type: string }
+  rate_limit:
+    calls_per_minute: 6
+- key: groups.create
+  description: Create a split-pay escrow for a traveler group.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/groups-create-escrow
+  method: POST
+  auth: user_jwt
+  required:
+    - itineraryId
+    - name
+    - targetAmountCents
+    - currency
+    - deadline
+  input_schema: |
+    type: object
+    required: [itineraryId, name, targetAmountCents, currency, deadline]
+    properties:
+      itineraryId: { type: string, format: uuid }
+      name: { type: string }
+      targetAmountCents: { type: integer }
+      currency: { type: string, minLength: 3, maxLength: 3 }
+      deadline: { type: string, format: date-time }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      escrow_id: { type: string, format: uuid }
+  rate_limit:
+    calls_per_minute: 4
+- key: groups.join
+  description: Join an existing escrow via invite code.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/groups-join
+  method: POST
+  auth: user_jwt
+  required:
+    - escrowId
+    - inviteCode
+  input_schema: |
+    type: object
+    required: [escrowId, inviteCode]
+    properties:
+      escrowId: { type: string, format: uuid }
+      inviteCode: { type: string }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      member_id: { type: string, format: uuid }
+  rate_limit:
+    calls_per_minute: 10
+- key: groups.contribute
+  description: Record a contribution toward an escrow with idempotent ledger entry.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/groups-contribute
+  method: POST
+  auth: user_jwt
+  required:
+    - escrowId
+    - amountCents
+    - currency
+    - idempotencyKey
+  input_schema: |
+    type: object
+    required: [escrowId, amountCents, currency, idempotencyKey]
+    properties:
+      escrowId: { type: string, format: uuid }
+      amountCents: { type: integer }
+      currency: { type: string, minLength: 3, maxLength: 3 }
+      idempotencyKey: { type: string }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      contribution_id: { type: string, format: uuid }
+  rate_limit:
+    calls_per_minute: 8
+- key: notify.whatsapp
+  description: Send WhatsApp notifications via wa-send function (respects WA_OFFLINE flag).
+  endpoint: https://{project_ref}.supabase.co/functions/v1/wa-send
+  method: POST
+  auth: service_role
+  required:
+    - to
+    - template
+  input_schema: |
+    type: object
+    required: [to, template]
+    properties:
+      to: { type: string }
+      template: { type: string }
+      variables: { type: object }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      message_id: { type: string }
+  rate_limit:
+    calls_per_minute: 60
+- key: payout.now
+  description: Trigger immediate payout for met escrows (mock unless service role context).
+  endpoint: https://{project_ref}.supabase.co/functions/v1/groups-ops-payout-now
+  method: POST
+  auth: service_role
+  required:
+    - escrowId
+  input_schema: |
+    type: object
+    required: [escrowId]
+    properties:
+      escrowId: { type: string, format: uuid }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      payout_id: { type: string }
+  rate_limit:
+    calls_per_minute: 3

@@ -1,0 +1,26 @@
+name: perf smoke
+
+on:
+  push:
+    paths:
+      - 'ops/perf/**'
+      - '.github/workflows/perf_smoke.yml'
+      - 'supabase/functions/**'
+  pull_request:
+    paths:
+      - 'ops/perf/**'
+      - '.github/workflows/perf_smoke.yml'
+      - 'supabase/functions/**'
+
+jobs:
+  perf:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.x
+      - run: deno run -A ops/perf/perf_runner.ts --scenario smoke
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://woyknezboamabahknmjr.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}

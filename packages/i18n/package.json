@@ -1,0 +1,17 @@
+{
+  "name": "@ecotrips/i18n",
+  "version": "0.0.1",
+  "type": "module",
+  "private": true,
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./translations": "./src/translations/index.ts"
+  },
+  "dependencies": {
+    "intl-messageformat": "10.5.14"
+  },
+  "devDependencies": {
+    "typescript": "5.4.5"
+  }
+}

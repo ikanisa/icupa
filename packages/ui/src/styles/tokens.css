@@ -1,0 +1,12 @@
+:root {
+  --eco-gradient-primary: linear-gradient(135deg, #00d1ff 0%, #7c3aed 100%);
+  --eco-gradient-rwanda: linear-gradient(135deg, #20603d 0%, #fad201 50%, #00a1de 100%);
+  --eco-glass-bg: rgba(255, 255, 255, 0.08);
+  --eco-glass-border: rgba(255, 255, 255, 0.22);
+  --eco-glass-blur: 20px;
+  --eco-glass-shadow: 0 12px 40px rgba(2, 6, 23, 0.35);
+  --eco-duration-fast: 120ms;
+  --eco-duration-base: 220ms;
+  --eco-duration-slow: 380ms;
+  --eco-easing-std: cubic-bezier(0.4, 0, 0.2, 1);
+}
