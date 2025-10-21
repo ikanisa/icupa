@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
+import { cn } from '@icupa/ui';
 import '@icupa/ui/styles.css';
 import './globals.css';
-import { cn } from '@icupa/ui';
+import './env.server';
 import { Providers } from './providers';
 
 export const metadata: Metadata = {

@@ -1,0 +1,59 @@
+name,scope,type,required,default,notes
+NEXT_PUBLIC_SUPABASE_URL,Client (Next.js & Vite),Runtime,yes,,Supabase project URL used across all web apps.
+NEXT_PUBLIC_SUPABASE_ANON_KEY,Client (Next.js & Vite),Runtime,yes,,Supabase anon key shared across apps.
+NEXT_PUBLIC_AGENTS_URL,Client (Next.js),Runtime,no,,Overrides Agents service base URL for browser requests.
+SUPABASE_SERVICE_ROLE_KEY,Server (Next.js & Agents Service),Runtime,conditional,,Required for privileged Supabase actions; omit if not using service role in web apps.
+NEXT_PUBLIC_APP_URL,Client (Next.js),Runtime,no,,Optional absolute URL for link generation.
+VITE_SUPABASE_URL,Client (Vite app),Build+Runtime,yes,,Primary Supabase URL for Vite frontend; falls back to NEXT_PUBLIC_SUPABASE_URL.
+VITE_SUPABASE_ANON_KEY,Client (Vite app),Build+Runtime,yes,,Primary Supabase anon key for Vite frontend; falls back to NEXT_PUBLIC_SUPABASE_ANON_KEY.
+VITE_ADMIN_SERVICE_TOKEN,Client (Vite app),Runtime,no,,Optional token appended to Supabase Edge Function requests for admin workflows.
+VITE_AGENTS_STREAMING,Client (Vite app),Runtime,no,false,Feature flag to enable streaming agent responses.
+VITE_AGENTS_LONG_POLLING,Client (Vite app),Runtime,no,false,Feature flag to enable long polling for agents.
+VITE_VAPID_PUBLIC_KEY,Client (Vite app),Runtime,no,,Required when enabling push notifications.
+VITE_AGENTS_URL,Client (Vite app),Runtime,no,,Preferred Agents service base URL used when present.
+VITE_API_AGENTS_URL,Client (Vite app),Runtime,no,,Fallback Agents base URL key for backwards compatibility.
+PUBLIC_AGENTS_URL,Client (Vite app),Runtime,no,,Generic agents URL key supported by helper utilities.
+AGENTS_URL,Server (Node/CI),Runtime,no,,Last-resort Agents URL read from process.env.
+NEXT_PUBLIC_MAPS_DEEPLINK_BASE,Client (apps/web),Runtime,no,https://maps.google.com/?q=,Base URL for location deep links on marketing site.
+NEXT_PUBLIC_VAPID_PUBLIC_KEY,Client (apps/web),Runtime,no,,Public key for push subscriptions when marketing site runs service worker.
+OCR_CONVERTER_TOKEN,Server (apps/ocr-converter),Runtime,no,,Shared secret required by OCR converter shim.
+PORT,Server (apps/ocr-converter),Runtime,no,8789,Port for OCR converter local server.
+AGENT_TIMEOUT_MS,Server (agents-service),Runtime,no,45000,Overrides per-request timeout when proxying to OpenAI Agents.
+AGENTS_HOST,Server (agents-service),Runtime,no,0.0.0.0,Host interface for Fastify server.
+AGENTS_PORT,Server (agents-service),Runtime,no,8787,Port for Fastify server.
+ICUPA_REGION,Server (agents-service),Runtime,no,EU,Region tag appended to telemetry.
+OPENAI_API_KEY,Server (agents-service),Runtime,yes,,Primary OpenAI API key.
+OPENAI_BASE_URL,Server (agents-service),Runtime,no,,Optional custom endpoint for OpenAI-compatible providers.
+OPENAI_DEFAULT_MODEL,Server (agents-service),Runtime,no,gpt-4.1,Model used for high-quality responses.
+OPENAI_LOW_COST_MODEL,Server (agents-service),Runtime,no,gpt-4o-mini,Model used for routine inference.
+OPENAI_FAILOVER_MODEL,Server (agents-service),Runtime,no,gpt-4o-mini,Backup model when primary fails.
+OPENAI_USE_RESPONSES_API,Server (agents-service),Runtime,no,true,Flag to enable OpenAI Responses API integration.
+SUPABASE_URL,Server (agents-service & scripts),Runtime,yes,,Supabase service base URL.
+SUPABASE_ACCESS_TOKEN,Server (smoke tests),Runtime,conditional,,JWT for Supabase user used in smoke tests.
+SMOKE_LOCATION_ID,Server (smoke tests),Runtime,conditional,,Tenant location identifier for ingestion smoke tests.
+SMOKE_MENU_ID,Server (smoke tests),Runtime,conditional,,Menu identifier for ingestion smoke tests.
+SMOKE_IMAGE_PATH,Server (smoke tests),Runtime,conditional,,Path to local image used for ingestion smoke tests.
+AGENTS_MENU_VECTOR_STORE_ID,Server (agents-service),Runtime,no,,Vector store ID for menu embeddings.
+AGENTS_ALLERGENS_VECTOR_STORE_ID,Server (agents-service),Runtime,no,,Vector store ID for allergens embeddings.
+AGENTS_POLICIES_VECTOR_STORE_ID,Server (agents-service),Runtime,no,,Vector store ID for policy embeddings.
+AGENT_SESSION_BUDGET_USD,Server (agents-service),Runtime,no,0.75,Per-session spend cap.
+AGENT_DAILY_BUDGET_USD,Server (agents-service),Runtime,no,50,Daily spend cap.
+CANARY_TENANT_ID,Server (release scripts),Runtime,no,,Tenant targeted by canary toggles.
+CANARY_AGENT,Server (release scripts),Runtime,no,waiter,Agent persona used in canary script.
+CANARY_ENABLED,Server (release scripts),Runtime,no,true,String boolean for enabling canary flag.
+CANARY_FLAG,Server (release scripts),Runtime,no,canary,Feature flag key toggled in canary script.
+APP_BASE_URL,Server (release checklist),Runtime,no,http://localhost:5173,Base URL for app smoke checks.
+AGENTS_BASE_URL,Server/Client (release checklist/tests),Runtime,conditional,,Base URL for agents endpoints in CLI tools and tests.
+SUPABASE_FUNCTIONS_URL,Server (release checklist),Runtime,no,,Optional override for Supabase functions base.
+CHECKLIST_ALLOW_SKIP,Server (release checklist),Runtime,no,true,Controls if optional checklist steps can be skipped.
+VERCEL_REGION,Server (build scripts),Runtime,no,,Used to warn when Vercel deployment region mismatches config.
+VERCEL_AUTOMATION_BYPASS_SECRET,Server (CI/CD),Runtime,conditional,,Required when Deployment Protection is active.
+PLAYWRIGHT_BASE_URL,Server (tests),Runtime,no,,Base URL for Playwright e2e tests.
+AGENTS_TENANT_ID,Server (tests),Runtime,conditional,,Tenant identifier for agents smoke tests.
+AGENTS_LOCATION_ID,Server (tests),Runtime,conditional,,Location identifier for agents smoke tests.
+DISABLE_AUTOPREFIXER,Build (postcss),Build-time,no,,Set to "true" to skip autoprefixer in PostCSS.
+NEXT_PUBLIC_RUNBOOKS_BASE_URL,Client (Vite admin components),Runtime,no,https://github.com/icupa/icupa-pulse/tree/main/docs/runbooks,Base GitHub URL for admin runbooks.
+NEXT_PUBLIC_GRAFANA_URL,Client (Vite admin components),Runtime,no,https://grafana.icupa.dev,Grafana dashboard link.
+NEXT_PUBLIC_JAEGER_URL,Client (Vite admin components),Runtime,no,https://jaeger.icupa.dev,Tracing dashboard link.
+NEXT_PUBLIC_ALERTS_RUNBOOK_URL,Client (Vite admin components),Runtime,no,,Override for alerts playbook link.
+VERCEL_PROTECTION_BYPASS,Server (deployment),Runtime,no,,Legacy alias for bypass secret if needed.
