@@ -1,0 +1,88 @@
+{
+  "packageManager": {
+    "preferred": "npm",
+    "lockfiles": [
+      "package-lock.json",
+      "agents-service/package-lock.json"
+    ],
+    "notes": "Repository standardised on npm lockfiles; committed node_modules remain in agents-service and should be cleaned in a follow-up."
+  },
+  "node": {
+    "engines": {
+      "root": ">=18.18.0"
+    },
+    "recommended": "18"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "agents-service"
+  ],
+  "apps": {
+    "admin": {
+      "path": "apps/admin",
+      "framework": "nextjs",
+      "entry": "Next.js App Router",
+      "commands": {
+        "dev": "next dev",
+        "build": "next build",
+        "start": "next start"
+      }
+    },
+    "client": {
+      "path": "apps/client",
+      "framework": "nextjs",
+      "entry": "Next.js App Router",
+      "commands": {
+        "dev": "next dev",
+        "build": "next build",
+        "start": "next start"
+      }
+    },
+    "vendor": {
+      "path": "apps/vendor",
+      "framework": "nextjs",
+      "entry": "Next.js App Router",
+      "commands": {
+        "dev": "next dev",
+        "build": "next build",
+        "start": "next start"
+      }
+    },
+    "web": {
+      "path": "apps/web",
+      "framework": "nextjs",
+      "entry": "Next.js App Router",
+      "commands": {
+        "dev": "next dev",
+        "build": "next build",
+        "start": "next start"
+      }
+    },
+    "ocr-converter": {
+      "path": "apps/ocr-converter",
+      "framework": "node",
+      "commands": {
+        "start": "node server.mjs"
+      }
+    }
+  },
+  "services": {
+    "agents-service": {
+      "path": "agents-service",
+      "framework": "fastify",
+      "commands": {
+        "dev": "tsx watch --env-file=.env src/server.ts",
+        "build": "tsc --project tsconfig.json",
+        "start": "node --enable-source-maps dist/server.js"
+      }
+    }
+  },
+  "packages": [
+    "packages/config",
+    "packages/db",
+    "packages/ingestion-utils",
+    "packages/types",
+    "packages/ui"
+  ]
+}

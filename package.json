@@ -23,6 +23,7 @@
     "smoke:ingestion": "node scripts/smoke/ingestion-smoke.mjs",
     "release:canary-toggle": "node scripts/release/canary-toggle.mjs",
     "release:checklist": "node scripts/release/checklist.mjs",
+    "vercel:preflight": "node scripts/vercel-preflight.mjs",
     "supabase:test": "supabase db test",
     "test": "vitest run",
     "test:accessibility": "vitest run tests/accessibility",

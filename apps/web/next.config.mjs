@@ -34,6 +34,10 @@ const securityHeaders = [
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  output: 'standalone',
+  images: {
+    remotePatterns: [{ protocol: 'https', hostname: '**' }],
+  },
   experimental: {
     typedRoutes: true,
   },
