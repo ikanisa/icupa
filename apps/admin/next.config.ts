@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import "./src/env";
 
 const config = {
   reactStrictMode: true,
@@ -8,6 +9,7 @@ const config = {
       rules: {},
     },
   },
+  output: "standalone",
   transpilePackages: ["@ecotrips/ui", "@ecotrips/api", "@ecotrips/types", "@ecotrips/i18n"],
   typescript: {
     ignoreBuildErrors: false,

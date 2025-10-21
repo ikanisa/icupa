@@ -3,7 +3,11 @@
   "private": true,
   "version": "0.0.1",
   "type": "module",
+  "engines": {
+    "node": ">=18.17.0 <19"
+  },
   "scripts": {
+    "prebuild": "node ./scripts/check-env.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

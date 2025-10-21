@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
+import "./src/env";
 
 const allowedDevOrigins = ["http://localhost", "http://127.0.0.1"] as const;
+
+const mutableAllowedDevOrigins = Array.from(allowedDevOrigins);
 
 const config = {
   reactStrictMode: true,
@@ -10,6 +13,7 @@ const config = {
       rules: {},
     },
   },
+  output: "standalone",
   images: {
     remotePatterns: [
       {
@@ -31,7 +35,7 @@ const config = {
   turbopack: {
     root: true,
   },
-  allowedDevOrigins,
+  allowedDevOrigins: mutableAllowedDevOrigins,
 } satisfies NextConfig & {
   turbopack: {
     root: boolean;
