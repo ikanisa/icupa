@@ -58,3 +58,10 @@ Use this checklist before promoting ecoTrips to a production environment. The va
 Keep this checklist alongside the runbooks and update it whenever new external integrations are added.
 
 - Run `npm run guard:live` before promoting builds to verify Supabase credentials and confirm offline toggles are disabled.
+
+## Release Checklist
+1. **Environment sync** – Confirm all variables in the tables above are present in Vercel (preview, staging, production) and Supabase. Capture the export in `ops/DEPLOYMENT_LOG.md`.
+2. **Database migrations** – Review pending migrations with `supabase migration list`. Apply using the blue/green workflow in `ops/BLUE_GREEN_SUPABASE.md` and record hashes.
+3. **Test suites** – Ensure GitHub Actions CI, `scripts/vercel-preflight.mjs`, and `scripts/synthetics/run-smoke.mjs` are green for the release branch.
+4. **Deployment confirmation** – Promote preview → staging → production following `ops/DEPLOYMENT_PIPELINES.md`. Attach links to smoke dashboards and final Vercel deploy URL.
+5. **Tag & notes** – Create an annotated git tag (`git tag -a vX.Y.Z -m "release"`) and include the filled checklist in the release notes.
