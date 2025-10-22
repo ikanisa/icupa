@@ -31,3 +31,4 @@ artifacts/phase10/**
 .env
 .env.*
 !.env.example
+.husky/_
