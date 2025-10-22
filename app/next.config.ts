@@ -1,6 +1,8 @@
 import type { NextConfig } from 'next';
+import './src/env';
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
   // Tell Turbopack the app folder is the dev root
   turbopack: {
     root: __dirname,

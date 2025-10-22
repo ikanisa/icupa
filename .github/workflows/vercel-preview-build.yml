@@ -1,0 +1,92 @@
+name: Vercel Preview Build
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+jobs:
+  preview:
+    name: Preview build (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: marketing
+            working-directory: app
+            project_id_secret: VERCEL_PROJECT_ID_APP
+            org_id_secret: VERCEL_ORG_ID
+            token_secret: VERCEL_TOKEN
+          - name: client
+            working-directory: apps/client
+            project_id_secret: VERCEL_PROJECT_ID_CLIENT
+            org_id_secret: VERCEL_ORG_ID
+            token_secret: VERCEL_TOKEN
+          - name: admin
+            working-directory: apps/admin
+            project_id_secret: VERCEL_PROJECT_ID_ADMIN
+            org_id_secret: VERCEL_ORG_ID
+            token_secret: VERCEL_TOKEN
+
+    steps:
+      - name: Determine project configuration
+        id: project
+        shell: bash
+        run: |
+          PROJECT_ID="${{ secrets[matrix.project_id_secret] }}"
+          ORG_ID="${{ secrets[matrix.org_id_secret] }}"
+          TOKEN="${{ secrets[matrix.token_secret] }}"
+
+          if [ -z "$PROJECT_ID" ] || [ -z "$ORG_ID" ] || [ -z "$TOKEN" ]; then
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "should_run=true" >> "$GITHUB_OUTPUT"
+          {
+            echo "VERCEL_PROJECT_ID=$PROJECT_ID"
+            echo "VERCEL_ORG_ID=$ORG_ID"
+            echo "VERCEL_TOKEN=$TOKEN"
+          } >> "$GITHUB_ENV"
+
+      - name: Skip build (secrets missing)
+        if: steps.project.outputs.should_run != 'true'
+        run: |
+          echo "::notice::Skipping ${{ matrix.name }} preview build. Provide ${{ matrix.project_id_secret }}, ${{ matrix.org_id_secret }}, and ${{ matrix.token_secret }} secrets to enable this job."
+
+      - name: Checkout repository
+        if: steps.project.outputs.should_run == 'true'
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        if: steps.project.outputs.should_run == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        if: steps.project.outputs.should_run == 'true'
+        run: npm ci
+
+      - name: Pull Vercel environment (preview)
+        if: steps.project.outputs.should_run == 'true'
+        working-directory: ${{ matrix.working-directory }}
+        env:
+          VERCEL_TOKEN: ${{ env.VERCEL_TOKEN }}
+        run: npx vercel pull --yes --environment=preview --token="$VERCEL_TOKEN"
+
+      - name: Build with Vercel
+        if: steps.project.outputs.should_run == 'true'
+        working-directory: ${{ matrix.working-directory }}
+        env:
+          VERCEL_TOKEN: ${{ env.VERCEL_TOKEN }}
+        run: npx vercel build --token="$VERCEL_TOKEN"
+
+      - name: Upload build logs
+        if: steps.project.outputs.should_run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: vercel-build-${{ matrix.name }}-logs
+          path: ${{ matrix.working-directory }}/.vercel/output/logs
+          if-no-files-found: ignore
