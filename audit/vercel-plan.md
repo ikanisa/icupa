@@ -58,6 +58,7 @@ This repository hosts multiple deployable targets. Each Vercel project should pi
 - **Deployment target:** Not deployed to Vercel (requires long-lived server & OpenAI Agents). Recommend container-based deployment or background worker.
 
 ## Additional Configuration
-- Ensure each Vercel project defines `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (if required), and `NEXT_PUBLIC_AGENTS_URL` or `VITE_AGENTS_URL` depending on app.
+- Ensure each Vercel project defines `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (if required), and `NEXT_PUBLIC_AGENTS_URL` or `VITE_AGENTS_URL` depending on app. Mirror these in both Preview and Production environments.
 - Configure optional `VERCEL_AUTOMATION_BYPASS_SECRET` for CI-driven deployments when Deployment Protection is active.
 - Enable automatic invalidation headers per app via updated Next.js config and per-project `vercel.json` (checked into each app directory).
+- Follow `docs/deployment/vercel-env-sync.md` for the environment variable promotion log, including Supabase, Agents, and push notification credentials.
