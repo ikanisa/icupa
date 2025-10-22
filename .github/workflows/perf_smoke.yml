@@ -16,8 +16,8 @@ jobs:
   perf:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: denoland/setup-deno@v2
+      - uses: actions/checkout@v5
+      - uses: denoland/setup-deno@v1
         with:
           deno-version: v1.x
       - run: deno run -A ops/perf/perf_runner.ts --scenario smoke
