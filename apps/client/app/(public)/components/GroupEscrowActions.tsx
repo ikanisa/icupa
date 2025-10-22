@@ -3,19 +3,8 @@
 import { useMemo, useState, useTransition } from "react";
 import { Button, Toast } from "@ecotrips/ui";
 import { ContributionCreate, EscrowCreate } from "@ecotrips/types";
-import { createEcoTripsFunctionClient } from "@ecotrips/api";
 
-const clientPromise = (async () => {
-  if (typeof window === "undefined") return null;
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !anonKey) return null;
-  return createEcoTripsFunctionClient({
-    supabaseUrl,
-    anonKey,
-    getAccessToken: async () => null,
-  });
-})();
+import { useOptionalFunctionClient } from "../../../lib/api/client-provider";
 
 type ToastState = { id: string; title: string; description?: string } | null;
 
@@ -27,6 +16,7 @@ export function GroupEscrowActions({ itineraryId }: GroupEscrowActionsProps) {
   const [toast, setToast] = useState<ToastState>(null);
   const [pendingCreate, startCreate] = useTransition();
   const [pendingContribute, startContribute] = useTransition();
+  const optionalClient = useOptionalFunctionClient();
 
   const defaultDeadline = useMemo(() => {
     const date = new Date();
@@ -63,7 +53,7 @@ export function GroupEscrowActions({ itineraryId }: GroupEscrowActionsProps) {
       return;
     }
 
-    const client = await clientPromise;
+    const client = optionalClient;
     if (!client) {
       showToast({ id: "offline", title: "Offline mode", description: "Authenticate to reach Supabase functions." });
       return;
@@ -97,7 +87,7 @@ export function GroupEscrowActions({ itineraryId }: GroupEscrowActionsProps) {
       return;
     }
 
-    const client = await clientPromise;
+    const client = optionalClient;
     if (!client) {
       showToast({ id: "offline", title: "Offline mode", description: "Authenticate to sync contributions." });
       return;

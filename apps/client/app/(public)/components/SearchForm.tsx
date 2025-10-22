@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { Button } from "@ecotrips/ui";
 import { InventorySearchInput } from "@ecotrips/types";
 
+import { useAppStore } from "../../../lib/state/appStore";
+
 export function SearchForm() {
   const router = useRouter();
   const [destination, setDestination] = useState("Kigali");
@@ -13,6 +15,8 @@ export function SearchForm() {
   const [adults, setAdults] = useState(2);
   const [children, setChildren] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const setSearchInput = useAppStore((state) => state.setSearchInput);
+  const setSearchResults = useAppStore((state) => state.setSearchResults);
 
   const submit = () => {
     const result = InventorySearchInput.safeParse({
@@ -34,6 +38,8 @@ export function SearchForm() {
       adults: String(result.data.party.adults),
       children: String(result.data.party.children ?? 0),
     });
+    setSearchInput(result.data);
+    setSearchResults(null);
     router.push(`/results?${params.toString()}`);
   };
 
