@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { withSupabaseCaching } from "@/lib/query-client";
 
 export interface OfflineSyncEvent {
   id: string;
@@ -96,10 +97,10 @@ export function summariseOfflineSyncEvents(events: OfflineSyncEvent[]): OfflineS
 
 export function useOfflineSyncTelemetry(tenantId: string | null) {
   const query = useQuery({
-    queryKey: ["admin", "offline-sync-telemetry", tenantId],
+    queryKey: ["supabase", "admin", "offline-sync-telemetry", tenantId],
     queryFn: () => fetchOfflineSyncEvents(tenantId ?? ""),
     enabled: Boolean(tenantId),
-    staleTime: 60_000,
+    ...withSupabaseCaching({ entity: "offline-sync", staleTime: 60_000 }),
   });
 
   const summary = useMemo(() => {

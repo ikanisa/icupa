@@ -1,0 +1,4 @@
+Lighthouse CI autorun failed: Chrome installation not found in container environment.
+Command: npm run test:perf
+See console output for details.
+Timestamp: 2025-10-22T15:22:10+00:00

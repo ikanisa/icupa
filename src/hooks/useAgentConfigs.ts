@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { withSupabaseCaching } from "@/lib/query-client";
 
 export interface AgentConfig {
   id: string;
@@ -55,10 +56,10 @@ async function fetchAgentConfigs(tenantId: string): Promise<AgentConfig[]> {
 
 export function useAgentConfigs(tenantId: string | null) {
   return useQuery({
-    queryKey: ["admin", "agent-configs", tenantId],
+    queryKey: ["supabase", "admin", "agent-configs", tenantId],
     queryFn: () => fetchAgentConfigs(tenantId ?? ""),
     enabled: Boolean(tenantId),
-    staleTime: 30_000,
+    ...withSupabaseCaching({ entity: "agent-configs", staleTime: 30_000 }),
   });
 }
 
@@ -95,10 +96,14 @@ export function useUpdateAgentConfig(tenantId: string | null) {
     mutationFn: (input: UpdateAgentConfigInput) => updateAgentConfig(input),
     onSuccess: (_, variables) => {
       if (tenantId) {
-        queryClient.invalidateQueries({ queryKey: ["admin", "agent-configs", tenantId] });
+        queryClient.invalidateQueries({
+          queryKey: ["supabase", "admin", "agent-configs", tenantId],
+        });
       }
-      queryClient.invalidateQueries({ queryKey: ["admin", "agent-configs", variables.tenantId] });
-      queryClient.invalidateQueries({ queryKey: ["admin", "agent-configs"] });
+      queryClient.invalidateQueries({
+        queryKey: ["supabase", "admin", "agent-configs", variables.tenantId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["supabase", "admin", "agent-configs"] });
     },
   });
 }

@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { MerchantLocation } from "@/hooks/useMerchantLocations";
+import { withSupabaseCaching } from "@/lib/query-client";
 
 export interface ManagedMenuItem {
   id: string;
@@ -146,22 +147,27 @@ export function useMenuManager(location?: MerchantLocation | null) {
   const queryClient = useQueryClient();
 
   const itemsQuery = useQuery({
-    queryKey: ["merchant", "menu", location?.id ?? "all"],
+    queryKey: ["supabase", "merchant", "menu", location?.id ?? "all"],
     queryFn: () => fetchMenuItems(location),
+    ...withSupabaseCaching({ entity: "menu-items" }),
   });
 
   const suggestionsQuery = useQuery({
-    queryKey: ["merchant", "menu", "suggestions", location?.id ?? "all"],
+    queryKey: ["supabase", "merchant", "menu", "suggestions", location?.id ?? "all"],
     queryFn: () => fetchSuggestions(location),
+    ...withSupabaseCaching({ entity: "menu-suggestions", staleTime: 60_000 }),
   });
 
   const toggleAvailability = useMutation({
     mutationFn: async ({ itemId, isAvailable }: { itemId: string; isAvailable: boolean }) => {
       await supabase.from("items").update({ is_available: isAvailable }).eq("id", itemId);
-      queryClient.setQueryData<ManagedMenuItem[]>(["merchant", "menu", location?.id ?? "all"], (existing) => {
-        if (!existing) return existing;
-        return existing.map((item) => (item.id === itemId ? { ...item, isAvailable } : item));
-      });
+      queryClient.setQueryData<ManagedMenuItem[]>(
+        ["supabase", "merchant", "menu", location?.id ?? "all"],
+        (existing) => {
+          if (!existing) return existing;
+          return existing.map((item) => (item.id === itemId ? { ...item, isAvailable } : item));
+        }
+      );
     },
   });
 
@@ -197,7 +203,9 @@ export function useMenuManager(location?: MerchantLocation | null) {
           approved_by: approverId,
         })
         .eq("id", suggestion.id);
-      queryClient.invalidateQueries({ queryKey: ["merchant", "menu", location?.id ?? "all"] });
+      queryClient.invalidateQueries({
+        queryKey: ["supabase", "merchant", "menu", location?.id ?? "all"],
+      });
       await suggestionsQuery.refetch();
     },
   });

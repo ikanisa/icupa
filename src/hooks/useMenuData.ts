@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { withSupabaseCaching } from "@/lib/query-client";
 import {
   menuCategories as fallbackCategories,
   menuItems as fallbackItems,
@@ -238,10 +239,13 @@ export type MenuDataSource = "loading" | "supabase" | "static";
 
 export function useMenuData() {
   const query = useQuery<MenuDataPayload>({
-    queryKey: ["menu-data"],
+    queryKey: ["supabase", "menu-data"],
     queryFn: fetchMenuFromSupabase,
-    staleTime: 1000 * 60 * 5,
-    retry: 1,
+    ...withSupabaseCaching({
+      entity: "menu",
+      staleTime: 1000 * 60 * 5,
+      retry: 1,
+    }),
   });
 
   const result = useMemo(() => {

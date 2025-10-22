@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { withSupabaseCaching } from "@/lib/query-client";
 
 export interface PaymentRefund {
   id: string;
@@ -37,9 +38,9 @@ async function fetchRefunds(): Promise<PaymentRefund[]> {
 
 export function usePaymentRefunds() {
   return useQuery({
-    queryKey: ['admin', 'payment-refunds'],
+    queryKey: ['supabase', 'admin', 'payment-refunds'],
     queryFn: fetchRefunds,
-    staleTime: 20_000,
+    ...withSupabaseCaching({ entity: 'payment-refunds', staleTime: 20_000 }),
   });
 }
 
@@ -84,6 +85,6 @@ export function useRefundDecision() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: postRefundDecision,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin', 'payment-refunds'] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['supabase', 'admin', 'payment-refunds'] }),
   });
 }

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { withSupabaseCaching } from "@/lib/query-client";
 
 export interface MerchantLocation {
   id: string;
@@ -49,8 +50,8 @@ async function fetchLocations(): Promise<MerchantLocation[]> {
 
 export function useMerchantLocations() {
   return useQuery({
-    queryKey: ["merchant", "locations"],
+    queryKey: ["supabase", "merchant", "locations"],
     queryFn: fetchLocations,
-    staleTime: 60_000,
+    ...withSupabaseCaching({ entity: "locations", staleTime: 60_000 }),
   });
 }
