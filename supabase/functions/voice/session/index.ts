@@ -83,7 +83,7 @@ export async function handleVoiceSession(req: Request): Promise<Response> {
     return errorResponse(401, "unauthorized", "Unable to validate Supabase session");
   }
 
-  const tableSessionId = req.headers.get("x-icupa-session");
+  const tableSessionId = readHeader(req, 'x-icupa-session');
   if (!tableSessionId) {
     return errorResponse(400, "missing_table_session", "x-icupa-session header required");
   }

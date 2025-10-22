@@ -9,6 +9,7 @@ import {
   startEdgeTrace,
   type PaymentCartItem,
 } from "../../../_shared/payments.ts";
+import { readHeader } from "../../../_shared/headers.ts";
 
 interface StripeCheckoutRequest {
   currency?: string;
@@ -53,10 +54,9 @@ export async function handleStripeCheckout(req: Request): Promise<Response> {
       return errorResponse(400, "unsupported_provider", "Stripe/Adyen checkout is required for this endpoint");
     }
 
-    const tableSessionId =
-      req.headers.get("x-icupa-session") ?? req.headers.get("x-ICUPA-session") ?? "";
+    const tableSessionId = readHeader(req, 'x-icupa-session') ?? '';
     if (!tableSessionId) {
-      return errorResponse(401, "missing_session", "x-icupa-session header is required");
+      return errorResponse(401, 'missing_session', 'x-icupa-session header is required');
     }
 
     client = createServiceRoleClient();

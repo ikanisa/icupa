@@ -186,9 +186,27 @@ export async function logAgentEvent(params: {
   startedAt: number;
   model: string;
   usage?: { inputTokens: number; outputTokens: number };
+  payload?: Record<string, unknown>;
+  outcome?: 'success' | 'error';
+  errorMessage?: string;
 }): Promise<number> {
   const latencyMs = Date.now() - params.startedAt;
   const cost = estimateCostUsd(params.model, params.usage);
+
+  const payload: Record<string, unknown> = {
+    ...(params.payload ?? {}),
+    usage: params.payload?.usage ?? params.usage,
+    tools_used: params.toolsUsed,
+    outcome: params.outcome ?? 'success',
+  };
+
+  if (params.errorMessage) {
+    payload.error = truncateForTelemetry(redactSensitiveText(params.errorMessage));
+  }
+
+  if (!payload.usage && params.usage) {
+    payload.usage = params.usage;
+  }
 
   const { error } = await supabaseClient.from('agent_events').insert({
     agent_type: params.agentType,
@@ -204,7 +222,8 @@ export async function logAgentEvent(params: {
     },
     tools_used: params.toolsUsed,
     latency_ms: latencyMs,
-    cost_usd: cost
+    cost_usd: cost,
+    payload
   });
 
   if (error) {
@@ -262,6 +281,10 @@ export async function recordAgentFeedback(params: {
     tools_used: [],
     latency_ms: 0,
     cost_usd: 0,
+    payload: {
+      outcome: 'feedback',
+      rating: params.rating,
+    }
   });
 
   if (error) {
