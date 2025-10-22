@@ -18,6 +18,25 @@
     "types": ["node"],
     "baseUrl": "."
   },
-  "include": [],
-  "exclude": ["node_modules"]
+  "include": [
+    "app/**/*",
+    "apps/**/*",
+    "packages/**/*",
+    "supabase/functions/**/*",
+    "tools/**/*"
+  ],
+  "exclude": ["node_modules"],
+  "references": [
+    { "path": "./app/tsconfig.json" },
+    { "path": "./apps/admin/tsconfig.json" },
+    { "path": "./apps/client/tsconfig.json" },
+    { "path": "./ops/console/tsconfig.json" },
+    { "path": "./packages/api/tsconfig.json" },
+    { "path": "./packages/config/tsconfig.json" },
+    { "path": "./packages/i18n/tsconfig.json" },
+    { "path": "./packages/types/tsconfig.json" },
+    { "path": "./packages/ui/tsconfig.json" },
+    { "path": "./supabase/functions/tsconfig.json" },
+    { "path": "./tools/tsconfig.json" }
+  ]
 }

@@ -6,10 +6,11 @@
     "node": ">=18.17.0 <19"
   },
   "workspaces": [
+    "app",
     "apps/*",
     "packages/*",
-    "services/*",
-    "ops/*"
+    "ops/*",
+    "tools"
   ],
   "scripts": {
     "db:migrate": "supabase migration up",

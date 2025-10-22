@@ -1,15 +1,24 @@
 #!/usr/bin/env node
-import { z } from "zod";
+import {
+  EnvValidationError,
+  assertSupabaseServiceEnv,
+} from "@ecotrips/config/env";
 
-const schema = z.object({
-  SUPABASE_URL: z
-    .string()
-    .url("Set SUPABASE_URL to your Supabase project URL."),
-  SUPABASE_SERVICE_ROLE_KEY: z
-    .string()
-    .min(1, "Set SUPABASE_SERVICE_ROLE_KEY to your Supabase service role key."),
-});
+try {
+  assertSupabaseServiceEnv(process.env);
+  console.log("[env] Marketing environment looks good.");
+} catch (error) {
+  if (error instanceof EnvValidationError) {
+    console.error("[env] Marketing environment check failed.");
+    if (error.missing.length > 0) {
+      console.error(`[env] Missing: ${error.missing.join(", ")}`);
+    }
+    for (const issue of error.issues) {
+      const path = issue.path.join(".") || issue.path[0] || "";
+      console.error(`[env] ${path}: ${issue.message}`);
+    }
+    process.exit(1);
+  }
 
-schema.parse(process.env);
-
-console.log("[env] Marketing environment looks good.");
+  throw error;
+}

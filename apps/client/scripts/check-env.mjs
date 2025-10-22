@@ -1,15 +1,24 @@
 #!/usr/bin/env node
-import { z } from "zod";
+import {
+  EnvValidationError,
+  assertSupabasePublicEnv,
+} from "@ecotrips/config/env";
 
-const schema = z.object({
-  NEXT_PUBLIC_SUPABASE_URL: z
-    .string()
-    .url("Set NEXT_PUBLIC_SUPABASE_URL to your Supabase project URL."),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z
-    .string()
-    .min(1, "Set NEXT_PUBLIC_SUPABASE_ANON_KEY to your Supabase anon key."),
-});
+try {
+  assertSupabasePublicEnv(process.env);
+  console.log("[env] Client environment looks good.");
+} catch (error) {
+  if (error instanceof EnvValidationError) {
+    console.error("[env] Client environment check failed.");
+    if (error.missing.length > 0) {
+      console.error(`[env] Missing: ${error.missing.join(", ")}`);
+    }
+    for (const issue of error.issues) {
+      const path = issue.path.join(".") || issue.path[0] || "";
+      console.error(`[env] ${path}: ${issue.message}`);
+    }
+    process.exit(1);
+  }
 
-schema.parse(process.env);
-
-console.log("[env] Client environment looks good.");
+  throw error;
+}
