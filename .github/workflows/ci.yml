@@ -106,3 +106,73 @@ jobs:
         run: |
           test -f agent/policies/ALLOWLIST.json || (echo "Missing ALLOWLIST.json" && exit 1)
           echo "ALLOWLIST.json is present ✅"
+
+  workspace-quality:
+    name: Quality checks (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: marketing-app
+            kind: next
+            workspace: app
+          - name: client-app
+            kind: next
+            workspace: apps/client
+          - name: admin-app
+            kind: next
+            workspace: apps/admin
+          - name: ops-console
+            kind: next
+            workspace: ops/console
+          - name: deno-edge
+            kind: deno
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        if: matrix.kind == 'next'
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install npm dependencies
+        if: matrix.kind == 'next'
+        run: npm install
+
+      - name: Install Playwright browsers
+        if: matrix.workspace == 'app'
+        run: npx playwright install --with-deps chromium firefox
+
+      - name: Setup Deno
+        if: matrix.kind == 'deno'
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: latest
+
+      - name: Lint ${{ matrix.workspace }}
+        if: matrix.kind == 'next'
+        run: npm run lint --workspace ${{ matrix.workspace }}
+
+      - name: Typecheck ${{ matrix.workspace }}
+        if: matrix.kind == 'next'
+        run: npm run typecheck --workspace ${{ matrix.workspace }}
+
+      - name: Test ${{ matrix.workspace }}
+        if: matrix.kind == 'next'
+        run: npm run test --workspace ${{ matrix.workspace }} --if-present
+
+      - name: Build ${{ matrix.workspace }}
+        if: matrix.kind == 'next'
+        run: npm run build --workspace ${{ matrix.workspace }}
+
+      - name: Format check (Supabase functions)
+        if: matrix.kind == 'deno'
+        run: deno fmt --check supabase/functions
+
+      - name: Type check Supabase edge functions
+        if: matrix.kind == 'deno'
+        run: deno check supabase/functions/**/index.ts

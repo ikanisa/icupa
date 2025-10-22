@@ -7,6 +7,10 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test"
+  },
   "dependencies": {
     "zod": "3.23.8"
   },
