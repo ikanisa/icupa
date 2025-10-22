@@ -1,10 +1,7 @@
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
-const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE") ??
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+import { getSupabaseServiceConfig } from "./env.ts";
 
-if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
-  throw new Error("Supabase configuration missing for privacy helpers");
-}
+const { url: SUPABASE_URL, serviceRoleKey: SERVICE_ROLE_KEY } =
+  getSupabaseServiceConfig({ feature: "privacy" });
 
 const JSON_HEADERS = {
   apikey: SERVICE_ROLE_KEY,

@@ -1,160 +1,15 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { ERROR_CODES } from "../_obs/constants.ts";
 import { getRequestId, healthResponse, withObs } from "../_obs/withObs.ts";
+import {
+  createGroupAuditLogger,
+  fetchGroupMembershipByUser,
+  insertGroupEscrow,
+  jsonResponse,
+  resolveGroupAuth,
+} from "../_shared/groups.ts";
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
-const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE") ??
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-interface AuthInfo {
-  userId: string | null;
-  isOps: boolean;
-  actorLabel: string;
-}
-
-function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
-  return new Response(JSON.stringify(body), {
-    ...init,
-    headers: {
-      "content-type": "application/json",
-      ...init.headers,
-    },
-  });
-}
-
-function audit(fields: Record<string, unknown>) {
-  console.log(
-    JSON.stringify({
-      level: "AUDIT",
-      event: "groups.create_escrow",
-      fn: "groups-create-escrow",
-      ...fields,
-    }),
-  );
-}
-
-async function resolveAuth(req: Request): Promise<AuthInfo> {
-  const authHeader = req.headers.get("authorization");
-  if (!authHeader) {
-    return { userId: null, isOps: false, actorLabel: "anonymous" };
-  }
-
-  if (SERVICE_ROLE_KEY && authHeader === `Bearer ${SERVICE_ROLE_KEY}`) {
-    return { userId: null, isOps: true, actorLabel: "service-role" };
-  }
-
-  if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
-    return { userId: null, isOps: false, actorLabel: "unknown" };
-  }
-
-  try {
-    const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-      headers: {
-        apikey: SERVICE_ROLE_KEY,
-        Authorization: authHeader,
-      },
-    });
-
-    if (!userRes.ok) {
-      return { userId: null, isOps: false, actorLabel: "unauthorized" };
-    }
-
-    const userData = await userRes.json();
-    const userId = typeof userData?.id === "string" ? userData.id : null;
-    if (!userId) {
-      return { userId: null, isOps: false, actorLabel: "unauthorized" };
-    }
-
-    const profileRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/core.profiles?select=persona&auth_user_id=eq.${userId}&limit=1`,
-      {
-        headers: {
-          apikey: SERVICE_ROLE_KEY,
-          Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
-        },
-      },
-    );
-
-    let isOps = false;
-    if (profileRes.ok) {
-      const rows = await profileRes.json();
-      if (Array.isArray(rows) && rows[0]?.persona === "ops") {
-        isOps = true;
-      }
-    }
-
-    return { userId, isOps, actorLabel: userId };
-  } catch (_error) {
-    return { userId: null, isOps: false, actorLabel: "unknown" };
-  }
-}
-
-async function fetchMembership(
-  groupId: string,
-  userId: string,
-): Promise<{ id: string; role: string } | null> {
-  if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
-    throw new Error("Supabase configuration missing");
-  }
-
-  const response = await fetch(
-    `${SUPABASE_URL}/rest/v1/group_members_view?select=id,role&limit=1&group_id=eq.${groupId}&user_id=eq.${userId}`,
-    {
-      headers: {
-        apikey: SERVICE_ROLE_KEY,
-        Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
-        "Accept-Profile": "public",
-      },
-    },
-  );
-
-  if (!response.ok) {
-    const text = await response.text();
-    const error = new Error(`Failed to load membership: ${text}`);
-    (error as { code?: string }).code = ERROR_CODES.SUPPLIER_TIMEOUT;
-    throw error;
-  }
-
-  const rows = await response.json();
-  if (!Array.isArray(rows) || !rows[0]) {
-    return null;
-  }
-  return rows[0] as { id: string; role: string };
-}
-
-async function insertEscrow(payload: Record<string, unknown>) {
-  if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
-    throw new Error("Supabase configuration missing");
-  }
-
-  const response = await fetch(
-    `${SUPABASE_URL}/rest/v1/rpc/create_group_escrow`,
-    {
-      method: "POST",
-      headers: {
-        apikey: SERVICE_ROLE_KEY,
-        Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
-        "Content-Type": "application/json",
-        "Accept-Profile": "public",
-        Prefer: "params=single-object",
-      },
-      body: JSON.stringify(payload),
-    },
-  );
-
-  if (!response.ok) {
-    const text = await response.text();
-    const error = new Error(`Failed to create escrow: ${text}`);
-    (error as { code?: string }).code = ERROR_CODES.DATA_CONFLICT;
-    throw error;
-  }
-
-  const data = await response.json();
-  if (!data?.id) {
-    throw new Error("Unexpected response from create_group_escrow");
-  }
-  return data;
-}
+const audit = createGroupAuditLogger("groups-create-escrow", "groups.create_escrow");
 
 const handler = withObs(async (req) => {
   const requestId = getRequestId(req) ?? crypto.randomUUID();
@@ -168,7 +23,7 @@ const handler = withObs(async (req) => {
     return jsonResponse({ ok: false, error: "POST only" }, { status: 405 });
   }
 
-  const auth = await resolveAuth(req);
+  const auth = await resolveGroupAuth(req, { includePersona: true });
 
   let body: Record<string, unknown>;
   try {
@@ -225,7 +80,7 @@ const handler = withObs(async (req) => {
   try {
     let ownerOk = auth.isOps;
     if (!ownerOk && actingUserId) {
-      const membership = await fetchMembership(groupId, actingUserId);
+      const membership = await fetchGroupMembershipByUser(groupId, actingUserId);
       ownerOk = !!membership && membership.role === "owner";
     }
 
@@ -244,7 +99,7 @@ const handler = withObs(async (req) => {
       }, { status: 400 });
     }
 
-    const row = await insertEscrow({
+    const row = await insertGroupEscrow({
       p_group: groupId,
       p_itinerary: itineraryId,
       p_currency: currency,
