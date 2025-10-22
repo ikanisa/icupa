@@ -1,7 +1,7 @@
-import { ClientShell } from "@/components/client/ClientShell";
+import { ClientLandingPage } from "@/modules/client/landing";
 
 const Index = () => {
-  return <ClientShell />;
+  return <ClientLandingPage />;
 };
 
 export default Index;
