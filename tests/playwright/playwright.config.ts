@@ -15,6 +15,8 @@ const webServer = process.env.PLAYWRIGHT_BASE_URL
       env: {
         DISABLE_AUTOPREFIXER: 'true',
         NODE_ENV: 'test',
+        VITE_SUPABASE_URL: 'http://127.0.0.1:9999',
+        VITE_SUPABASE_ANON_KEY: 'playwright-anon-key',
       },
     };
 
