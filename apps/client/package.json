@@ -23,7 +23,8 @@
     "@ecotrips/ui": "file:../../packages/ui",
     "@ecotrips/api": "file:../../packages/api",
     "@ecotrips/types": "file:../../packages/types",
-    "@ecotrips/i18n": "file:../../packages/i18n"
+    "@ecotrips/i18n": "file:../../packages/i18n",
+    "@ecotrips/supabase": "file:../../packages/supabase"
   },
   "devDependencies": {
     "@types/node": "20.11.30",

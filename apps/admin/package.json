@@ -24,6 +24,7 @@
     "@ecotrips/api": "file:../../packages/api",
     "@ecotrips/types": "file:../../packages/types",
     "@ecotrips/i18n": "file:../../packages/i18n",
+    "@ecotrips/supabase": "file:../../packages/supabase",
     "zod": "3.23.8"
   },
   "devDependencies": {
