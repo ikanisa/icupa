@@ -5,6 +5,7 @@ import {
   resolveSessionContext,
   startEdgeTrace,
 } from "../_shared/payments.ts";
+import { readHeader } from "../_shared/headers.ts";
 
 interface StorageErrorRequest {
   table_session_id?: string;
@@ -28,8 +29,7 @@ export default async function handler(req: Request): Promise<Response> {
     return errorResponse(415, "unsupported_media_type", "Expected JSON payload");
   }
 
-  const tableSessionId =
-    req.headers.get("x-icupa-session") ?? req.headers.get("x-ICUPA-session") ?? "";
+  const tableSessionId = readHeader(req, 'x-icupa-session') ?? '';
   if (!tableSessionId) {
     return errorResponse(401, "missing_session", "x-icupa-session header is required");
   }
