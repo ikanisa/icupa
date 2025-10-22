@@ -204,6 +204,23 @@ const descriptors = {
       reused: z.boolean().optional(),
     }),
   },
+  "ops.refund": {
+    path: "/functions/v1/ops-refund",
+    method: "POST",
+    auth: "user",
+    input: z.object({
+      itinerary_id: z.string().uuid(),
+      amount_cents: z.number().int().positive(),
+      reason: z.string().min(1).max(200),
+    }),
+    output: z.object({
+      ok: z.boolean(),
+      request_id: z.string().optional(),
+      refund_id: z.string().optional(),
+      status: z.string().optional(),
+      message: z.string().optional(),
+    }),
+  },
   "privacy.request": {
     path: "/functions/v1/privacy-request",
     method: "POST",
