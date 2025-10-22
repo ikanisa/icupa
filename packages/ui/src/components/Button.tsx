@@ -1,36 +1,37 @@
 "use client";
 
-import { forwardRef } from "react";
-import type * as React from "react";
+import { forwardRef, type ElementRef, type ComponentPropsWithoutRef } from "react";
 import { Slot } from "@radix-ui/react-slot";
 
 import { buttonClassName, type ButtonVariant } from "../styles/button";
 
-type ButtonProps = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "children"> & {
-  children?: React.ReactNode;
+type NativeButtonProps = ComponentPropsWithoutRef<"button">;
+
+type ButtonProps = {
   variant?: ButtonVariant;
   fullWidth?: boolean;
   asChild?: boolean;
-};
+} & Omit<NativeButtonProps, "children"> & {
+    children?: NativeButtonProps["children"];
+  };
 
-export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = "primary", fullWidth, asChild, children, type, ...props }, ref) => {
+type ButtonRef = ElementRef<"button">;
+
+export const Button = forwardRef<ButtonRef, ButtonProps>(
+  ({ className, variant = "primary", fullWidth, asChild = false, children, type, ...props }, ref) => {
     const classNameComputed = buttonClassName(variant, fullWidth, className);
-    const childNodes = children as unknown as React.ReactNode;
 
     if (asChild) {
       return (
-        <Slot className={classNameComputed} {...props}>
-          {/* @ts-ignore: workspace-linked react types disagree but runtime is correct */}
-          {childNodes}
+        <Slot ref={ref} className={classNameComputed} {...props}>
+          {children}
         </Slot>
       );
     }
 
     return (
       <button ref={ref} className={classNameComputed} type={type ?? "button"} {...props}>
-        {/* @ts-ignore: workspace-linked react types disagree but runtime is correct */}
-        {childNodes}
+        {children}
       </button>
     );
   },
