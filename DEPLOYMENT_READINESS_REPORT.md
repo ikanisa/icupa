@@ -2,7 +2,8 @@
 
 ## Overview
 - **Audit date:** 2025-10-21
-- **Node version:** 18.20.4 (pinned via `.nvmrc` and `package.json` engines)
+- **Node version:** 18.20.4 (pinned via `.nvmrc` and enforced in `package.json` engines)
+- **npm version:** 10.7.0 (documented in `package.json` engines to align workspace tooling)
 - **Package manager:** npm workspaces (`package-lock.json`), bun lockfile removed to avoid drift.
 - **Key artifacts:**
   - `audit/inventory.json`
