@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { readHeader } from "../../_shared/headers.ts";
 
 type Maybe<T> = T | null | undefined;
 
@@ -36,15 +37,8 @@ function isUuid(value: Maybe<string>): value is string {
 }
 
 function extractSessionId(req: Request): string | null {
-  const direct = req.headers.get("x-icupa-session");
-  if (direct && direct.length > 0) {
-    return direct;
-  }
-  const fallback = req.headers.get("x-ICUPA-session");
-  if (fallback && fallback.length > 0) {
-    return fallback;
-  }
-  return null;
+  const direct = readHeader(req, 'x-icupa-session');
+  return direct && direct.length > 0 ? direct : null;
 }
 
 export async function handleUnsubscribePush(req: Request): Promise<Response> {

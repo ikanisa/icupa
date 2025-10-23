@@ -1,5 +1,4 @@
-import { Agent, Runner } from '@openai/agents';
-import { OpenAIProvider, fileSearchTool, setDefaultOpenAIKey, setOpenAIAPI } from '@openai/agents-openai';
+import { Agent } from '@openai/agents';
 import { createAgentTools } from '../tools';
 import {
   AllergenGuardianOutputSchema,
@@ -15,23 +14,10 @@ import type {
   UpsellSuggestion,
   AllergenGuardianOutput,
 } from './types';
-import { loadConfig } from '../config';
 import { supabaseClient } from '../supabase';
+import { buildRetrievalTools, createRunner, openAIModels } from '../openai/client';
 
-const config = loadConfig();
-const lowCostModel = config.openai.lowCostModel;
-const defaultModel = config.openai.defaultModel;
-
-setDefaultOpenAIKey(config.openai.apiKey);
-if (!config.openai.responsesApi) {
-  setOpenAIAPI('chat_completions');
-}
-
-const provider = new OpenAIProvider({
-  apiKey: config.openai.apiKey,
-  baseURL: config.openai.baseUrl,
-  useResponses: config.openai.responsesApi
-});
+const { default: defaultModel, lowCost: lowCostModel } = openAIModels;
 
 const {
   getMenu,
@@ -49,14 +35,7 @@ const {
   supabase: supabaseClient
 });
 
-const retrievalTools = config.openai.vectorStoreIds.length
-  ? [
-      fileSearchTool(config.openai.vectorStoreIds, {
-        includeSearchResults: true,
-        maxNumResults: 6
-      })
-    ]
-  : [];
+const retrievalTools = buildRetrievalTools();
 
 function buildLocaleInstruction(context: AgentSessionContext): string {
   const alcoholClause = context.avoidAlcohol
@@ -162,11 +141,7 @@ Review open compliance tasks and respond with status updates. Escalate only when
   outputType: ComplianceAgentOutputSchema,
 });
 
-export const runner = new Runner<AgentSessionContext>({
-  modelProvider: provider,
-  model: lowCostModel,
-  maxToolDepth: 3,
-});
+export const runner = createRunner<AgentSessionContext>();
 
 export function applyAllergenFilter(
   suggestions: UpsellSuggestion[],

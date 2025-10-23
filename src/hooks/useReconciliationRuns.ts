@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { withSupabaseCaching } from "@/lib/query-client";
 
 const FUNCTION_BASE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/reconciliation`;
 const ADMIN_TOKEN = import.meta.env.VITE_ADMIN_SERVICE_TOKEN ?? "";
@@ -39,9 +40,9 @@ async function fetchLatestRuns(): Promise<ReconciliationRun[]> {
 
 export function useReconciliationRuns() {
   return useQuery({
-    queryKey: ['admin', 'reconciliation-runs'],
+    queryKey: ['supabase', 'admin', 'reconciliation-runs'],
     queryFn: fetchLatestRuns,
-    staleTime: 60_000,
+    ...withSupabaseCaching({ entity: 'reconciliation', staleTime: 60_000 }),
   });
 }
 
@@ -76,6 +77,7 @@ export function useRunReconciliation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: triggerReconciliation,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin', 'reconciliation-runs'] }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ['supabase', 'admin', 'reconciliation-runs'] }),
   });
 }

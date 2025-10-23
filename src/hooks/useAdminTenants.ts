@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { withSupabaseCaching } from "@/lib/query-client";
 
 export interface AdminTenant {
   id: string;
@@ -35,8 +36,8 @@ async function fetchAdminTenants(): Promise<AdminTenant[]> {
 
 export function useAdminTenants() {
   return useQuery({
-    queryKey: ["admin", "tenants"],
+    queryKey: ["supabase", "admin", "tenants"],
     queryFn: fetchAdminTenants,
-    staleTime: 60_000,
+    ...withSupabaseCaching({ entity: "tenants", staleTime: 60_000 }),
   });
 }

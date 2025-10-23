@@ -127,3 +127,12 @@ Error: listen EPERM: operation not permitted 127.0.0.1:5000
     at listenInCluster (node:net:1997:12)
     at node:net:2206:7
     at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+
+### Verification 2025-10-10T09:32:00.000Z
+- ✅ Manifest declares 192px and 512px PNG icons
+- ✅ Icon files exist
+- ✅ index.html references manifest.json
+- ✅ Theme colour meta tag present
+- ✅ Service worker registration present
+- ✅ npm run build
+- ✅ Preview server serves / (HTTP 200) – `npm run preview -- --host 127.0.0.1 --port 5000`

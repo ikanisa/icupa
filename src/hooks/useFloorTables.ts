@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { MerchantLocation } from "@/hooks/useMerchantLocations";
+import { withSupabaseCaching } from "@/lib/query-client";
 
 export type TableState = "vacant" | "ordering" | "in_kitchen" | "served" | "bill" | "cleaning";
 
@@ -79,8 +80,9 @@ export function useFloorTables(location?: MerchantLocation | null) {
   const [isSavingLayout, setIsSavingLayout] = useState(false);
 
   const query = useQuery({
-    queryKey: ["merchant", "tables", locationId ?? "all"],
+    queryKey: ["supabase", "merchant", "tables", locationId ?? "all"],
     queryFn: () => fetchTables(locationId),
+    ...withSupabaseCaching({ entity: "tables" }),
   });
 
   useEffect(() => {
@@ -96,30 +98,33 @@ export function useFloorTables(location?: MerchantLocation | null) {
             return;
           }
 
-          queryClient.setQueryData<FloorTable[]>(["merchant", "tables", locationId ?? "all"], (existing) => {
-            const current = existing ?? [];
-            if (!next) {
-              return current.filter((table) => table.id !== previous?.id);
+          queryClient.setQueryData<FloorTable[]>(
+            ["supabase", "merchant", "tables", locationId ?? "all"],
+            (existing) => {
+              const current = existing ?? [];
+              if (!next) {
+                return current.filter((table) => table.id !== previous?.id);
+              }
+              if (locationId && next.location_id !== locationId) {
+                return current;
+              }
+              const table: FloorTable = {
+                id: next.id,
+                code: next.code ?? previous?.code ?? "?",
+                seats: next.seats ?? previous?.seats ?? 2,
+                state: (next.state ?? previous?.state ?? "vacant") as TableState,
+                locationId: next.location_id,
+                layout: normaliseLayout(next.layout ?? previous?.layout ?? null),
+              };
+              const idx = current.findIndex((existingTable) => existingTable.id === table.id);
+              if (idx >= 0) {
+                const copy = [...current];
+                copy[idx] = table;
+                return copy;
+              }
+              return [...current, table];
             }
-            if (locationId && next.location_id !== locationId) {
-              return current;
-            }
-            const table: FloorTable = {
-              id: next.id,
-              code: next.code ?? previous?.code ?? "?",
-              seats: next.seats ?? previous?.seats ?? 2,
-              state: (next.state ?? previous?.state ?? "vacant") as TableState,
-              locationId: next.location_id,
-              layout: normaliseLayout(next.layout ?? previous?.layout ?? null),
-            };
-            const idx = current.findIndex((existingTable) => existingTable.id === table.id);
-            if (idx >= 0) {
-              const copy = [...current];
-              copy[idx] = table;
-              return copy;
-            }
-            return [...current, table];
-          });
+          );
         }
       )
       .subscribe();
@@ -131,7 +136,8 @@ export function useFloorTables(location?: MerchantLocation | null) {
 
   const updateTableState = async (tableId: string, nextState: TableState, note?: string) => {
     const currentTables =
-      queryClient.getQueryData<FloorTable[]>(["merchant", "tables", locationId ?? "all"]) ?? query.data ?? [];
+      queryClient.getQueryData<FloorTable[]>(["supabase", "merchant", "tables", locationId ?? "all"]) ??
+      query.data ?? [];
     const currentTable = currentTables.find((table) => table.id === tableId);
 
     await supabase.from("tables").update({ state: nextState }).eq("id", tableId);
@@ -141,24 +147,29 @@ export function useFloorTables(location?: MerchantLocation | null) {
       next_state: nextState,
       notes: note ?? "Manual override from merchant portal",
     });
-    queryClient.invalidateQueries({ queryKey: ["merchant", "tables", locationId ?? "all"] });
+    queryClient.invalidateQueries({
+      queryKey: ["supabase", "merchant", "tables", locationId ?? "all"],
+    });
   };
 
   const updateLayout = async (tableId: string, layout: FloorTable["layout"]) => {
     setIsSavingLayout(true);
     try {
       await supabase.from("tables").update({ layout }).eq("id", tableId);
-      queryClient.setQueryData<FloorTable[]>(["merchant", "tables", locationId ?? "all"], (existing) => {
-        if (!existing) return existing;
-        return existing.map((table) =>
-          table.id === tableId
-            ? {
-                ...table,
-                layout,
-              }
-            : table
-        );
-      });
+      queryClient.setQueryData<FloorTable[]>(
+        ["supabase", "merchant", "tables", locationId ?? "all"],
+        (existing) => {
+          if (!existing) return existing;
+          return existing.map((table) =>
+            table.id === tableId
+              ? {
+                  ...table,
+                  layout,
+                }
+              : table
+          );
+        }
+      );
     } finally {
       setIsSavingLayout(false);
     }

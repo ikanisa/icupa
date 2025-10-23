@@ -1,3 +1,4 @@
+import { readHeader } from '../../../_shared/headers.ts';
 import {
   calculateTotals,
   createOrderAndPayment,
@@ -115,8 +116,7 @@ export async function handleMtnRequestToPay(req: Request): Promise<Response> {
       return errorResponse(400, "empty_cart", "At least one cart item is required");
     }
 
-    const tableSessionId =
-      req.headers.get("x-icupa-session") ?? req.headers.get("x-ICUPA-session") ?? "";
+    const tableSessionId = readHeader(req, 'x-icupa-session') ?? '';
     if (!tableSessionId) {
       return errorResponse(401, "missing_session", "x-icupa-session header is required");
     }
