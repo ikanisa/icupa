@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import {
   onCLS,
   onFCP,
@@ -79,12 +79,20 @@ function toReport(metric: Metric, sampleRate: number): ReportableMetric {
  * Captures Web Vitals and dispatches them via {@link emitClientEvent}.
  */
 export function usePerformanceMetrics(options?: PerformanceMetricsOptions): void {
+  const endpoint = options?.endpoint;
+  const requestedSampleRate = options?.sampleRate;
+  const onReportRef = useRef(options?.onReport);
+
+  useEffect(() => {
+    onReportRef.current = options?.onReport;
+  }, [options?.onReport]);
+
   useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
 
-    const sampleRate = Math.min(1, Math.max(0, options?.sampleRate ?? 1));
+    const sampleRate = Math.min(1, Math.max(0, requestedSampleRate ?? 1));
     const shouldSample = sampleRate === 1 || Math.random() < sampleRate;
 
     if (!shouldSample) {
@@ -95,11 +103,11 @@ export function usePerformanceMetrics(options?: PerformanceMetricsOptions): void
       const payload = toReport(metric, sampleRate);
       emitClientEvent({ type: "performance_metric", payload });
 
-      if (options?.endpoint) {
-        postMetric(options.endpoint, payload);
+      if (endpoint) {
+        postMetric(endpoint, payload);
       }
 
-      options?.onReport?.(payload);
+      onReportRef.current?.(payload);
     };
 
     onCLS(report, { reportAllChanges: true });
@@ -108,6 +116,6 @@ export function usePerformanceMetrics(options?: PerformanceMetricsOptions): void
     onINP(report);
     onLCP(report, { reportAllChanges: true });
     onTTFB(report);
-  }, [options?.endpoint, options?.onReport, options?.sampleRate]);
+  }, [endpoint, requestedSampleRate]);
 }
 
