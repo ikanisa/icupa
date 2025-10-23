@@ -1,6 +1,7 @@
 import { CardGlass, buttonClassName } from "@ecotrips/ui";
 
 import { getOpsFunctionClient } from "../../../lib/functionClient";
+import { getFeatureFlaggedPayload } from "../../../lib/featureFlags";
 
 type ExceptionRecord = Record<string, unknown> & {
   id?: string;
@@ -18,11 +19,6 @@ type LoadedExceptions = {
   requestId?: string;
   offline: boolean;
 };
-
-const fallbackExceptions: ExceptionRecord[] = [
-  { id: "EX-801", type: "stripe-webhook", status: "retrying", last_error: "RATE_LIMIT", occurred_at: "2024-05-04T11:05:00Z" },
-  { id: "EX-792", type: "wa-send", status: "backoff", last_error: "TIMEOUT", occurred_at: "2024-05-04T11:15:00Z" },
-];
 
 async function loadExceptions(): Promise<LoadedExceptions> {
   try {
@@ -67,14 +63,31 @@ function normalizeException(record: ExceptionRecord) {
 export default async function ExceptionsPage() {
   const result = await loadExceptions();
   const hasLiveRows = result.rows.length > 0;
-  const rows = hasLiveRows ? result.rows : result.offline ? fallbackExceptions : [];
+  let rows = result.rows;
+  let usedFixtures = false;
+
+  if (!hasLiveRows) {
+    const fixture = await getFeatureFlaggedPayload<ExceptionRecord[]>(
+      "OPS_CONSOLE_EXCEPTIONS_FIXTURES",
+      "ops.exceptions",
+    );
+    if (fixture.enabled && Array.isArray(fixture.payload)) {
+      rows = fixture.payload;
+      usedFixtures = true;
+    } else {
+      rows = [];
+    }
+  }
+
   const display = rows.map(normalizeException);
 
   return (
     <CardGlass title="Exceptions" subtitle="withObs instrumentation reports structured taxonomy codes.">
-      {result.offline && (
+      {(result.offline || usedFixtures) && (
         <p className="mb-4 text-xs text-amber-200/80">
-          Using fixtures while ops-exceptions edge function recovers. Check structured logs for TRANSIENT_RETRY signals.
+          {usedFixtures
+            ? "Fixture fallback served via OPS_CONSOLE_EXCEPTIONS_FIXTURES while ops-exceptions recovers."
+            : "ops-exceptions unavailable — monitor structured logs for TRANSIENT_RETRY signals."}
         </p>
       )}
       {!result.offline && !hasLiveRows && (

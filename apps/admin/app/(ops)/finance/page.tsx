@@ -1,16 +1,12 @@
 import { CardGlass } from "@ecotrips/ui";
 import { InvoiceGenerateInput } from "@ecotrips/types";
+import { z } from "zod";
 
 import { getOpsFunctionClient } from "../../../lib/functionClient";
+import { logAdminAction } from "../../../lib/logging";
 
-import { InvoiceGenerateForm } from "./InvoiceGenerateForm";
-
-type InvoiceFormState = {
-  status: "idle" | "success" | "error" | "offline";
-  message?: string;
-  number?: string;
-  signedUrl?: string;
-};
+import { InvoiceGenerateForm, type InvoiceFormState } from "./InvoiceGenerateForm";
+import { RefundForm, type RefundFormState } from "./RefundForm";
 
 async function generateInvoiceAction(_: InvoiceFormState, formData: FormData): Promise<InvoiceFormState> {
   "use server";
@@ -22,19 +18,28 @@ async function generateInvoiceAction(_: InvoiceFormState, formData: FormData): P
   });
 
   if (!payload.success) {
+    logAdminAction("finance.invoice.generate", { status: "validation_failed" });
     return { status: "error", message: "Provide valid payment and kind." };
   }
 
   const client = await getOpsFunctionClient();
   if (!client) {
+    logAdminAction("finance.invoice.generate", { status: "offline" });
     return { status: "offline", message: "Supabase session missing. Sign in again." };
   }
 
   try {
     const response = await client.call("fin.invoice.generate", payload.data);
     if (!response.ok) {
+      logAdminAction("finance.invoice.generate", { status: "error", requestId: response.request_id });
       return { status: "error", message: "Edge function reported failure." };
     }
+    logAdminAction("finance.invoice.generate", {
+      status: "success",
+      requestId: response.request_id,
+      invoiceNumber: response.number,
+      reused: response.reused ?? false,
+    });
     return {
       status: "success",
       number: response.number,
@@ -43,7 +48,76 @@ async function generateInvoiceAction(_: InvoiceFormState, formData: FormData): P
     };
   } catch (error) {
     console.error("fin.invoice.generate", error);
+    logAdminAction("finance.invoice.generate", { status: "error", error: error instanceof Error ? error.message : String(error) });
     return { status: "error", message: "Check withObs logs for error taxonomy." };
+  }
+}
+
+const RefundFormSchema = z.object({
+  itineraryId: z.string().uuid(),
+  amount: z.string().min(1),
+  reason: z.string().min(1).max(200),
+});
+
+async function submitRefundAction(_: RefundFormState, formData: FormData): Promise<RefundFormState> {
+  "use server";
+
+  const parsed = RefundFormSchema.safeParse({
+    itineraryId: String(formData.get("itineraryId") ?? "").trim(),
+    amount: String(formData.get("amount") ?? "").trim(),
+    reason: String(formData.get("reason") ?? "").trim(),
+  });
+
+  if (!parsed.success) {
+    logAdminAction("finance.refund", { status: "validation_failed" });
+    return { status: "error", message: "Provide itinerary, amount, and reason." };
+  }
+
+  const normalizedAmount = parsed.data.amount.replace(/[,\s]/g, "");
+  if (!/^\d+(\.\d{1,2})?$/u.test(normalizedAmount)) {
+    logAdminAction("finance.refund", { status: "validation_failed", detail: "amount_format" });
+    return { status: "error", message: "Amount must be a positive number with up to two decimals." };
+  }
+
+  const amountValue = Number.parseFloat(normalizedAmount);
+  if (!Number.isFinite(amountValue) || amountValue <= 0) {
+    logAdminAction("finance.refund", { status: "validation_failed", detail: "amount_value" });
+    return { status: "error", message: "Amount must be greater than zero." };
+  }
+
+  const amountCents = Math.round(amountValue * 100);
+
+  const client = await getOpsFunctionClient();
+  if (!client) {
+    logAdminAction("finance.refund", { status: "offline" });
+    return { status: "offline", message: "Supabase session missing. Sign in again." };
+  }
+
+  try {
+    const response = await client.call("ops.refund", {
+      itinerary_id: parsed.data.itineraryId,
+      amount_cents: amountCents,
+      reason: parsed.data.reason,
+    });
+    if (!response.ok) {
+      logAdminAction("finance.refund", { status: "error", requestId: response.request_id });
+      return { status: "error", message: "Refund request failed." };
+    }
+    logAdminAction("finance.refund", {
+      status: "success",
+      requestId: response.request_id,
+      itineraryId: parsed.data.itineraryId,
+      amountCents,
+    });
+    return {
+      status: "success",
+      requestId: response.request_id,
+      message: response.message ?? "Refund queued",
+    };
+  } catch (error) {
+    console.error("ops.refund", error);
+    logAdminAction("finance.refund", { status: "error", error: error instanceof Error ? error.message : String(error) });
+    return { status: "error", message: "Check withObs logs for refund telemetry." };
   }
 }
 
@@ -56,6 +130,10 @@ export default function FinancePage() {
           every action using structured logs.
         </p>
         <InvoiceGenerateForm action={generateInvoiceAction} />
+        <div className="mt-6">
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white/60">Submit refund</h3>
+          <RefundForm action={submitRefundAction} />
+        </div>
         <div className="rounded-2xl border border-white/10 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
             <div>
