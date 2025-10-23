@@ -1,4 +1,4 @@
-export type ClientEventType = "storage_error";
+export type ClientEventType = "storage_error" | "performance_metric";
 
 export interface StorageErrorPayload {
   storage: "localStorage" | "sessionStorage";
@@ -8,8 +8,20 @@ export interface StorageErrorPayload {
   quotaExceeded?: boolean;
 }
 
+export interface PerformanceMetricPayload {
+  name: string;
+  value: number;
+  delta: number;
+  rating: "good" | "needs-improvement" | "poor";
+  id: string;
+  navigationType?: string;
+  sampleRate: number;
+  timestamp: number;
+}
+
 export type ClientEventDetail =
-  | { type: "storage_error"; payload: StorageErrorPayload };
+  | { type: "storage_error"; payload: StorageErrorPayload }
+  | { type: "performance_metric"; payload: PerformanceMetricPayload };
 
 const EVENT_NAME = "icupa:client-event";
 

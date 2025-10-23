@@ -81,17 +81,17 @@ export function ClientShell() {
   } = useMenuData();
 
   const cartItems = useCartStore(selectCartItems);
-  const addItemToCart = useCartStore((state) => state.addItem);
-  const updateCartQuantity = useCartStore((state) => state.updateItemQuantity);
-  const clearCart = useCartStore((state) => state.clearCart);
-  const setTipPercent = useCartStore((state) => state.setTipPercent);
-  const setCustomTipCents = useCartStore((state) => state.setCustomTipCents);
-  const tipPercent = useCartStore((state) => state.tipPercent);
-  const customTipCents = useCartStore((state) => state.customTipCents);
-  const splitMode = useCartStore((state) => state.splitMode);
-  const splitGuests = useCartStore((state) => state.splitGuests);
-  const setSplitMode = useCartStore((state) => state.setSplitMode);
-  const setSplitGuests = useCartStore((state) => state.setSplitGuests);
+  const addItemToCart = useCartStore.use.addItem();
+  const updateCartQuantity = useCartStore.use.updateItemQuantity();
+  const clearCart = useCartStore.use.clearCart();
+  const setTipPercent = useCartStore.use.setTipPercent();
+  const setCustomTipCents = useCartStore.use.setCustomTipCents();
+  const tipPercent = useCartStore.use.tipPercent();
+  const customTipCents = useCartStore.use.customTipCents();
+  const splitMode = useCartStore.use.splitMode();
+  const splitGuests = useCartStore.use.splitGuests();
+  const setSplitMode = useCartStore.use.setSplitMode();
+  const setSplitGuests = useCartStore.use.setSplitGuests();
 
   const reportStorageFailure = useCallback((operation: "get" | "set" | "remove", key: string, error: unknown) => {
     emitClientEvent({

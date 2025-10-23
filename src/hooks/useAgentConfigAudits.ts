@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { withSupabaseCaching } from "@/lib/query-client";
 
 export interface AgentConfigAuditEvent {
   id: string;
@@ -40,9 +41,9 @@ async function fetchAgentConfigAudits(configId: string): Promise<AgentConfigAudi
 
 export function useAgentConfigAudits(configId: string | null) {
   return useQuery({
-    queryKey: ["admin", "agent-config-audits", configId],
+    queryKey: ["supabase", "admin", "agent-config-audits", configId],
     queryFn: () => fetchAgentConfigAudits(configId ?? ""),
     enabled: Boolean(configId),
-    staleTime: 15_000,
+    ...withSupabaseCaching({ entity: "agent-config-audits", staleTime: 15_000 }),
   });
 }
