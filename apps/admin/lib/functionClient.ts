@@ -30,11 +30,7 @@ export async function getOpsFunctionClient(): Promise<AdminFunctionClient> {
     return null;
   }
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (!session) {
+  if (!accessToken) {
     return null;
   }
 

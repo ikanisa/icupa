@@ -21,10 +21,12 @@
     "@supabase/auth-helpers-nextjs": "0.10.0",
     "@supabase/auth-helpers-react": "0.5.0",
     "@supabase/supabase-js": "2.45.0",
+    "@ecotrips/config": "file:../../packages/config",
     "@ecotrips/ui": "file:../../packages/ui",
     "@ecotrips/api": "file:../../packages/api",
     "@ecotrips/types": "file:../../packages/types",
     "@ecotrips/i18n": "file:../../packages/i18n",
+    "@ecotrips/supabase": "file:../../packages/supabase",
     "zod": "3.23.8"
   },
   "devDependencies": {
@@ -35,6 +37,9 @@
     "autoprefixer": "10.4.16",
     "postcss": "8.5.6",
     "tailwindcss": "3.4.3",
-    "typescript": "5.9.3"
-  }
+    "typescript": "5.9.3",
+    "@ecotrips/eslint-config": "file:../../packages/eslint-config",
+    "@ecotrips/prettier-config": "file:../../packages/prettier-config"
+  },
+  "prettier": "@ecotrips/prettier-config"
 }
