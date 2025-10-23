@@ -1,15 +1,16 @@
 {
-  "name": "@ecotrips/types",
+  "name": "@ecotrips/supabase",
   "version": "0.0.1",
   "type": "module",
   "private": true,
   "main": "src/index.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./supabase": "./src/supabase/index.ts"
+    ".": "./src/index.ts"
   },
   "dependencies": {
-    "zod": "3.23.8"
+    "@ecotrips/types": "file:../types",
+    "@supabase/auth-helpers-nextjs": "0.10.0",
+    "@supabase/supabase-js": "2.45.0"
   },
   "devDependencies": {
     "typescript": "5.9.3"
