@@ -1,5 +1,6 @@
 import { ERROR_CODES } from "../_obs/constants.ts";
 import { getRequestId, healthResponse, withObs } from "../_obs/withObs.ts";
+import { buildWarnings as computeWarnings } from "./warnings.ts";
 
 interface RouteRequestBody {
   origin?: string;
@@ -174,14 +175,5 @@ function estimateDistanceMeters(origin: string, destination: string): number {
 }
 
 function buildWarnings(start: Date, end: Date): string[] {
-  const warnings: string[] = [];
-  const hours = start.getUTCHours();
-  if (hours < 5 || hours >= 19) {
-    warnings.push("night_travel");
-  }
-  const arrivalHours = end.getUTCHours();
-  if (arrivalHours >= 21 || arrivalHours < 6) {
-    warnings.push("late_arrival_check_required");
-  }
-  return warnings;
+  return computeWarnings(start, end);
 }
