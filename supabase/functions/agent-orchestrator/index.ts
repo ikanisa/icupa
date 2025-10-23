@@ -154,10 +154,18 @@ const EMBEDDED_REGISTRY: ToolDefinition[] = [
   {
     key: "notify.whatsapp_send",
     endpoint:
-      "https://{project_ref}.supabase.co/functions/v1/notify-whatsapp-send",
+      "https://{project_ref}.supabase.co/functions/v1/wa-send",
     method: "POST",
     auth: "service_role",
     requiredFields: ["to", "template"],
+  },
+  {
+    key: "notify.whatsapp",
+    endpoint:
+      "https://{project_ref}.supabase.co/functions/v1/notify-whatsapp",
+    method: "POST",
+    auth: "service_role",
+    requiredFields: ["to"],
   },
   {
     key: "agent.log_goal",
@@ -343,10 +351,10 @@ const CANONICAL_TOOL_DEFINITIONS: Record<string, ToolDefinition> = {
   },
   "notify.whatsapp": {
     key: "notify.whatsapp",
-    endpoint: "https://{project_ref}.supabase.co/functions/v1/wa-send",
+    endpoint: "https://{project_ref}.supabase.co/functions/v1/notify-whatsapp",
     method: "POST",
     auth: "service_role",
-    requiredFields: ["to", "template"],
+    requiredFields: ["to"],
   },
   "payout.now": {
     key: "payout.now",

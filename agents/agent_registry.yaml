@@ -49,6 +49,7 @@ agents:
       - permits.request
       - map.route
       - notify.whatsapp_send
+      - notify.whatsapp
       - agent.log_goal
     memory_scopes:
       - short_term
@@ -57,6 +58,7 @@ agents:
     guardrails:
       - No checkout or payment intent without explicit traveler confirmation and idempotency key.
       - Flag itinerary segments that violate daylight/safety heuristics before presenting.
+      - Surface structured route warnings in chat cards before sharing itineraries.
     hitl_triggers:
       - Manual override of permit feasibility outcomes.
       - High-value booking (> $10k) before confirming payment.
@@ -73,6 +75,7 @@ agents:
       - map.route
       - map.nearby
       - notify.whatsapp_send
+      - notify.whatsapp
       - ops.bookings
     memory_scopes:
       - short_term
@@ -215,6 +218,7 @@ agents:
       - Monitor itineraries for late-night travel, risky routes, or weather alerts.
       - Provide nearest help locations and emergency contacts instantly.
       - Coordinate with Concierge and Support for escalations.
+      - Push proactive WhatsApp alerts when hazards require traveler action.
     tools:
       - map.route
       - map.nearby
