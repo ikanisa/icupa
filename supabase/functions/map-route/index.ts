@@ -1,5 +1,11 @@
-import { ERROR_CODES } from "../_obs/constants.ts";
-import { getRequestId, healthResponse, withObs } from "../_obs/withObs.ts";
+import { ERROR_CODES, HEALTH_RESPONSE_HEADERS } from "../_obs/constants.ts";
+import { getRequestId, withObs } from "../_obs/withObs.ts";
+import {
+  calculateSafetyWarningCoverage,
+  SAFETY_WARNING_TYPES,
+  type SafetyWarningCoverage,
+} from "./safety.ts";
+import { buildMapRouteHealthPayload } from "./health.ts";
 
 interface RouteRequestBody {
   origin?: string;
@@ -39,7 +45,7 @@ const handler = withObs(async (req) => {
   const url = new URL(req.url);
 
   if (req.method === "GET" && url.pathname.endsWith("/health")) {
-    return healthResponse("map-route");
+    return mapRouteHealthResponse();
   }
 
   if (req.method !== "POST") {
@@ -92,6 +98,13 @@ const handler = withObs(async (req) => {
   const legTwoEnd = new Date(legOneEnd.getTime() + legTwoMinutes * 60_000);
 
   const warnings = buildWarnings(departureTime, legTwoEnd);
+  logSafetyWarningCoverage({
+    requestId,
+    origin,
+    destination,
+    departureTime,
+    warnings,
+  });
 
   const legs: RouteLeg[] = [
     {
@@ -146,7 +159,9 @@ const handler = withObs(async (req) => {
   return jsonResponse(payload);
 }, { fn: "map-route", defaultErrorCode: ERROR_CODES.UNKNOWN });
 
-Deno.serve(handler);
+if (import.meta.main) {
+  Deno.serve(handler);
+}
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -162,6 +177,42 @@ function logAudit(fields: Record<string, unknown>) {
     fn: "map-route",
     ...fields,
   }));
+}
+
+function logSafetyWarningCoverage(details: {
+  requestId: string;
+  origin: string;
+  destination: string;
+  departureTime: Date;
+  warnings: string[];
+}) {
+  const coverage = calculateSafetyWarningCoverage(details.warnings);
+  const unknownWarnings = details.warnings.filter((warning) =>
+    !SAFETY_WARNING_TYPES.includes(
+      warning as (typeof SAFETY_WARNING_TYPES)[number],
+    )
+  );
+
+  console.info(JSON.stringify({
+    level: "INFO",
+    event: "map.route.safety_warning.coverage",
+    fn: "map-route",
+    requestId: details.requestId,
+    origin: details.origin,
+    destination: details.destination,
+    departure_time: details.departureTime.toISOString(),
+    warnings: details.warnings,
+    coverage,
+    unknown_warnings: unknownWarnings,
+  }));
+}
+
+function mapRouteHealthResponse(): Response {
+  const body = buildMapRouteHealthPayload();
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: HEALTH_RESPONSE_HEADERS,
+  });
 }
 
 function estimateDistanceMeters(origin: string, destination: string): number {
@@ -185,3 +236,7 @@ function buildWarnings(start: Date, end: Date): string[] {
   }
   return warnings;
 }
+
+export { handler };
+export { estimateDistanceMeters, buildWarnings };
+export type { SafetyWarningCoverage };
