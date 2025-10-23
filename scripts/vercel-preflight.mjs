@@ -2,6 +2,11 @@
 import { execSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
+import {
+  checkSupabaseAnonEnv,
+  checkSupabasePublicEnv,
+  checkSupabaseServiceEnv,
+} from "@ecotrips/config/env";
 
 const REQUIRED_NODE_MAJOR = 18;
 
@@ -9,22 +14,33 @@ const projects = [
   {
     name: "marketing",
     cwd: "app",
-    requiredEnv: ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"],
+    checkEnv: () => checkSupabaseServiceEnv(),
     optionalEnv: ["PLAYWRIGHT_BASE_URL"],
     buildCommand: "npm run build",
   },
   {
     name: "client",
     cwd: "apps/client",
-    requiredEnv: ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY"],
+    checkEnv: () => checkSupabasePublicEnv(),
     optionalEnv: ["VERCEL_AUTOMATION_BYPASS_SECRET"],
     buildCommand: "npm run build",
   },
   {
     name: "admin",
     cwd: "apps/admin",
-    requiredEnv: ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY"],
+    checkEnv: () => checkSupabasePublicEnv(),
     optionalEnv: ["VERCEL_AUTOMATION_BYPASS_SECRET"],
+    buildCommand: "npm run build",
+  },
+  {
+    name: "ops-console",
+    cwd: "ops/console",
+    checkEnv: () => checkSupabaseAnonEnv(),
+    optionalEnv: [
+      "OPS_CONSOLE_BYPASS_AUTH",
+      "OPSCONSOLE_BYPASS_AUTH",
+      "OPSCONSOLE_OFFLINE_MODE",
+    ],
     buildCommand: "npm run build",
   },
 ];
@@ -59,15 +75,26 @@ try {
 
 let failed = false;
 
+const formatIssuePath = (issue) => issue.path.join(".") || issue.path[0] || "";
+
 for (const project of projects) {
   console.log(`\n[CHECK] ${project.name} (${project.cwd})`);
-  const missing = project.requiredEnv.filter((key) => !process.env[key]);
-  if (missing.length > 0) {
-    console.error(
-      `[ENV] Missing required variables for ${project.name}: ${missing.join(", ")}`,
-    );
-    failed = true;
-    continue;
+  if (project.checkEnv) {
+    const result = project.checkEnv();
+    if (!result.ok) {
+      if (result.missing.length > 0) {
+        console.error(
+          `[ENV] Missing required variables for ${project.name}: ${result.missing.join(", ")}`,
+        );
+      }
+      for (const issue of result.issues) {
+        console.error(`[ENV] ${formatIssuePath(issue)}: ${issue.message}`);
+      }
+      failed = true;
+      continue;
+    }
+
+    console.log(`[ENV] ${project.name} environment looks good.`);
   }
 
   const vercelProjectFile = path.join(project.cwd, ".vercel", "project.json");
@@ -75,6 +102,15 @@ for (const project of projects) {
     console.warn(
       `[WARN] ${project.name} is not linked to a Vercel project. Run \`vercel link\` inside ${project.cwd}.`,
     );
+  }
+
+  if (project.optionalEnv?.length) {
+    const missingOptional = project.optionalEnv.filter((key) => !process.env[key]);
+    if (missingOptional.length > 0) {
+      console.log(
+        `[INFO] Optional variables for ${project.name} not set: ${missingOptional.join(", ")}`,
+      );
+    }
   }
 
   try {
