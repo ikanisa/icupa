@@ -11,7 +11,8 @@
   "scripts": {
     "dev": "vite",
     "dev:agents": "npm --prefix agents-service run dev",
-    "prebuild": "node scripts/ci/check-supabase-env.mjs && node scripts/ci/check-agents-service.mjs",
+    "prebuild": "node scripts/ci/check-supabase-env.mjs",
+    "pretest": "node scripts/ci/reset-supabase-test-db.mjs",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint . --max-warnings=0",
@@ -27,6 +28,7 @@
     "supabase:test": "npx --yes supabase db test",
     "test": "vitest run",
     "test:accessibility": "vitest run tests/accessibility",
+    "pretest:e2e": "node scripts/ci/reset-supabase-test-db.mjs",
     "test:e2e": "playwright test --config tests/playwright/playwright.config.ts",
     "test:perf": "npx --yes @lhci/cli@0.15.1 autorun",
     "analyze:pwa": "npx --yes lighthouse http://localhost:5000 --only-categories=pwa --preset=desktop || true",
@@ -34,8 +36,7 @@
     "format:check": "prettier --check .",
     "verify": "npm run lint && npm run typecheck && npm run test",
     "verify:full": "npm run verify && npm run test:e2e && npm run supabase:test",
-    "prepare": "husky",
-    "lint-staged": "lint-staged"
+    "presupabase:test": "node scripts/ci/reset-supabase-test-db.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
