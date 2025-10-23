@@ -64,7 +64,7 @@ const parseArgs = (argv) => {
   };
 };
 
-const loadEnvFiles = (explicitFiles) => {
+const loadEnvFiles = (explicitFiles, targetEnvironment) => {
   const resolved = new Map();
   const register = (value, source, required = false) => {
     if (!value) {
@@ -94,7 +94,12 @@ const loadEnvFiles = (explicitFiles) => {
   } else {
     register(process.env.VERCEL_DEPLOY_ENV_FILE, 'VERCEL_DEPLOY_ENV_FILE');
     register(process.env.VERCEL_DEPLOY_ENV_FILES, 'VERCEL_DEPLOY_ENV_FILES');
-    register(['.env.deploy', '.env.preview', '.env.production.local', '.env.local'], 'default search');
+    const defaultSearchEntries =
+      targetEnvironment === 'production'
+        ? ['.env.production.local', '.env.production', '.env.deploy', '.env.local']
+        : ['.env.preview.local', '.env.preview', '.env.deploy', '.env.local'];
+
+    register(defaultSearchEntries, `default search (${targetEnvironment})`);
   }
 
   const loaded = [];
@@ -171,7 +176,7 @@ const runStep = (label, command, args, options = {}) => {
 const extraArgs = process.argv.slice(2);
 const { envFiles, passthrough, shouldSkipBuild, targetEnvironment } = parseArgs(extraArgs);
 
-loadEnvFiles(envFiles);
+loadEnvFiles(envFiles, targetEnvironment);
 
 validateRequiredEnv();
 
