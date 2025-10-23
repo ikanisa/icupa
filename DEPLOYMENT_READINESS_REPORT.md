@@ -45,14 +45,34 @@ _All web apps move to Green once the required environment variables listed in `a
   - Optional: `VERCEL_AUTOMATION_BYPASS_SECRET` when Deployment Protection is enabled.
 
 ## CI & Tooling
+- `CI / verify-full` status check enforced on `main` (runs lint, typecheck, vitest, Playwright, and Supabase migration tests).
 - New workflow `.github/workflows/vercel-preview-build.yml` runs `vercel pull` + `vercel build` for preview and production across all projects in parallel matrix jobs.
 - Artifact uploads capture `.vercel/output/logs` for debugging failing builds.
 - `scripts/vercel-preflight.mjs` offers a local sanity check that verifies env vars and builds every workspace (`npm run vercel:preflight`).
+
+## Branch Protection & Reviews
+- `main` requires 2 approving reviews, dismisses stale reviews on new commits, and blocks force pushes/deletions.
+- Required status checks: `CI / verify-full`, `CI / lint`, `CI / typecheck`, `CI / migrations-validate`.
+- `Require branches to be up to date before merging` enabled to ensure the latest `main` artifacts pass the verify suite.
+
+## Rehearsal Deployments
+- Latest dry run from feature branch `work` built with placeholder Supabase credentials and passed smoke QA via `npm run preview -- --host 127.0.0.1 --port 5000`.
+- Preview deploy checklist exercised against temporary Vercel preview URLs (see `docs/deployment/vercel-env-sync.md` for the environment promotion log).
+- Supabase smoke (`scripts/smoke/functions-smoke.sh`) queued for execution once service-role secrets land in the preview environment.
+
+## Release & Rollback
+- Tag production releases using `git tag vYYYY.MM.DD` on the merge commit and push with `git push origin --tags`. Mirror the tag into Vercel (Project → Deployments → Promote) when promoting preview to production.
+- Rollback playbook:
+  1. Identify the last known good deployment in Vercel.
+  2. Promote it to production and tag the rollback commit as `rollback-<timestamp>`.
+  3. Run `scripts/smoke/ingestion-smoke.mjs` and `npm run smoke:ingestion` against production URLs to verify stability.
+- Capture rollback steps and resolution details in `docs/runbooks/rollback-log.md` for future audits.
 
 ## Outstanding Risks & Follow-ups
 1. **Secrets provisioning** – Populate all required env vars in Vercel and GitHub before relying on CI. Missing keys will fail the preflight and workflow early.
 2. **Agents service deployment** – Needs container/VM deployment with network access to OpenAI and Supabase; not suitable for Vercel serverless runtime.
 3. **Repository hygiene** – `node_modules` directories remain committed in `agents-service/`. Recommend cleaning and ignoring to reduce checkout size.
+4. **Playwright base URL secret** – Provide `PLAYWRIGHT_BASE_URL` to avoid local server spin-up inside the `verify-full` workflow when testing against staged deployments.
 
 ## Time-to-Green Estimates
 - **Web apps:** <1 hour once secrets are provided and CI secrets configured.
