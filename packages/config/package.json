@@ -7,10 +7,12 @@
   "exports": {
     ".": {
       "import": "./env.js",
+      "require": "./env.js",
       "types": "./env.d.ts"
     },
     "./env": {
       "import": "./env.js",
+      "require": "./env.js",
       "types": "./env.d.ts"
     }
   },
