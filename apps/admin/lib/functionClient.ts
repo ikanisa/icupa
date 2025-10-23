@@ -1,37 +1,27 @@
 import { createEcoTripsFunctionClient } from "@ecotrips/api";
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createServerSupabaseClient, getSupabaseAccessToken, resolveSupabaseConfig } from "@ecotrips/supabase";
 import { cookies } from "next/headers";
 
 type AdminFunctionClient = ReturnType<typeof createEcoTripsFunctionClient> | null;
 
 export async function getOpsFunctionClient(): Promise<AdminFunctionClient> {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || !anonKey) {
+  const config = resolveSupabaseConfig();
+  if (!config) {
     return null;
   }
 
   const cookieStore = cookies();
-  const supabase = createServerComponentClient({ cookies: () => cookieStore }, {
-    supabaseUrl,
-    supabaseKey: anonKey,
-  });
+  const supabase = createServerSupabaseClient({ cookies: () => cookieStore }, { config });
+  const accessToken = await getSupabaseAccessToken(supabase);
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (!session) {
+  if (!accessToken) {
     return null;
   }
 
-  const accessToken = session.access_token;
-
   return createEcoTripsFunctionClient({
-    supabaseUrl,
-    anonKey,
-    getAccessToken: async () => accessToken ?? null,
+    supabaseUrl: config.supabaseUrl,
+    anonKey: config.supabaseKey,
+    getAccessToken: async () => accessToken,
     fetch: async (input, init) => {
       return fetch(input, { ...init, cache: "no-store" });
     },

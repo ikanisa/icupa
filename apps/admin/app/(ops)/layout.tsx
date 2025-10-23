@@ -2,7 +2,7 @@ import "../../styles/globals.css";
 import "@ecotrips/ui/styles/tokens.css";
 
 import { CardGlass } from "@ecotrips/ui";
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
+import { createServerSupabaseClient, getSupabaseSession, resolveSupabaseConfig } from "@ecotrips/supabase";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
@@ -11,30 +11,15 @@ import { AdminNav } from "./_components/AdminNav";
 
 const allowedRoles = new Set(["ops", "admin"]);
 
-type Database = {
-  sec: {
-    Tables: {
-      user_roles: {
-        Row: {
-          user_id: string;
-          role: string;
-          granted_at: string;
-        };
-      };
-    };
-  };
-};
-
 type LayoutProps = {
   children: ReactNode;
 };
 
 export default async function OpsLayout({ children }: LayoutProps) {
   const cookieStore = cookies();
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const config = resolveSupabaseConfig();
 
-  if (!supabaseUrl || !supabaseKey) {
+  if (!config) {
     return (
       <div className="flex min-h-screen items-center justify-center px-6">
         <CardGlass title="Configuration required" subtitle="Supabase URL and anon key missing in environment." className="max-w-md">
@@ -44,14 +29,8 @@ export default async function OpsLayout({ children }: LayoutProps) {
     );
   }
 
-  const supabase = createServerComponentClient<Database>({ cookies: () => cookieStore }, {
-    supabaseUrl,
-    supabaseKey,
-  });
-
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  const supabase = createServerSupabaseClient({ cookies: () => cookieStore }, { config });
+  const session = await getSupabaseSession(supabase);
 
   if (!session) {
     redirect("/login");
