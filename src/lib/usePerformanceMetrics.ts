@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import {
   onCLS,
   onFCP,
@@ -79,12 +79,16 @@ function toReport(metric: Metric, sampleRate: number): ReportableMetric {
  * Captures Web Vitals and dispatches them via {@link emitClientEvent}.
  */
 export function usePerformanceMetrics(options?: PerformanceMetricsOptions): void {
+  const { endpoint, onReport, sampleRate: rawSampleRate = 1 } = options ?? {};
+
+  const sampleRate = useMemo(() => {
+    return Math.min(1, Math.max(0, rawSampleRate));
+  }, [rawSampleRate]);
+
   useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
-
-    const sampleRate = Math.min(1, Math.max(0, options?.sampleRate ?? 1));
     const shouldSample = sampleRate === 1 || Math.random() < sampleRate;
 
     if (!shouldSample) {
@@ -95,11 +99,11 @@ export function usePerformanceMetrics(options?: PerformanceMetricsOptions): void
       const payload = toReport(metric, sampleRate);
       emitClientEvent({ type: "performance_metric", payload });
 
-      if (options?.endpoint) {
-        postMetric(options.endpoint, payload);
+      if (endpoint) {
+        postMetric(endpoint, payload);
       }
 
-      options?.onReport?.(payload);
+      onReport?.(payload);
     };
 
     onCLS(report, { reportAllChanges: true });
@@ -108,6 +112,6 @@ export function usePerformanceMetrics(options?: PerformanceMetricsOptions): void
     onINP(report);
     onLCP(report, { reportAllChanges: true });
     onTTFB(report);
-  }, [options?.endpoint, options?.onReport, options?.sampleRate]);
+  }, [endpoint, onReport, sampleRate]);
 }
 
