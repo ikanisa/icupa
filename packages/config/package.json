@@ -1,0 +1,20 @@
+{
+  "name": "@ecotrips/config",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "env.js",
+  "exports": {
+    ".": {
+      "import": "./env.js",
+      "types": "./env.d.ts"
+    },
+    "./env": {
+      "import": "./env.js",
+      "types": "./env.d.ts"
+    }
+  },
+  "dependencies": {
+    "zod": "3.23.8"
+  }
+}

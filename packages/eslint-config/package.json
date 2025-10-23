@@ -1,0 +1,14 @@
+{
+  "name": "@ecotrips/eslint-config",
+  "version": "0.0.1",
+  "private": true,
+  "main": "index.cjs",
+  "exports": {
+    ".": "./index.cjs",
+    "./next": "./next.cjs"
+  },
+  "peerDependencies": {
+    "eslint": "^8.57.0 || ^9.0.0",
+    "eslint-config-next": "^14.0.0 || ^15.0.0"
+  }
+}
