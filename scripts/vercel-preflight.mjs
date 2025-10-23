@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { execSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import {
@@ -24,6 +25,10 @@ const projects = [
     checkEnv: () => checkSupabasePublicEnv(),
     optionalEnv: ["VERCEL_AUTOMATION_BYPASS_SECRET"],
     buildCommand: "npm run build",
+    vercel: {
+      projectId: "prj_4lvtnxj06s63xb26xa65erke",
+      orgId: "team_6r155ir3vxpegpivzw3zwtue",
+    },
   },
   {
     name: "admin",
@@ -31,6 +36,10 @@ const projects = [
     checkEnv: () => checkSupabasePublicEnv(),
     optionalEnv: ["VERCEL_AUTOMATION_BYPASS_SECRET"],
     buildCommand: "npm run build",
+    vercel: {
+      projectId: "prj_c4q05x74ofgudti7und6mtxr",
+      orgId: "team_6r155ir3vxpegpivzw3zwtue",
+    },
   },
   {
     name: "ops-console",
@@ -102,6 +111,26 @@ for (const project of projects) {
     console.warn(
       `[WARN] ${project.name} is not linked to a Vercel project. Run \`vercel link\` inside ${project.cwd}.`,
     );
+  } else if (project.vercel) {
+    try {
+      const vercelConfig = JSON.parse(readFileSync(vercelProjectFile, "utf8"));
+      if (
+        vercelConfig.projectId !== project.vercel.projectId ||
+        vercelConfig.orgId !== project.vercel.orgId
+      ) {
+        console.warn(
+          `[WARN] ${project.name} Vercel link mismatch. Expected ${project.vercel.projectId} / ${project.vercel.orgId}.`,
+        );
+      } else {
+        console.log(
+          `[ENV] ${project.name} linked to ${vercelConfig.projectId} (${vercelConfig.orgId}).`,
+        );
+      }
+    } catch (error) {
+      console.warn(
+        `[WARN] Unable to read ${vercelProjectFile}: ${error.message ?? error}.`,
+      );
+    }
   }
 
   if (project.optionalEnv?.length) {
