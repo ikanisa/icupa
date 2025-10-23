@@ -66,7 +66,7 @@ These gates compress the critical launch work into four reviewable windows that 
 - README quick-start validated with Supabase commands documented.
 
 **Acceptance criteria**
-- `supabase start` + `supabase db reset` + `supabase db execute --file supabase/seed/seed.sql` succeed.
+- `supabase start` + `supabase db reset --local --yes` + `supabase seed --local --yes` succeed.
 - `npm run dev` serves the diner shell with liquid-glass layout.
 - Agents service `/health` returns `ok` in dev.
 - CI green on scaffold branch.

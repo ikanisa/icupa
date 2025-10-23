@@ -4,7 +4,7 @@ These helpers streamline setting secrets and deploying the Edge Functions used b
 
 ## Prerequisites
 
-- Supabase CLI installed and authenticated (`supabase login`)
+- Supabase CLI installed and authenticated (`npm install && npx supabase login`)
 - A running Supabase project (local via `supabase start` or hosted)
 
 ## Validate migrations before pushing

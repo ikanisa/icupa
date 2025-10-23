@@ -52,8 +52,8 @@ ICUPA is a three-surface, multi-tenant Progressive Web Application that powers d
 5. **Start Supabase locally**
    ```bash
    supabase start
-   supabase db reset
-   supabase db execute --file supabase/seed/seed.sql
+   supabase db reset --local --yes
+   supabase seed --local --yes
    ```
    These commands provision the Dockerised Supabase stack, apply the Phase 0 + Phase 1 migrations, and seed demo data covering
    tenants, locations, menus, table sessions, orders, and agent telemetry. The Phase 1 migration introduces pgvector-powered
@@ -145,6 +145,10 @@ Environment variables are consumed via `import.meta.env` and validated during mo
 | `npm run test` | Runs the Vitest suite, including offline cart persistence checks. |
 | `npm run test:accessibility` | Audits the Phase 3 diner surfaces with axe-core to keep WCAG 2.2 AA regressions from slipping into the PWA. |
 
+Installing dependencies with `npm install` now pulls in the Supabase CLI as a local dev dependency (`node_modules/.bin/supabase`).
+That ensures pretest database resets, SQL migrations, and `npm run supabase:test` all work without a separate global installation.
+When you need to run the CLI directly, prefer `npx supabase <command>` so the project-pinned version stays in sync across machines.
+
 Scripts are defined in `package.json` alongside the curated dependency set (React 18, Radix UI, Tailwind, Framer Motion, Supabase client SDK, TanStack Query, etc.).【F:package.json†L1-L61】
 
 ---
@@ -161,8 +165,8 @@ With the Supabase CLI installed, ensure the local instance passes the new RLS an
 
 ```bash
 supabase start
-supabase db reset
-supabase db execute --file supabase/seed/seed.sql
+supabase db reset --local --yes
+supabase seed --local --yes
 supabase db test
 ```
 
