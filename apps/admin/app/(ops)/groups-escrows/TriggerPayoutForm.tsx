@@ -1,15 +1,16 @@
 "use client";
 
-import { useFormState, useFormStatus } from "react-dom";
-import { buttonClassName, Toast } from "@ecotrips/ui";
+import { AdminActionForm, type AdminActionField, type AdminActionState, Toast } from "@ecotrips/ui";
 
-type PayoutFormState = {
-  status: "idle" | "success" | "error" | "offline";
-  message?: string;
+export type PayoutFormState = AdminActionState & {
   requestId?: string;
 };
 
 const initialState: PayoutFormState = { status: "idle" };
+
+const baseFields: AdminActionField[] = [
+  { name: "escrowId", label: "Escrow ID", placeholder: "uuid for group escrow" },
+];
 
 type TriggerPayoutFormProps = {
   action: (state: PayoutFormState, formData: FormData) => Promise<PayoutFormState>;
@@ -17,35 +18,24 @@ type TriggerPayoutFormProps = {
 };
 
 export function TriggerPayoutForm({ action, lastEscrowId }: TriggerPayoutFormProps) {
-  const [state, formAction] = useFormState(action, initialState);
-  const { pending } = useFormStatus();
+  const fields: AdminActionField[] = lastEscrowId
+    ? [{ ...baseFields[0], defaultValue: lastEscrowId }]
+    : baseFields;
 
   return (
-    <div className="space-y-3">
-      <form action={formAction} className="space-y-3">
-        <label className="flex flex-col gap-2 text-sm">
-          <span>Escrow ID</span>
-          <input
-            name="escrowId"
-            defaultValue={lastEscrowId}
-            placeholder="uuid for group escrow"
-            className="rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-sky-400"
-          />
-        </label>
-        <SubmitButton pending={pending} />
-      </form>
-      <PayoutStatus state={state} />
-    </div>
-  );
-}
-
-type SubmitButtonProps = { pending: boolean };
-
-function SubmitButton({ pending }: SubmitButtonProps) {
-  return (
-    <button type="submit" className={buttonClassName("glass")} disabled={pending}>
-      {pending ? "Triggering payout…" : "Trigger payout"}
-    </button>
+    <AdminActionForm
+      action={action}
+      initialState={initialState}
+      submitLabel="Trigger payout"
+      pendingLabel="Triggering payout…"
+      fields={fields}
+      renderStatus={(state) => <PayoutStatus state={state} />}
+      toastId="groups-payout"
+      successTitle="Payout orchestrated"
+      errorTitle="Payout failed"
+      offlineTitle="Auth required"
+      defaultDescription="Check withObs logs for request telemetry."
+    />
   );
 }
 
@@ -57,13 +47,15 @@ function PayoutStatus({ state }: PayoutStatusProps) {
   }
 
   const tone = state.status === "success" ? "success" : state.status === "offline" ? "warning" : "error";
+  const description = state.message ?? "Check withObs logs for request telemetry.";
+  const title =
+    state.status === "success"
+      ? state.requestId
+        ? `Payout queued (${state.requestId})`
+        : "Payout orchestrated"
+      : state.status === "offline"
+        ? "Auth required"
+        : "Payout failed";
 
-  return (
-    <Toast
-      id={`groups-payout-${tone}`}
-      title={state.status === "success" ? "Payout orchestrated" : state.status === "offline" ? "Auth required" : "Payout failed"}
-      description={state.message ?? "Check withObs logs for request telemetry."}
-      onDismiss={() => undefined}
-    />
-  );
+  return <Toast id={`groups-payout-${tone}`} title={title} description={description} onDismiss={() => undefined} />;
 }

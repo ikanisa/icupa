@@ -1,6 +1,7 @@
-import { CardGlass } from "@ecotrips/ui";
+import { AdminDataTable, CardGlass } from "@ecotrips/ui";
 
 import { getOpsFunctionClient } from "../../../lib/functionClient";
+import { getFeatureFlaggedPayload } from "../../../lib/featureFlags";
 
 type BookingRecord = Record<string, unknown> & {
   id?: string;
@@ -23,12 +24,6 @@ type LoadedBookings = {
   requestId?: string;
   offline: boolean;
 };
-
-const fallbackBookings: BookingRecord[] = [
-  { id: "BK-1021", user: "jane@traveler.com", status: "confirmed", total: "$1,820", createdAt: "2024-05-04" },
-  { id: "BK-1022", user: "yves@rwanda.rw", status: "pending", total: "$2,410", createdAt: "2024-05-04" },
-  { id: "BK-1012", user: "amina@ecotrips.africa", status: "refunded", total: "$860", createdAt: "2024-05-01" },
-];
 
 async function loadBookings(): Promise<LoadedBookings> {
   try {
@@ -91,49 +86,81 @@ function normalizeBooking(record: BookingRecord) {
   };
 }
 
+type NormalizedBooking = ReturnType<typeof normalizeBooking>;
+
+const bookingColumns = [
+  {
+    key: "id",
+    header: "Booking",
+    className: "pb-3 font-semibold",
+    cell: (booking: NormalizedBooking) => booking.id,
+  },
+  {
+    key: "user",
+    header: "Traveler / Supplier",
+    className: "pb-3",
+    cell: (booking: NormalizedBooking) => booking.user,
+  },
+  {
+    key: "status",
+    header: "Status",
+    className: "pb-3",
+    cell: (booking: NormalizedBooking) => <span className="capitalize">{booking.status}</span>,
+  },
+  {
+    key: "total",
+    header: "Total",
+    className: "pb-3",
+    cell: (booking: NormalizedBooking) => booking.total,
+  },
+  {
+    key: "createdAt",
+    header: "Created",
+    className: "pb-3",
+    cell: (booking: NormalizedBooking) => booking.createdAt,
+  },
+];
+
 export default async function BookingsPage() {
   const result = await loadBookings();
   const hasLiveRows = result.rows.length > 0;
-  const rows = hasLiveRows ? result.rows : result.offline ? fallbackBookings : [];
+  let usedFixtures = false;
+  let rows = result.rows;
+
+  if (!hasLiveRows) {
+    const fixture = await getFeatureFlaggedPayload<BookingRecord[]>(
+      "OPS_CONSOLE_BOOKINGS_FIXTURES",
+      "ops.bookings",
+    );
+    if (fixture.enabled && Array.isArray(fixture.payload)) {
+      rows = fixture.payload;
+      usedFixtures = true;
+    } else {
+      rows = [];
+    }
+  }
+
   const display = rows.map(normalizeBooking);
 
   return (
     <CardGlass title="Bookings" subtitle="Data served via ops-bookings edge function fixtures when offline.">
-      {result.offline && (
+      {(result.offline || usedFixtures) && (
         <p className="mb-4 text-xs text-amber-200/80">
-          Edge function offline — falling back to fixtures while structured logs capture outage details.
+          {usedFixtures
+            ? "Fixture fallback served via OPS_CONSOLE_BOOKINGS_FIXTURES flag while ops-bookings recovers."
+            : "Edge function offline — waiting for ops-bookings to recover."}
         </p>
       )}
       {!result.offline && !hasLiveRows && (
         <p className="mb-4 text-sm text-white/70">No bookings match the current filters.</p>
       )}
       <div className="overflow-x-auto">
-        {display.length > 0 ? (
-          <table className="w-full min-w-[640px] border-collapse text-left text-sm">
-            <thead>
-              <tr className="text-xs uppercase tracking-wide text-slate-300/80">
-                <th className="pb-3">Booking</th>
-                <th className="pb-3">Traveler / Supplier</th>
-                <th className="pb-3">Status</th>
-                <th className="pb-3">Total</th>
-                <th className="pb-3">Created</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/10">
-              {display.map((booking) => (
-                <tr key={booking.id}>
-                  <td className="py-3 font-semibold">{booking.id}</td>
-                  <td className="py-3">{booking.user}</td>
-                  <td className="py-3 capitalize">{booking.status}</td>
-                  <td className="py-3">{booking.total}</td>
-                  <td className="py-3">{booking.createdAt}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p className="text-sm text-white/70">No booking records available.</p>
-        )}
+        <AdminDataTable
+          columns={bookingColumns}
+          rows={display}
+          emptyState={<p className="text-sm text-white/70">No booking records available.</p>}
+          getRowKey={(booking) => booking.id}
+        />
       </div>
       {result.requestId && (
         <p className="mt-4 text-xs text-white/50">Request ID {result.requestId}</p>
