@@ -29,6 +29,11 @@ These gates compress the critical launch work into four reviewable windows that 
 - Close the gap on pending agents (timeouts, alerting, kill-switch hooks) and apply the AI guardrail config that blocks allergen/age violations.
 - Ship baseline security and compliance tooling: CSP/HSTS headers in `src/sw.ts`/`public/_headers`, surfaced AI disclosures in the client shell, and DSR endpoints in `supabase/functions/compliance` with runbook links.
 
+#### Suggested tasks
+- Harden fiscal connectors and queue retries to keep receipt issuance within the ≤5s target. ([Start task](https://github.com/icupa/icupa/issues/new?title=P0%3A%20Close%20fiscal%20connector%20blockers&body=##%20Summary%0AComplete%20the%20fiscal%20connector%20work%20outlined%20in%20the%20P0%20section%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20Receipts%20issue%20within%205s%20p95%0A-%20Retries%20and%20poison%20queue%20handling%20validated.))
+- Implement MoMo/Airtel idempotency, duplicate guards, and regression coverage across payment functions. ([Start task](https://github.com/icupa/icupa/issues/new?title=P0%3A%20Stabilise%20mobile%20money%20integrations&body=##%20Summary%0AHarden%20the%20MoMo/Airtel%20workflows%20described%20in%20P0%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20Idempotency%20keys%20persisted%0A-%20Duplicate%20guards%20exercised%0A-%20CI%20coverage%20updated.))
+- Wire AI guardrails, agent timeouts, and compliance disclosures before moving beyond the critical blocker gate. ([Start task](https://github.com/icupa/icupa/issues/new?title=P0%3A%20Activate%20AI%20guardrails%20and%20disclosures&body=##%20Summary%0AComplete%20the%20AI%20safety%20and%20disclosure%20tasks%20from%20the%20P0%20section%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20Guardrails%20block%20allergen/age%20violations%0A-%20Admin%20kill-switch%20hooks%20tested.))
+
 ### P1 – Canary 10% (Week 3)
 
 - Stand up offline fallback navigation with Workbox strategies and verify Perf Budgets via Lighthouse CI (`lighthouserc.json`).
@@ -36,6 +41,11 @@ These gates compress the critical launch work into four reviewable windows that 
 - Instrument OpenTelemetry spans across the agents service and Supabase functions, exporting into Grafana dashboards that surface payments, agents, and fiscal receipt latency trends.
 - Publish runbooks (payments, fiscal, AI kill switch) directly inside the admin console so the canary rotation can self-serve.
 - Gate promotion on checkout success ≥99.5% and fiscal failure rate <0.5% over a continuous 72-hour staging window.
+
+#### Suggested tasks
+- Build and verify offline navigation plus perf budgets before enabling the 10% canary. ([Start task](https://github.com/icupa/icupa/issues/new?title=P1%3A%20Ship%20offline%20navigation%20and%20perf%20budgets&body=##%20Summary%0AImplement%20the%20offline%20fallback%20and%20performance%20budget%20work%20listed%20in%20P1%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20Workbox%20strategies%20validated%0A-%20Lighthouse%20budgets%20enforced.))
+- Add OpenTelemetry instrumentation and dashboards required for the canary gate. ([Start task](https://github.com/icupa/icupa/issues/new?title=P1%3A%20Instrument%20telemetry%20for%20canary%20rollout&body=##%20Summary%0AImplement%20the%20Grafana%20dashboards%20and%20OTel%20instrumentation%20from%20P1%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20Dashboards%20show%20payments%20and%20receipt%20latency%0A-%20Trace%20coverage%20documented.))
+- Surface the payments/fiscal/AI runbooks in the admin console and confirm the staging SLO gate. ([Start task](https://github.com/icupa/icupa/issues/new?title=P1%3A%20Expose%20runbooks%20and%20verify%20SLO%20gate&body=##%20Summary%0APublish%20the%20runbooks%20and%20validate%20the%20SLO%20gate%20requirements%20described%20in%20P1%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20Runbooks%20visible%20in%20admin%0A-%2072h%20metrics%20captured.))
 
 ### P2 – Scale 50→100% (Weeks 4–5)
 
@@ -45,6 +55,11 @@ These gates compress the critical launch work into four reviewable windows that 
 - Observe SLO stability for seven consecutive days with live alerts; resolve any anomalies surfaced by Grafana dashboards.
 - Validate promo guardrails and inventory resiliency via scripted chaos tests in `tests/chaos/`.
 
+#### Suggested tasks
+- Launch promo and inventory guardrail agents with the required admin controls. ([Start task](https://github.com/icupa/icupa/issues/new?title=P2%3A%20Activate%20promo%20and%20inventory%20guardrails&body=##%20Summary%0ABuild%20the%20promo%20and%20inventory%20agent%20capabilities%20from%20P2%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20Guardrails%20configurable%20in%20admin%0A-%20Runtime%20caps%20enforced.))
+- Turn on reconciliation cron jobs and deliver finance-ready daily reports. ([Start task](https://github.com/icupa/icupa/issues/new?title=P2%3A%20Operationalise%20reconciliation%20jobs&body=##%20Summary%0AEnable%20the%20reconciliation%20pipelines%20noted%20in%20P2%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20pg_cron%20jobs%20running%0A-%20Reports%20stored%20in%20artifacts/reconciliation.))
+- Finalise refund/void flows and confirm seven-day SLO stability before scaling to 100%. ([Start task](https://github.com/icupa/icupa/issues/new?title=P2%3A%20Complete%20refund%20flows%20and%20SLO%20validation&body=##%20Summary%0AComplete%20the%20refund/void%20work%20and%20SLO%20monitoring%20from%20P2%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20Refund%20flows%20synced%20with%20providers%0A-%20Seven-day%20SLO%20evidence.))
+
 ### P3 – Post-GA Hardening (Ongoing)
 
 - Finalise the voice waiter readiness assessment and decide on opt-in launch scope; provide fallback scripts and staff training materials.
@@ -52,6 +67,11 @@ These gates compress the critical launch work into four reviewable windows that 
 - Maintain an active DPIA cadence using `docs/compliance/dpia-schedule.md`; ensure data processors are logged and review uptake is tracked.
 - Pursue cost optimisation initiatives: model tiering for agents, asset/image pipeline tuning, and scheduled pruning of inactive embeddings.
 - Keep the post-GA backlog groomed with security patch tracking, dependency updates, and conservative feature expansion.
+
+#### Suggested tasks
+- Complete the voice waiter readiness assessment and publish training collateral. ([Start task](https://github.com/icupa/icupa/issues/new?title=P3%3A%20Voice%20waiter%20readiness%20sign-off&body=##%20Summary%0AFinalise%20the%20voice%20waiter%20assessment%20from%20P3%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20Opt-in%20scope%20documented%0A-%20Fallback%20scripts%20ready.))
+- Run quarterly chaos/load drills and capture outcomes in the referenced runbooks. ([Start task](https://github.com/icupa/icupa/issues/new?title=P3%3A%20Execute%20chaos%20and%20load%20drills&body=##%20Summary%0ASchedule%20and%20record%20the%20chaos/load%20drills%20described%20in%20P3%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20Drill%20notes%20saved%0A-%20On-call%20procedures%20updated.))
+- Maintain DPIA cadence and drive cost optimisation experiments post-GA. ([Start task](https://github.com/icupa/icupa/issues/new?title=P3%3A%20Sustain%20DPIA%20and%20cost%20optimisation&body=##%20Summary%0AOwn%20the%20P3%20DPIA%20and%20cost%20optimisation%20actions%20from%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20DPIA%20schedule%20kept%0A-%20Cost%20savings%20tracked.))
 
 ## Phase 0 – Bootstrap foundations (Weeks 1–2)
 
@@ -70,6 +90,11 @@ These gates compress the critical launch work into four reviewable windows that 
 - `npm run dev` serves the diner shell with liquid-glass layout.
 - Agents service `/health` returns `ok` in dev.
 - CI green on scaffold branch.
+
+### Suggested tasks
+- Stand up the Supabase stack locally and document the bootstrap steps. ([Start task](https://github.com/icupa/icupa/issues/new?title=Phase%200%3A%20Provision%20local%20Supabase%20stack&body=##%20Summary%0AExecute%20the%20Phase%200%20bootstrap%20steps%20from%20docs/implementation-plan.md%2C%20including%20Supabase%20startup%20and%20seeding.%0A%0A##%20Acceptance%20criteria%0A-%20supabase%20start%20%2B%20reset%20succeeds%0A-%20Seed%20script%20completes%0A-%20Documentation%20updated.))
+- Verify workspace scripts (`npm run dev`, CI scaffolding) align with the quick-start instructions. ([Start task](https://github.com/icupa/icupa/issues/new?title=Phase%200%3A%20Validate%20workspace%20tooling&body=##%20Summary%0AConfirm%20the%20workspace%20tooling%20outlined%20in%20Phase%200%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20npm%20run%20dev%20works%0A-%20CI%20pipelines%20execute%0A-%20Agents%20service%20health%20check%20passes.))
+- Produce environment templates for the monorepo and agents service with placeholder secrets. ([Start task](https://github.com/icupa/icupa/issues/new?title=Phase%200%3A%20Publish%20environment%20templates&body=##%20Summary%0ACreate%20and%20verify%20the%20environment%20templates%20referenced%20in%20Phase%200%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20.env.example%20files%20present%0A-%20Placeholders%20validated.))
 
 ## Phase 1 – Database and RLS hardening (Weeks 2–3)
 
@@ -91,6 +116,11 @@ These gates compress the critical launch work into four reviewable windows that 
 **Outsourcing support**
 - Schema reviewers, RLS auditors, and embedding operators follow the [Phase 1 outsourcing playbook](outsourcing/phase1-outsourcing.md) with artefacts stored in `artifacts/phase1/` and detailed notes inside `docs/outsourcing/notes/`.
 
+### Suggested tasks
+- Review and land the Phase 1 migration/RLS changes with additive-only diffs. ([Start task](https://github.com/icupa/icupa/issues/new?title=Phase%201%3A%20Land%20database%20migrations%20and%20RLS&body=##%20Summary%0AComplete%20the%20Phase%201%20database%20and%20RLS%20deliverables%20from%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20Migrations%20approved%0A-%20RLS%20tests%20green.))
+- Implement the embeddings refresh function and schedule described in this phase. ([Start task](https://github.com/icupa/icupa/issues/new?title=Phase%201%3A%20Ship%20embedding%20refresh%20flow&body=##%20Summary%0ABuild%20the%20embedding%20refresh%20function%20outlined%20in%20Phase%201%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20Edge%20function%20deployed%0A-%20pg_cron%20schedule%20configured%0A-%20Vectors%20populated.))
+- Extend SQL regression coverage to validate search relevance against the new vectors. ([Start task](https://github.com/icupa/icupa/issues/new?title=Phase%201%3A%20Add%20search%20regression%20tests&body=##%20Summary%0AImplement%20the%20search%20regression%20coverage%20referenced%20in%20Phase%201%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20Cosine%20similarity%20tests%20passing%0A-%20Artefacts%20saved%20to%20artifacts/phase1.))
+
 ## Phase 2 – Table QR session flow (Weeks 3–4)
 
 **Objectives**
@@ -108,6 +138,11 @@ These gates compress the critical launch work into four reviewable windows that 
 
 **Outsourcing support**
 - QR security, session QA, and mobile journey partners follow the [Phase 2 outsourcing playbook](outsourcing/phase2-outsourcing.md), storing artefacts in `artifacts/phase2/` and logging meeting notes under `docs/outsourcing/notes/`.
+
+### Suggested tasks
+- Deliver the signed QR session creation flow end-to-end, including admin reissue tools. ([Start task](https://github.com/icupa/icupa/issues/new?title=Phase%202%3A%20Complete%20QR%20session%20flow&body=##%20Summary%0AImplement%20the%20QR%20session%20journey%20captured%20in%20Phase%202%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20Edge%20function%20and%20client%20hooks%20wired%0A-%20Admin%20reissue%20tool%20live.))
+- Expand RLS regression tests to protect session isolation. ([Start task](https://github.com/icupa/icupa/issues/new?title=Phase%202%3A%20Extend%20RLS%20session%20coverage&body=##%20Summary%0AAdd%20the%20RLS%20tests%20referenced%20in%20Phase%202%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20Isolation%20tests%20passing%0A-%20Artefacts%20stored%20for%20audit.))
+- Capture mobile QA evidence and notes in the designated Phase 2 directories. ([Start task](https://github.com/icupa/icupa/issues/new?title=Phase%202%3A%20Record%20mobile%20QA%20artefacts&body=##%20Summary%0ADocument%20the%20mobile%20QA%20artefacts%20described%20in%20Phase%202%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20Evidence%20saved%20to%20artifacts/phase2%0A-%20Notes%20logged%20under%20docs/outsourcing/notes.))
 
 ## Phase 3 – Client PWA MVP (Weeks 4–6)
 
@@ -127,6 +162,11 @@ These gates compress the critical launch work into four reviewable windows that 
 - Axe accessibility scan passes (no critical issues).
 - Phase 3 diner readiness checklist signed off with artefacts linked in [`docs/runbooks/phase3-diner-readiness.md`](runbooks/phase3-diner-readiness.md).
 
+### Suggested tasks
+- Build the diner browsing/cart/pay skeleton with accessibility baked in. ([Start task](https://github.com/icupa/icupa/issues/new?title=Phase%203%3A%20Deliver%20diner%20PWA%20skeleton&body=##%20Summary%0AImplement%20the%20diner%20surface%20outlined%20in%20Phase%203%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20Menu%2C%20detail%2C%20cart%20surfaces%20ready%0A-%20Accessibility%20scans%20pass.))
+- Hook the pay placeholder to future payment integrations while respecting UI requirements. ([Start task](https://github.com/icupa/icupa/issues/new?title=Phase%203%3A%20Wire%20pay%20placeholder&body=##%20Summary%0ABuild%20the%20Phase%203%20pay%20placeholder%20per%20docs/implementation-plan.md%20while%20prepping%20for%20later%20payment%20work.%0A%0A##%20Acceptance%20criteria%0A-%20Placeholder%20integrates%20future%20hooks%0A-%20UI%20meets%20design%20notes.))
+- Complete the Phase 3 diner readiness checklist and archive evidence. ([Start task](https://github.com/icupa/icupa/issues/new?title=Phase%203%3A%20Sign%20off%20diner%20readiness&body=##%20Summary%0ACollect%20and%20store%20the%20Phase%203%20readiness%20artefacts%20mentioned%20in%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20Checklist%20signed%20off%0A-%20Artefacts%20linked%20from%20runbook.))
+
 ## Phase 4 – Payments and webhooks (Weeks 6–8)
 
 **Objectives**
@@ -143,6 +183,11 @@ These gates compress the critical launch work into four reviewable windows that 
 - Stripe test mode flow completes, updates `payments` row to `captured`, and pushes fiscalisation job.
 - MoMo/Airtel stubs deploy successfully and log structured TODOs for production credentials.
 
+### Suggested tasks
+- Finalise the Stripe/Adyen checkout and webhook handlers through capture. ([Start task](https://github.com/icupa/icupa/issues/new?title=Phase%204%3A%20Complete%20card%20payment%20flows&body=##%20Summary%0AImplement%20the%20card%20payment%20functions%20described%20in%20Phase%204%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20Checkout%20session%20and%20webhook%20wired%0A-%20Orders%20and%20payments%20sync.))
+- Deliver mobile money request-to-pay stubs with webhook receivers and TODO scaffolding. ([Start task](https://github.com/icupa/icupa/issues/new?title=Phase%204%3A%20Ship%20mobile%20money%20stubs&body=##%20Summary%0ABuild%20the%20mobile%20money%20functions%20highlighted%20in%20Phase%204%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20Request-to-pay%20stub%20live%0A-%20Webhook%20handlers%20logging%20TODOs.))
+- Update documentation for environment variables, queue helpers, and PSP onboarding. ([Start task](https://github.com/icupa/icupa/issues/new?title=Phase%204%3A%20Document%20payment%20integration%20steps&body=##%20Summary%0ARefresh%20the%20docs%20described%20in%20Phase%204%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20README%20sections%20updated%0A-%20Onboarding%20steps%20captured.))
+
 ## Phase 5 – Receipts and fiscalisation (Weeks 8–9)
 
 **Objectives**
@@ -157,6 +202,11 @@ These gates compress the critical launch work into four reviewable windows that 
 **Acceptance criteria**
 - On payment capture, receipts table populated with simulated data and user notified via UI.
 - Runbook drafted for EBM downtime and Malta fiscal printer failures.
+
+### Suggested tasks
+- Build the receipt issuance Edge Functions and pipeline scaffolding. ([Start task](https://github.com/icupa/icupa/issues/new?title=Phase%205%3A%20Implement%20receipt%20pipeline&body=##%20Summary%0ADeliver%20the%20receipt%20issuance%20flow%20outlined%20in%20Phase%205%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20Edge%20functions%20return%20payloads%0A-%20Queue%20integration%20verified.))
+- Expose receipt viewing/reprint features in the merchant UI. ([Start task](https://github.com/icupa/icupa/issues/new?title=Phase%205%3A%20Ship%20receipt%20management%20UI&body=##%20Summary%0AImplement%20the%20merchant%20receipt%20tools%20listed%20in%20Phase%205%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20UI%20supports%20view/reprint%0A-%20Error%20remediation%20documented.))
+- Draft downtime/incident runbooks for Rwanda and Malta fiscal channels. ([Start task](https://github.com/icupa/icupa/issues/new?title=Phase%205%3A%20Author%20fiscal%20runbooks&body=##%20Summary%0AWrite%20the%20fiscal%20downtime%20runbooks%20referenced%20in%20Phase%205%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20Runbooks%20cover%20Rwanda%20and%20Malta%0A-%20Escalation%20paths%20defined.))
 
 ## Phase 6 – Agents service v1 (Weeks 9–11)
 
@@ -175,6 +225,11 @@ These gates compress the critical launch work into four reviewable windows that 
 - Schema validations prevent malformed tool calls; guardrail breaches logged.
 - Cost tracking dashboards show spend per agent per tenant.
 
+### Suggested tasks
+- Implement the multi-agent definitions and guardrails described for Phase 6. ([Start task](https://github.com/icupa/icupa/issues/new?title=Phase%206%3A%20Implement%20agents%20service%20v1&body=##%20Summary%0ABuild%20the%20agents%20and%20guardrails%20outlined%20in%20Phase%206%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20Agents%20handle%20queries%0A-%20Guardrails%20log%20breaches.))
+- Wire retrieval collections and telemetry storage for agent interactions. ([Start task](https://github.com/icupa/icupa/issues/new?title=Phase%206%3A%20Complete%20retrieval%20and%20telemetry&body=##%20Summary%0AConnect%20the%20retrieval%20collections%20and%20telemetry%20pipelines%20from%20Phase%206%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20Collections%20fresh%0A-%20agent_events%20populated.))
+- Expose admin kill switches and budget controls for each agent class. ([Start task](https://github.com/icupa/icupa/issues/new?title=Phase%206%3A%20Add%20agent%20governance%20controls&body=##%20Summary%0AImplement%20the%20admin%20controls%20noted%20in%20Phase%206%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20Kill-switch%20UI%20available%0A-%20Budgets%20observable.))
+
 ## Phase 7 – Merchant portal core (Weeks 11–14)
 
 **Objectives**
@@ -191,6 +246,11 @@ These gates compress the critical launch work into four reviewable windows that 
 - Orders propagate from diner app to KDS in <1 s using Supabase Realtime.
 - AI menu suggestions require explicit approval with diff view and audit trail.
 - Promo builder persists settings and enforces caps at runtime.
+
+### Suggested tasks
+- Build the KDS and floor management experiences for merchants. ([Start task](https://github.com/icupa/icupa/issues/new?title=Phase%207%3A%20Deliver%20KDS%20and%20floor%20management&body=##%20Summary%0AImplement%20the%20merchant%20portal%20features%20called%20out%20in%20Phase%207%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20Realtime%20orders%20visible%0A-%20Floor%20states%20editable.))
+- Ship the menu manager with AI-assisted copy review flow. ([Start task](https://github.com/icupa/icupa/issues/new?title=Phase%207%3A%20Launch%20menu%20manager&body=##%20Summary%0ABuild%20the%20menu%20manager%20UI%20outlined%20in%20Phase%207%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20AI%20suggestions%20require%20approval%0A-%20Audit%20trail%20persisted.))
+- Implement the promo builder workflow with guardrail parameters. ([Start task](https://github.com/icupa/icupa/issues/new?title=Phase%207%3A%20Enable%20promo%20builder&body=##%20Summary%0ADevelop%20the%20promo%20builder%20described%20in%20Phase%207%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20Bandit%20parameters%20stored%0A-%20Runtime%20caps%20enforced.))
 
 ## Phase 8 – Admin console (Weeks 14–16)
 
@@ -209,6 +269,11 @@ These gates compress the critical launch work into four reviewable windows that 
 - AI settings changes propagate to agents service within minutes and log audit trail.
 - Compliance dashboard surfaces outstanding receipts or disclosure tasks with severity levels.
 
+### Suggested tasks
+- Implement the tenant onboarding wizard with automated Supabase provisioning. ([Start task](https://github.com/icupa/icupa/issues/new?title=Phase%208%3A%20Build%20tenant%20onboarding%20wizard&body=##%20Summary%0AComplete%20the%20onboarding%20wizard%20from%20Phase%208%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20Tenants%20and%20roles%20provisioned%0A-%20Seeded%20menu%20available.))
+- Deliver the AI configuration UI and propagation pipeline. ([Start task](https://github.com/icupa/icupa/issues/new?title=Phase%208%3A%20Ship%20AI%20config%20console&body=##%20Summary%0ABuild%20the%20AI%20settings%20experience%20outlined%20in%20Phase%208%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20Agent%20configs%20update%0A-%20Audit%20trail%20recorded.))
+- Surface compliance dashboards and DSR tooling required for go-live. ([Start task](https://github.com/icupa/icupa/issues/new?title=Phase%208%3A%20Launch%20compliance%20dashboards&body=##%20Summary%0AImplement%20the%20compliance%20panels%20described%20in%20Phase%208%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20KPIs%20visible%0A-%20DSR%20entry%20points%20linked.))
+
 ## Phase 9 – Offline, background sync, and push (Weeks 16–18)
 
 **Objectives**
@@ -226,6 +291,11 @@ These gates compress the critical launch work into four reviewable windows that 
 - Simulated offline order creation queues and syncs successfully after reconnection.
 - Push subscription stored and sample notification rendered on supported browsers.
 
+### Suggested tasks
+- Implement offline caching, background sync queues, and service worker hooks. ([Start task](https://github.com/icupa/icupa/issues/new?title=Phase%209%3A%20Deliver%20offline%20and%20sync%20capabilities&body=##%20Summary%0ABuild%20the%20offline%20and%20background%20sync%20features%20outlined%20in%20Phase%209%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20Workbox%20strategies%20live%0A-%20Background%20sync%20tests%20pass.))
+- Wire push notification subscription and sending flows end-to-end. ([Start task](https://github.com/icupa/icupa/issues/new?title=Phase%209%3A%20Enable%20web%20push%20flows&body=##%20Summary%0AImplement%20the%20push%20subscription%20and%20send%20functions%20listed%20in%20Phase%209%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20Subscriptions%20stored%0A-%20Sample%20push%20delivered.))
+- Capture outsourced offline QA artefacts in the prescribed locations. ([Start task](https://github.com/icupa/icupa/issues/new?title=Phase%209%3A%20Archive%20offline%20QA%20artefacts&body=##%20Summary%0ACollect%20the%20Phase%209%20offline%20QA%20evidence%20referenced%20in%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20Artifacts/phase9%20populated%0A-%20Tests/offline%20assets%20updated.))
+
 ## Phase 10 – Testing, load, and security hardening (Weeks 18–20)
 
 **Objectives**
@@ -242,6 +312,11 @@ These gates compress the critical launch work into four reviewable windows that 
 - Load tests demonstrate p95 latency within budgets under peak concurrency.
 - Security review sign-off with tracked remediation items.
 
+### Suggested tasks
+- Build the Playwright, k6, and security coverage needed for launch readiness. ([Start task](https://github.com/icupa/icupa/issues/new?title=Phase%2010%3A%20Deliver%20test%2C%20load%2C%20and%20security%20coverage&body=##%20Summary%0AImplement%20the%20testing%2C%20load%2C%20and%20security%20tracks%20from%20Phase%2010%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20Playwright%20suite%20green%0A-%20k6%20budgets%20met%0A-%20Security%20review%20signed%20off.))
+- Automate incident response runbooks and ensure they are referenced in tooling. ([Start task](https://github.com/icupa/icupa/issues/new?title=Phase%2010%3A%20Automate%20incident%20runbooks&body=##%20Summary%0AConnect%20the%20incident%20runbooks%20from%20Phase%2010%20of%20docs/implementation-plan.md%20into%20operational%20tooling.%0A%0A##%20Acceptance%20criteria%0A-%20Runbooks%20linked%20in%20admin%0A-%20Drill%20results%20tracked.))
+- Coordinate outsourced QA/security partners and store artefacts per playbook. ([Start task](https://github.com/icupa/icupa/issues/new?title=Phase%2010%3A%20Coordinate%20vendor%20deliverables&body=##%20Summary%0AEnsure%20the%20Phase%2010%20vendor%20artefacts%20land%20in%20the%20directories%20specified%20in%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20Artifacts/phase10%20updated%0A-%20Security%20archive%20complete.))
+
 ## Phase 11 – Release, rollout, and monitoring (Weeks 20–22)
 
 **Objectives**
@@ -257,6 +332,11 @@ These gates compress the critical launch work into four reviewable windows that 
 **Acceptance criteria**
 - Canary tenants complete real transactions with fiscal receipts; monitoring shows no regressions.
 - Final sign-off checklist satisfied: migrations deployed to prod-eu/prod-rw, Edge Functions configured, PWA install verified on Android/iOS, payments tested live, agents guarded.
+
+### Suggested tasks
+- Finalise feature flag rollout plans and automation for each launch lever. ([Start task](https://github.com/icupa/icupa/issues/new?title=Phase%2011%3A%20Finalise%20feature%20flag%20rollout&body=##%20Summary%0AImplement%20the%20feature%20flag%20controls%20documented%20in%20Phase%2011%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20Flags%20mapped%20to%20tenants%0A-%20Rollback%20scripts%20ready.))
+- Execute the canary ramp plan and capture monitoring evidence. ([Start task](https://github.com/icupa/icupa/issues/new?title=Phase%2011%3A%20Run%20canary%20ramp&body=##%20Summary%0ACarry%20out%20the%20Phase%2011%20canary%20plan%20from%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20Canary%2010%E2%86%9250%E2%86%92100%25%20documented%0A-%20Monitoring%20screenshots%20saved.))
+- Publish launch comms, on-call schedules, and monitoring dashboards in the admin console. ([Start task](https://github.com/icupa/icupa/issues/new?title=Phase%2011%3A%20Publish%20launch%20operations%20hub&body=##%20Summary%0AShare%20the%20launch%20communications%2C%20on-call%20matrix%2C%20and%20dashboards%20outlined%20in%20Phase%2011%20of%20docs/implementation-plan.md.%0A%0A##%20Acceptance%20criteria%0A-%20Admin%20console%20sections%20populated%0A-%20Stakeholder%20sign-off%20recorded.))
 
 ## Cross-cutting tracks
 
