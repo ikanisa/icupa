@@ -60,7 +60,7 @@ export default async function DashboardPage() {
   const [queue, coverage] = await Promise.all([loadSupplierQueue(), loadOfflineCoverage()]);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
       <CardGlass
         title="Ops Status"
         subtitle="Realtime summary of incidents, bookings, and exceptions"

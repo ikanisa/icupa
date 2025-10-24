@@ -1,0 +1,111 @@
+{
+  "default": {
+    "headline": "Payment incident triage",
+    "summary": "Replay the last idempotent request and capture observability breadcrumbs.",
+    "next_actions": [
+      {
+        "id": "retry-intent",
+        "title": "Retry checkout intent",
+        "description": "Re-run the payment intent with the same idempotency key to avoid duplicate ledger entries.",
+        "cta_label": "Retry intent",
+        "cta_type": "retry_intent",
+        "idempotency_hint": "{{idempotency_key}}",
+        "wait_seconds": 15
+      },
+      {
+        "id": "log-incident",
+        "title": "Append incident log",
+        "description": "Log details in ops-exceptions with request ID + failure code for visibility.",
+        "cta_label": "Open ops exceptions",
+        "cta_type": "open_url",
+        "href": "/(ops)/exceptions"
+      }
+    ],
+    "health_checks": [
+      {
+        "id": "ledger-lag",
+        "name": "Ledger append latency",
+        "status": "pass",
+        "detail": "Last ledger append succeeded 2m ago.",
+        "last_checked": "2024-07-18T07:22:11.000Z"
+      },
+      {
+        "id": "ops-sla",
+        "name": "Ops on-call coverage",
+        "status": "warn",
+        "detail": "Pager rotation acknowledged 6m ago. Escalate if retry fails twice.",
+        "last_checked": "2024-07-18T07:18:03.000Z"
+      }
+    ]
+  },
+  "stripe_unavailable": {
+    "headline": "Stripe API degradation",
+    "summary": "Upstream 5xx/429 responses detected; retries should space out to honor rate limits.",
+    "next_actions": [
+      {
+        "id": "retry-intent",
+        "title": "Retry after cool-off",
+        "description": "Stripe returned HTTP 429. Wait 30s then retry using the same idempotency key.",
+        "cta_label": "Retry in 30s",
+        "cta_type": "retry_intent",
+        "idempotency_hint": "{{idempotency_key}}",
+        "wait_seconds": 30
+      },
+      {
+        "id": "switch-offline",
+        "title": "Fallback to PAYMENT_MOCK",
+        "description": "If retries fail, switch to ledger-only capture and notify finance duty manager.",
+        "cta_label": "Notify finance ops",
+        "cta_type": "contact_ops",
+        "contact_channel": "#finops-alerts"
+      }
+    ],
+    "health_checks": [
+      {
+        "id": "stripe-latency",
+        "name": "Stripe latency",
+        "status": "fail",
+        "detail": "p95 = 18.4s (threshold 4s).",
+        "last_checked": "2024-07-18T07:25:41.000Z"
+      },
+      {
+        "id": "ledger",
+        "name": "Ledger consistency",
+        "status": "pass",
+        "detail": "No duplicate entries detected.",
+        "last_checked": "2024-07-18T07:24:12.000Z"
+      }
+    ]
+  },
+  "card_declined": {
+    "headline": "Card declined",
+    "summary": "Card issuer rejected the authorization; traveler needs to confirm limit or use alternate method.",
+    "next_actions": [
+      {
+        "id": "send-checklist",
+        "title": "Send traveler checklist",
+        "description": "Share issuer contact checklist + instructions for alternative payment links.",
+        "cta_label": "Copy checklist",
+        "cta_type": "copy_text",
+        "text": "Your card was declined. Please call your issuer, confirm travel, then retry the ecoTrips checkout link."
+      },
+      {
+        "id": "create-payment-link",
+        "title": "Create backup payment link",
+        "description": "Generate a new Stripe Payment Link referencing the same itinerary.",
+        "cta_label": "Open payment links",
+        "cta_type": "open_url",
+        "href": "https://dashboard.stripe.com/payment-links"
+      }
+    ],
+    "health_checks": [
+      {
+        "id": "issuer-status",
+        "name": "Issuer status",
+        "status": "warn",
+        "detail": "High decline rate for BIN 438857. Flag if recurrence >=3.",
+        "last_checked": "2024-07-18T06:59:52.000Z"
+      }
+    ]
+  }
+}
