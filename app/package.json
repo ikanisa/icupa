@@ -21,9 +21,12 @@
     "@supabase/supabase-js": "^2.45.0",
     "@upstash/ratelimit": "2.0.6",
     "@upstash/redis": "1.35.6",
+    "@openai/chatkit": "^1.0.0",
+    "@openai/chatkit-react": "^1.1.1",
     "next": "15.5.3",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "openai": "^6.6.0",
     "zod": "3.23.8",
     "@supabase/ssr": "^0.5.0"
   },
