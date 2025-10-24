@@ -4,11 +4,15 @@ import {
   GroupsOpsPayoutNowInput,
   GroupsPayoutReportQuery,
   InvoiceGenerateInput,
+  RefundPolicySummarizeInput,
+  RefundPolicySummarizeResponse,
   PrivacyErasureExecuteInput,
   PrivacyErasurePlanInput,
   PrivacyExportInput,
   PrivacyRequestInput,
   PrivacyReviewInput,
+  PIIScanInput,
+  PIIScanResponse,
 } from "@ecotrips/types";
 import { z } from "zod";
 
@@ -204,6 +208,13 @@ const descriptors = {
       reused: z.boolean().optional(),
     }),
   },
+  "fin.refund.policySummarize": {
+    path: "/functions/v1/refund-policy-summarize",
+    method: "POST",
+    auth: "user",
+    input: RefundPolicySummarizeInput,
+    output: RefundPolicySummarizeResponse,
+  },
   "ops.refund": {
     path: "/functions/v1/ops-refund",
     method: "POST",
@@ -286,6 +297,13 @@ const descriptors = {
         )
         .optional(),
     }),
+  },
+  "privacy.pii.scan": {
+    path: "/functions/v1/privacy-pii-scan",
+    method: "POST",
+    auth: "user",
+    input: PIIScanInput,
+    output: PIIScanResponse,
   },
   "dr.snapshot": {
     path: "/functions/v1/dr-snapshot",

@@ -10,6 +10,24 @@ export type AdminDatabase = {
       };
     };
   };
+  audit: {
+    Tables: {
+      events: {
+        Row: {
+          id: number;
+          who: string | null;
+          what: string;
+          payload: unknown;
+          created_at: string | null;
+        };
+        Insert: {
+          who?: string | null;
+          what: string;
+          payload?: unknown;
+        };
+      };
+    };
+  };
   ops: {
     Tables: {
       console_feature_flags: {

@@ -6,6 +6,7 @@ export { Toast } from "./components/Toast";
 export { Stepper } from "./components/Stepper";
 export { AdminActionForm } from "./components/AdminActionForm";
 export { AdminDataTable } from "./components/AdminDataTable";
+export { OptionCard } from "./components/OptionCard";
 export type { ComponentPropsWithoutRef } from "react";
 export { buttonClassName } from "./styles/button";
 
@@ -16,4 +17,5 @@ export type {
   AdminActionFormProps,
   AdminActionState,
 } from "./components/AdminActionForm";
+export type { OptionCardHighlight, OptionCardProps, OptionCardRiskLevel } from "./components/OptionCard";
 export type { AdminDataTableColumn, AdminDataTableProps } from "./components/AdminDataTable";
