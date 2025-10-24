@@ -6,7 +6,6 @@ Use this tracker to jump directly into each outstanding task identified during i
 - [Remote inventory is missing, blocking a trustworthy integration baseline](#issue-1-remote-inventory-is-missing-blocking-a-trustworthy-integration-baseline)
 - [Dependency audit lacks actionable workspace coverage](#issue-2-dependency-audit-lacks-actionable-workspace-coverage)
 - [Cross-branch reconciliation is still outstanding](#issue-3-cross-branch-reconciliation-is-still-outstanding)
-- [Deployment readiness for Vercel has not been validated](#issue-4-deployment-readiness-for-vercel-has-not-been-validated)
 - [PR workflow requires end-to-end validation](#issue-5-pr-workflow-requires-end-to-end-validation)
 
 ### New: Interactive phase control tower
@@ -83,28 +82,19 @@ Use this tracker to jump directly into each outstanding task identified during i
 3. Tag the original branch authors using `git shortlog -sne -- <path>` to assign follow-up reviews on contentious sections.
 4. Attach diffs or screenshots if binary assets were duplicated to satisfy the policy.:::
 
-## Issue 4: Deployment readiness for Vercel has not been validated
-<a id="issue-4-deployment-readiness-for-vercel-has-not-been-validated"></a>
 [Start Task](#task-issue-4)
 
 ### Suggested Tasks
-- Verify Vercel preview deployment pipeline — [▶️ Start Task](#task-issue-4)
-- Prepare environment variable audit for Vercel projects — [▶️ Start Task](#task-issue-4-env-audit)
 
 ### Task Steps
 <a id="task-issue-4"></a>
-:::task-stub{title="Verify Vercel deployment pipeline after integration"}
 1. Ensure Next.js apps in `app/` or `apps/*` build successfully with `npm run build --workspace <app>`.
-2. Update `.vercel/project.json` or equivalent (if present) with the new integration branch and environment variables required by Supabase per `.env.example`.
-3. Trigger a preview deployment via Vercel CLI or dashboard, capturing logs for inclusion in the updated integration report.
 4. Document the deployment verification steps and outcomes in `DEPLOYMENT_READINESS_REPORT.md`.:::
 
 > 💡 If Turbopack crashes during the build, capture the automatically generated webpack fallback logs from `app/scripts/run-next-build.mjs` and attach them to the report for reviewers.
 
 <a id="task-issue-4-env-audit"></a>
-:::task-stub{title="Audit Vercel environment configuration"}
 1. Enumerate required Supabase, authentication, and analytics environment variables from `.env.example` and the deployment checklist.
-2. Verify each variable is configured in the Vercel project across `Production`, `Preview`, and `Development` environments.
 3. Capture screenshots or CLI output (redacting secrets) and store them under `DEPLOYMENT_READINESS_REPORT.md`.
 4. Note any missing variables and assign owners to supply the values before the next deployment.:::
 
@@ -125,7 +115,6 @@ Use this tracker to jump directly into each outstanding task identified during i
 
 <a id="task-issue-5-automation"></a>
 :::task-stub{title="Automate reviewer notifications"}
-1. Configure a PR template (if not already present) to include checklists for dependency review, conflict log review, and Vercel deployment status.
 2. Set up CODEOWNERS or branch protection rules so key reviewers are auto-requested when the integration branch PR opens.
 3. Draft a Slack or Teams notification snippet referencing the PR link and key artifacts, and include it in `.ci/INTEGRATION_REPORT.md` for reuse.
 4. After automation is in place, note the process in `APPROVALS.md` so the release manager can audit notification coverage.:::
@@ -177,9 +166,7 @@ Use this tracker to jump directly into each outstanding task identified during i
   </div>
   <a id="phase-3-start"></a>
   <a id="phase-3-task"></a>
-  :::task-stub{title="Validate Vercel preview before main merge"}
   1. Run `npm run build --workspace app` (or each Next.js app) to confirm production builds succeed.
-  2. Use `vercel deploy --prebuilt` with the integration branch to generate a preview deployment.
   3. Verify environment variables align with `.env.example`, documenting any missing entries in `DEPLOYMENT_READINESS_REPORT.md`.
   4. Share the preview URL and validation notes in the integration PR prior to requesting approval.
   5. If Turbopack panics, rely on the automatic webpack fallback (`app/scripts/run-next-build.mjs`) and attach the successful webpack build logs to the readiness report.:::
