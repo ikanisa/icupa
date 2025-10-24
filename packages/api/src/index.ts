@@ -52,6 +52,13 @@ type FunctionMap = {
   [K in keyof typeof descriptors]: (typeof descriptors)[K];
 };
 
+type MapsClient = {
+  tilesList(
+    input?: z.infer<typeof MapsTilesListInput>,
+    options?: RequestOptions,
+  ): Promise<z.infer<typeof MapsTilesListResponse>>;
+};
+
 const paginatedResponse = z.object({
   ok: z.boolean(),
   data: z.array(z.record(z.any())).default([]),
@@ -93,6 +100,13 @@ const descriptors = {
     input: CheckoutInput,
     output: z.object({ ok: z.boolean(), payment_intent_id: z.string().optional(), client_secret: z.string().optional(), ledger_entry_id: z.string().optional() }),
   },
+  "checkout.escalate": {
+    path: "/functions/v1/payment-escalate",
+    method: "POST",
+    auth: "user",
+    input: PaymentEscalationInput,
+    output: PaymentEscalationResponse,
+  },
   "groups.create": {
     path: "/functions/v1/groups-create-escrow",
     method: "POST",
@@ -113,6 +127,14 @@ const descriptors = {
     auth: "user",
     input: ContributionCreate,
     output: z.object({ ok: z.boolean(), contribution_id: z.string().uuid().optional() }),
+  },
+  "groups.suggest": {
+    path: "/functions/v1/groups-suggest",
+    method: "POST",
+    auth: "anon",
+    input: GroupSuggestionInput,
+    output: GroupSuggestionResponse,
+    cacheTtlMs: 30_000,
   },
   "permits.request": {
     path: "/functions/v1/permits-request",
@@ -239,6 +261,13 @@ const descriptors = {
       message: z.string().optional(),
     }),
   },
+  "affiliate.outbound": {
+    path: "/functions/v1/affiliate-outbound",
+    method: "POST",
+    auth: "user",
+    input: AffiliateOutboundInput,
+    output: AffiliateOutboundResult,
+  },
   "privacy.request": {
     path: "/functions/v1/privacy-request",
     method: "POST",
@@ -305,6 +334,14 @@ const descriptors = {
         .optional(),
     }),
   },
+  "maps.tiles.list": {
+    path: "/functions/v1/maps-tiles-list",
+    method: "GET",
+    auth: "anon",
+    input: MapsTilesListInput.partial(),
+    output: MapsTilesListResponse,
+    cacheTtlMs: 300_000,
+  },
   "dr.snapshot": {
     path: "/functions/v1/dr-snapshot",
     method: "POST",
@@ -318,6 +355,14 @@ const descriptors = {
       sha256: z.string().optional(),
     }),
   },
+  "search.places": {
+    path: "/functions/v1/search-places",
+    method: "POST",
+    auth: "anon",
+    input: SearchPlacesInput,
+    output: SearchPlacesResponse,
+    cacheTtlMs: 15_000,
+  },
 } satisfies Record<string, FunctionDescriptor<z.ZodTypeAny, z.ZodTypeAny>>;
 
 export type DescriptorKey = keyof FunctionMap;
@@ -325,10 +370,19 @@ export type DescriptorKey = keyof FunctionMap;
 export class EcoTripsFunctionClient {
   private readonly fetchImpl: typeof fetch;
   private readonly timeoutMs: number;
+  readonly maps: MapsClient;
 
   constructor(private readonly options: ClientOptions) {
     this.fetchImpl = options.fetch ?? fetch;
     this.timeoutMs = options.defaultTimeoutMs ?? DEFAULT_TIMEOUT_MS;
+    this.maps = {
+      tilesList: (input, options) =>
+        this.call(
+          "maps.tiles.list",
+          (input ?? {}) as z.infer<FunctionMap["maps.tiles.list"]["input"]>,
+          options,
+        ),
+    };
   }
 
   async call<K extends DescriptorKey>(
@@ -430,6 +484,8 @@ export function createEcoTripsFunctionClient(options: ClientOptions) {
 }
 
 export const functionDescriptors = descriptors;
+
+export * from "./mapRoute";
 
 function buildQueryString(input: unknown): string {
   if (!input || typeof input !== "object") {

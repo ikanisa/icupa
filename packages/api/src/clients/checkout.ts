@@ -7,12 +7,19 @@ export type CheckoutClient = {
     input: InferInput<(typeof checkoutDescriptors)["checkout.intent"]>,
     options?: RequestOptions,
   ): Promise<InferOutput<(typeof checkoutDescriptors)["checkout.intent"]>>;
+  escalate(
+    input: InferInput<(typeof checkoutDescriptors)["checkout.escalate"]>,
+    options?: RequestOptions,
+  ): Promise<InferOutput<(typeof checkoutDescriptors)["checkout.escalate"]>>;
 };
 
 export function createCheckoutClient(client: FunctionCaller<FunctionMap>): CheckoutClient {
   return {
     intent(input, options) {
       return client.call("checkout.intent", input, options);
+    },
+    escalate(input, options) {
+      return client.call("checkout.escalate", input, options);
     },
   };
 }

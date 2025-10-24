@@ -48,6 +48,8 @@ baseline. Apply them after `0033_ops_views_additions.sql`.
   `0024_agent_evals.sql`.
 - `20250922083500_dr_registry.sql` expects the disaster-recovery registry tables
   staged by `0020_agent_runtime_public_helpers.sql`.
+- `20250922083511_ops_chaos_policies.sql` introduces a shared registry for chaos
+  injection scenarios consumed by synthetics and the wallet tile downloader.
 
 ## Adding new migrations
 

@@ -37,11 +37,10 @@ export default async function SupportPage() {
   const breakdowns = await loadSupportBreakdowns();
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 px-4 pb-24 pt-10">
+    <PublicPage>
       <CardGlass title="Support" subtitle="SupportCopilot triages with human-in-the-loop controls.">
         <p className="text-sm text-white/80">
-          Chat with ConciergeGuide for travel nudges or escalate to ops. Refunds, credit notes, and payouts always require HITL
-          approval.
+          Chat with ConciergeGuide for travel nudges or escalate to ops. Refunds, credit notes, and payouts always require HITL approval.
         </p>
         <ChatOptionModals breakdowns={breakdowns} />
       </CardGlass>
@@ -51,6 +50,6 @@ export default async function SupportPage() {
           <li>• Daily brief push to wallet and WhatsApp.</li>
         </ul>
       </CardGlass>
-    </div>
+    </PublicPage>
   );
 }

@@ -7,6 +7,7 @@ import { logAdminAction } from "../../../lib/logging";
 
 import { InvoiceGenerateForm, type InvoiceFormState } from "./InvoiceGenerateForm";
 import { RefundForm, type RefundFormState } from "./RefundForm";
+import { PayoutAgingWidget } from "./PayoutAgingWidget";
 
 async function generateInvoiceAction(_: InvoiceFormState, formData: FormData): Promise<InvoiceFormState> {
   "use server";
@@ -143,27 +144,30 @@ export default async function FinancePage() {
   const financeBreakdown = await loadFinanceBreakdown();
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-      <CardGlass title="Finance ledger" subtitle="Invoices, refunds, and payouts recorded with HITL guardrails.">
-        <p className="text-sm text-white/80">
-          Generate invoices directly from ledger payments. Signed URLs are short-lived; store them in secure channels and audit
-          every action using structured logs.
-        </p>
-        <InvoiceGenerateForm action={generateInvoiceAction} />
-        <div className="mt-6">
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white/60">Submit refund</h3>
-          <RefundForm action={submitRefundAction} />
-        </div>
-        <div className="rounded-2xl border border-white/10 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-            <div>
-              <p className="text-xs uppercase tracking-wide text-white/60">REF-104</p>
-              <p className="text-white/80">Stripe refund request</p>
+    <>
+      <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
+        <CardGlass title="Finance ledger" subtitle="Invoices, refunds, and payouts recorded with HITL guardrails.">
+          <p className="text-sm text-white/80">
+            Generate invoices directly from ledger payments. Signed URLs are short-lived; store them in secure channels and audit
+            every action using structured logs.
+          </p>
+          <InvoiceGenerateForm action={generateInvoiceAction} />
+          <div className="mt-6">
+            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white/60">Submit refund</h3>
+            <RefundForm action={submitRefundAction} />
+          </div>
+          <div className="rounded-2xl border border-white/10 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-white/60">REF-104</p>
+                <p className="text-white/80">Stripe refund request</p>
+              </div>
+              <div className="text-right text-xs text-white/60">
+                <p>USD 860.00</p>
+                <p>Pending HITL approval</p>
+              </div>
             </div>
-            <div className="text-right text-xs text-white/60">
-              <p>USD 860.00</p>
-              <p>Pending HITL approval</p>
-            </div>
+            <p className="mt-3 text-xs text-white/60">Ledger entry append ensures audit trail and dual control.</p>
           </div>
           <p className="mt-3 text-xs text-white/60">Ledger entry append ensures audit trail and dual control.</p>
         </div>
