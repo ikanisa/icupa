@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Toast } from "@ecotrips/ui";
+import { Badge, Button, Toast } from "@ecotrips/ui";
 import { CheckoutInput } from "@ecotrips/types";
 import { createEcoTripsFunctionClient } from "@ecotrips/api";
 
@@ -22,6 +22,7 @@ export function CheckoutForm({ itineraryId }: { itineraryId: string }) {
   const [currency, setCurrency] = useState("USD");
   const [intent, setIntent] = useState<string | null>(null);
   const [toast, setToast] = useState<{ id: string; title: string; description?: string } | null>(null);
+  const loyaltyProjection = Math.max(0, Math.round(amount / 100));
 
   const submit = async () => {
     const parsed = CheckoutInput.safeParse({
@@ -77,6 +78,15 @@ export function CheckoutForm({ itineraryId }: { itineraryId: string }) {
         Create payment intent
       </Button>
       {intent && <p className="text-sm text-sky-200">Payment intent {intent}</p>}
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/80">
+        <div className="flex items-center gap-2">
+          <Badge>Loyalty</Badge>
+          <p className="font-medium text-white">Projected {loyaltyProjection.toLocaleString()} points</p>
+        </div>
+        <p className="mt-2 text-xs text-white/60">
+          Granting runs through loyalty-grant edge function with request keys to keep ledger idempotent. Points settle once payment.capture succeeds.
+        </p>
+      </div>
       <div className="fixed bottom-24 left-1/2 z-50 w-full max-w-sm -translate-x-1/2">
         {toast && <Toast id={toast.id} title={toast.title} description={toast.description} onDismiss={() => setToast(null)} />}
       </div>

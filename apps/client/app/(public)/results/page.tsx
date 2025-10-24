@@ -1,12 +1,15 @@
-import { CardGlass, buttonClassName } from "@ecotrips/ui";
+import { CardGlass } from "@ecotrips/ui";
 import { createEcoTripsFunctionClient } from "@ecotrips/api";
 import { InventorySearchInput } from "@ecotrips/types";
-import Link from "next/link";
+
+import { ResultsList } from "./ResultsList";
 
 function parseSearchParams(searchParams: Record<string, string | string[] | undefined>) {
   const destination = typeof searchParams.destination === "string" ? searchParams.destination : "Kigali";
   const startDate = typeof searchParams.startDate === "string" ? searchParams.startDate : new Date().toISOString().slice(0, 10);
-  const endDate = typeof searchParams.endDate === "string" ? searchParams.endDate : new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const endDate = typeof searchParams.endDate === "string"
+    ? searchParams.endDate
+    : new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const adults = Number(Array.isArray(searchParams.adults) ? searchParams.adults[0] : searchParams.adults ?? 2);
   const children = Number(Array.isArray(searchParams.children) ? searchParams.children[0] : searchParams.children ?? 0);
 
@@ -57,50 +60,16 @@ export default async function ResultsPage({ searchParams }: { searchParams: Reco
   const results = await loadResults(searchParams);
 
   const isOffline = !results.ok || results.cacheHit;
+  const defaultCurrency = (results.items[0]?.currency ?? "USD").toUpperCase();
 
   return (
     <div className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 px-4 pb-24 pt-10">
-      <CardGlass
+      <ResultsList
         title={`Top picks for ${input.destination}`}
         subtitle={`Dates ${input.startDate} → ${input.endDate} · party of ${input.party.adults}${input.party.children ? ` + ${input.party.children} children` : ""}`}
-      >
-        {results.items.length === 0 ? (
-          <p className="text-sm text-white/80">
-            No live inventory yet. Offline cache fixtures keep the experience responsive; PlannerCoPilot will notify once
-            suppliers respond.
-          </p>
-        ) : (
-          <ul className="space-y-4">
-            {results.items.map((item) => (
-              <li key={item.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <h3 className="text-lg font-semibold">{item.name ?? "Itinerary option"}</h3>
-                    <p className="text-sm text-white/70">Supplier {item.supplier ?? "tbd"}</p>
-                  </div>
-                  <p className="text-base font-semibold text-sky-200">
-                    {item.currency ?? "USD"} {Math.round(item.price_cents / 100).toLocaleString()}
-                  </p>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Link
-                    href={`/itinerary/${item.id ?? "draft"}`}
-                    className={buttonClassName("glass")}
-                  >
-                    View itinerary
-                  </Link>
-                  <Link
-                    href={`/itinerary/${item.id ?? "draft"}?action=quote`}
-                    className={buttonClassName("secondary")}
-                  >
-                    Request quote
-                  </Link>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </CardGlass>
+        items={results.items as Array<{ id?: string; name?: string; supplier?: string; price_cents: number; currency?: string }>}
+        defaultCurrency={defaultCurrency}
+      />
       {isOffline && (
         <CardGlass title="Offline fallback" subtitle="Fixtures served within 3 seconds to maintain experience.">
           <p className="text-sm text-white/80">

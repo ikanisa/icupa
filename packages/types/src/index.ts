@@ -9,3 +9,5 @@ export * from "./domains/dr";
 export * from "./domains/finance";
 export * from "./domains/ops";
 export * from "./supabase";
+export * from "./domains/pricing";
+export * from "./domains/loyalty";
