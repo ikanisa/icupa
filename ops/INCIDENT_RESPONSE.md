@@ -49,3 +49,7 @@
 | Support | @support-lead | @support-backup |
 
 Update this table whenever on-call rotations change.
+
+## Rollback Reference
+- Keep the annotated `rollback_playbook` JSON from `ops/rollout/BLUE_GREEN.md` available during incidents to revert router-agent traffic quickly.
+- Document the exact `npm run drill:rollback` command output in the incident timeline before restoring normal routing.

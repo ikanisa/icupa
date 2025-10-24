@@ -7,13 +7,11 @@ export function generateStaticParams() {
   return itineraries.map((itinerary) => ({ slug: itinerary.slug }));
 }
 
-type ItineraryPageParams = { slug: string };
-
-type ItineraryPageProps = { params: Promise<ItineraryPageParams> };
+type ItineraryPageProps = Readonly<{ params: Promise<{ slug: string }> }>;
 
 export default async function ItineraryPage({ params }: ItineraryPageProps) {
-  const resolvedParams = await params;
-  const itinerary = getItinerary(resolvedParams.slug);
+  const { slug } = await params;
+  const itinerary = getItinerary(slug);
 
   if (!itinerary) {
     notFound();

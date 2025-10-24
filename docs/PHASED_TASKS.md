@@ -99,6 +99,8 @@ Use this tracker to jump directly into each outstanding task identified during i
 3. Trigger a preview deployment via Vercel CLI or dashboard, capturing logs for inclusion in the updated integration report.
 4. Document the deployment verification steps and outcomes in `DEPLOYMENT_READINESS_REPORT.md`.:::
 
+> 💡 If Turbopack crashes during the build, capture the automatically generated webpack fallback logs from `app/scripts/run-next-build.mjs` and attach them to the report for reviewers.
+
 <a id="task-issue-4-env-audit"></a>
 :::task-stub{title="Audit Vercel environment configuration"}
 1. Enumerate required Supabase, authentication, and analytics environment variables from `.env.example` and the deployment checklist.
@@ -179,7 +181,56 @@ Use this tracker to jump directly into each outstanding task identified during i
   1. Run `npm run build --workspace app` (or each Next.js app) to confirm production builds succeed.
   2. Use `vercel deploy --prebuilt` with the integration branch to generate a preview deployment.
   3. Verify environment variables align with `.env.example`, documenting any missing entries in `DEPLOYMENT_READINESS_REPORT.md`.
-  4. Share the preview URL and validation notes in the integration PR prior to requesting approval.:::
+  4. Share the preview URL and validation notes in the integration PR prior to requesting approval.
+  5. If Turbopack panics, rely on the automatic webpack fallback (`app/scripts/run-next-build.mjs`) and attach the successful webpack build logs to the readiness report.:::
+</div>
+
+<div class="phase-card">
+  <h3>Phase 4 – Router-agent activation</h3>
+  <p><a href="#phase-4-start" class="phase-start-link">Start Task</a></p>
+  <div class="phase-suggested">
+    <strong>Suggested Task</strong>
+    <p><a href="#phase-4-task" class="phase-view-link">View task</a></p>
+  </div>
+  <a id="phase-4-start"></a>
+  <a id="phase-4-task"></a>
+  :::task-stub{title="Run router-agent rehearsals and smoke tests"}
+  1. Execute `npm run test:observability` to confirm Supabase traces capture router-agent breadcrumbs.
+  2. Run `npm run test:rehearsal` to exercise WhatsApp pricing, voice fallback, and GDPR logging rehearsals.
+  3. Paste the JSON evidence from both commands into `DEPLOYMENT_READINESS_REPORT.md` under a new "Router-agent rehearsals" heading.
+  4. Record any failures as blockers in the `/phases` dashboard before requesting deployment approval.:::
 </div>
 
 </div>
+
+## Issue 6: Router-agent activation lacks launch controls
+<a id="issue-6-router-agent-activation-lacks-launch-controls"></a>
+[Start Task](#task-issue-6)
+
+### Suggested Tasks
+- Run router-agent smoke tests and rehearsals — [▶️ Start Task](#task-issue-6)
+- Capture ChatKit preview sign-off — [▶️ Start Task](#task-issue-6-chatkit)
+- Complete compliance audit coverage — [▶️ Start Task](#task-issue-6-compliance)
+
+### Task Steps
+<a id="task-issue-6"></a>
+:::task-stub{title="Execute router-agent smoke and rehearsal suite"}
+1. Run `npm run test:observability` to ensure the router-agent emits telemetry breadcrumbs and Supabase traces remain healthy.
+2. Execute `npm run test:rehearsal` to validate WhatsApp pricing, voice fallback, and GDPR logging rehearsals.
+3. Collect the console output and store it in `DEPLOYMENT_READINESS_REPORT.md` under "Router-agent rehearsals".
+4. Flag any regressions inside `/phases` so reviewers can block the release until resolved.:::
+
+<a id="task-issue-6-chatkit"></a>
+:::task-stub{title="Publish ChatKit preview evidence"}
+1. Generate the ChatKit preview (Figma or hosted sandbox) showing router-agent interactions and clipboard-ready prompts.
+2. Drop annotated screenshots or URLs into `docs/releases/router-agent-activation.md` so stakeholders can review asynchronously.
+3. Reference the preview link within `/phases` Phase 4 notes and confirm UI owners sign off on the state.
+4. Capture sign-off details (name, date, outstanding feedback) in `DEPLOYMENT_READINESS_REPORT.md`.:::
+
+<a id="task-issue-6-compliance"></a>
+:::task-stub{title="Complete compliance audit checkpoints"}
+1. Reconcile GDPR, privacy export, and audit logging requirements using `ops/privacy/DATAMAP.md` and Supabase audit tables.
+2. Ensure router-agent prompts log `AUDIT` trails without storing raw PII by cross-checking `agents/observability.md`.
+3. Summarize findings in `docs/releases/router-agent-activation.md` and surface any blockers to the compliance lead.
+4. Update `DEPLOYMENT_READINESS_REPORT.md` with remediation owners and timelines before requesting the production deploy.:::
+

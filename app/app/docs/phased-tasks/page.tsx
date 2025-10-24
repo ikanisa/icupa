@@ -4,8 +4,22 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 function loadRunbook() {
-  const filePath = join(process.cwd(), "docs", "PHASED_TASKS.md");
-  return readFileSync(filePath, "utf8");
+  const searchOrder = [
+    join(process.cwd(), "docs", "PHASED_TASKS.md"),
+    join(process.cwd(), "..", "docs", "PHASED_TASKS.md"),
+  ];
+
+  for (const filePath of searchOrder) {
+    try {
+      return readFileSync(filePath, "utf8");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+        throw error;
+      }
+    }
+  }
+
+  throw new Error("Unable to locate docs/PHASED_TASKS.md in workspace or repository root");
 }
 
 export const metadata: Metadata = {

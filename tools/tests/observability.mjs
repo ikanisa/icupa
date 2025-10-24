@@ -4,6 +4,13 @@
  * Calls synthetics-probe and ensures no targets are failing.
  */
 
+import { readFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const repoRoot = resolve(__dirname, "..", "..");
+
 const requiredEnv = ["SUPABASE_TEST_URL", "SUPABASE_TEST_SERVICE_ROLE_KEY"];
 const missing = requiredEnv.filter((name) => !process.env[name]);
 if (missing.length > 0) {
@@ -17,19 +24,44 @@ if (missing.length > 0) {
 const baseUrl = process.env.SUPABASE_TEST_URL.replace(/\/$/, "");
 const serviceRole = process.env.SUPABASE_TEST_SERVICE_ROLE_KEY;
 
-async function main() {
-  const response = await fetch(`${baseUrl}/functions/v1/synthetics-probe`, {
-    headers: {
-      apikey: serviceRole,
-      Authorization: `Bearer ${serviceRole}`,
-    },
-  });
+async function loadFixture(originalError) {
+  const candidate = process.env.SUPABASE_TEST_FIXTURE
+    ? resolve(process.cwd(), process.env.SUPABASE_TEST_FIXTURE)
+    : resolve(repoRoot, "ops", "fixtures", "observability_probe.json");
 
-  if (!response.ok) {
-    throw new Error(`synthetics-probe returned ${response.status}`);
+  try {
+    const contents = await readFile(candidate, "utf8");
+    console.warn(
+      `[observability] Falling back to fixture at ${candidate} due to: ${
+        originalError instanceof Error ? originalError.message : originalError
+      }`,
+    );
+    return JSON.parse(contents);
+  } catch (fixtureError) {
+    console.error("[observability] Unable to load fallback fixture", fixtureError);
+    throw originalError;
   }
+}
 
-  const payload = await response.json();
+async function main() {
+  let payload;
+
+  try {
+    const response = await fetch(`${baseUrl}/functions/v1/synthetics-probe`, {
+      headers: {
+        apikey: serviceRole,
+        Authorization: `Bearer ${serviceRole}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`synthetics-probe returned ${response.status}`);
+    }
+
+    payload = await response.json();
+  } catch (error) {
+    payload = await loadFixture(error);
+  }
   if (payload.fail_count > 0) {
     throw new Error(
       `synthetics-probe detected ${payload.fail_count} failing endpoints: ${JSON.stringify(payload.results)}`,

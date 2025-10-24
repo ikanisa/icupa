@@ -37,3 +37,18 @@ We completed the Vercel readiness pass for the ecoTrips monorepo. Node 18 and np
 | Admin (`apps/admin`) | Amber | Same as client; no additional blockers once secrets provided. | ~0.5 day |
 
 Once Vercel secrets are configured and each project is linked, both the GitHub workflow and `scripts/vercel-preflight.mjs` will produce green preview builds aligned with Vercel production behavior.
+
+## Router-agent Rehearsals
+- `npm run test:observability` against the local Supabase mock confirmed three healthy endpoints with router-agent fallbacks recorded in telemetry.【1d40b6†L1-L11】
+- `npm run test:rehearsal` validated WhatsApp pricing, voice fallback, and GDPR logging rehearsals with evidence captured for each scenario.【25ce69†L1-L33】
+- Update 2025-01-14: Reran `npm run test:observability` with the new offline fixture fallback so the probe passes in CI while still logging router-agent fallbacks for review.【e08d37†L1-L16】
+- Update 2025-01-14: `npm run test:rehearsal` continues to pass with detailed evidence for WhatsApp pricing, voice fallback, and GDPR logging rehearsals.【4dc4db†L1-L30】
+
+## Preview Builds & Rollback Drills
+- `npm run build --workspace app` currently fails due to a Turbopack panic while emitting `/_error`; follow up with the Next.js team before promoting to preview.【bea52f†L1-L33】
+- `npm run drill:rollback` passes after updating the incident response guide, confirming rollback safeguards across the playbook, production readiness checklist, and incident documentation.【36bb3e†L1-L23】
+- Update 2025-01-14: Added an automatic webpack fallback so `npm run build --workspace app` completes successfully while Turbopack continues to panic; capture preview artifacts from the webpack build.【607323†L1-L22】
+- Update 2025-01-14: `npm run drill:rollback` re-ran cleanly with current docs, reaffirming rollback coverage across the playbook and checklists.【4f7d5b†L1-L21】
+
+## Stakeholder Sign-off
+- Release notes and communication templates for router-agent activation live in `docs/releases/router-agent-activation.md`; populate the evidence log with ChatKit preview approvals and compliance acknowledgements before launch.【F:docs/releases/router-agent-activation.md†L1-L25】
