@@ -9,8 +9,10 @@ import { createOpsClient, type OpsClient } from "./ops";
 import { createPermitsClient, type PermitsClient } from "./permits";
 import { createPrivacyClient, type PrivacyClient } from "./privacy";
 import { createWalletClient, type WalletClient } from "./wallet";
+import { createAirClient, type AirClient } from "./air";
 
 export type DomainClients = {
+  air: AirClient;
   inventory: InventoryClient;
   checkout: CheckoutClient;
   groups: GroupsClient;
@@ -24,6 +26,7 @@ export type DomainClients = {
 
 export function createDomainClients(client: FunctionCaller<FunctionMap>): DomainClients {
   return {
+    air: createAirClient(client),
     inventory: createInventoryClient(client),
     checkout: createCheckoutClient(client),
     groups: createGroupsClient(client),
@@ -37,6 +40,7 @@ export function createDomainClients(client: FunctionCaller<FunctionMap>): Domain
 }
 
 export * from "./checkout";
+export * from "./air";
 export * from "./dr";
 export * from "./finance";
 export * from "./groups";

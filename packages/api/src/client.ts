@@ -8,6 +8,7 @@ const DEFAULT_TIMEOUT_MS = 10_000;
 export class EcoTripsFunctionClient {
   private readonly fetchImpl: typeof fetch;
   private readonly timeoutMs: number;
+  readonly air: DomainClients["air"];
   readonly inventory: DomainClients["inventory"];
   readonly checkout: DomainClients["checkout"];
   readonly groups: DomainClients["groups"];
@@ -23,6 +24,7 @@ export class EcoTripsFunctionClient {
     this.timeoutMs = options.defaultTimeoutMs ?? DEFAULT_TIMEOUT_MS;
 
     const domains = createDomainClients(this);
+    this.air = domains.air;
     this.inventory = domains.inventory;
     this.checkout = domains.checkout;
     this.groups = domains.groups;

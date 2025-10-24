@@ -1,6 +1,7 @@
 export { Button } from "./components/Button";
 export { IconButton } from "./components/IconButton";
 export { CardGlass } from "./components/CardGlass";
+export { OptionCard } from "./components/OptionCard";
 export { BottomNavDock } from "./components/BottomNavDock";
 export { Toast } from "./components/Toast";
 export { Stepper } from "./components/Stepper";
@@ -17,3 +18,4 @@ export type {
   AdminActionState,
 } from "./components/AdminActionForm";
 export type { AdminDataTableColumn, AdminDataTableProps } from "./components/AdminDataTable";
+export type { OptionCardMeta, OptionCardProps } from "./components/OptionCard";

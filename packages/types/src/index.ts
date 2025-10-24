@@ -1,5 +1,6 @@
 export * from "./domains/shared";
 export * from "./domains/inventory";
+export * from "./domains/air";
 export * from "./domains/checkout";
 export * from "./domains/groups";
 export * from "./domains/permits";

@@ -11,6 +11,10 @@ export type InventoryClient = {
     input: InferInput<(typeof inventoryDescriptors)["inventory.quote"]>,
     options?: RequestOptions,
   ): Promise<InferOutput<(typeof inventoryDescriptors)["inventory.quote"]>>;
+  hold(
+    input: InferInput<(typeof inventoryDescriptors)["inventory.hold"]>,
+    options?: RequestOptions,
+  ): Promise<InferOutput<(typeof inventoryDescriptors)["inventory.hold"]>>;
 };
 
 export function createInventoryClient(client: FunctionCaller<FunctionMap>): InventoryClient {
@@ -20,6 +24,9 @@ export function createInventoryClient(client: FunctionCaller<FunctionMap>): Inve
     },
     quote(input, options) {
       return client.call("inventory.quote", input, options);
+    },
+    hold(input, options) {
+      return client.call("inventory.hold", input, options);
     },
   };
 }

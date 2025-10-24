@@ -473,21 +473,74 @@
   method: POST
   auth: user_jwt
   required:
-    - quoteId
-    - idempotencyKey
+    - supplier_hotel_id
+    - plan_id
+    - check_in
+    - check_out
+    - pax
+    - idempotency_key
   input_schema: |
     type: object
-    required: [quoteId, idempotencyKey]
+    required: [supplier_hotel_id, plan_id, check_in, check_out, pax, idempotency_key]
     properties:
-      quoteId: { type: string }
-      idempotencyKey: { type: string }
+      supplier_hotel_id: { type: string }
+      plan_id: { type: string }
+      check_in: { type: string, format: date }
+      check_out: { type: string, format: date }
+      pax:
+        type: object
+        required: [adults]
+        properties:
+          adults: { type: integer, minimum: 1 }
+          children: { type: integer, minimum: 0 }
+      idempotency_key: { type: string }
   output_schema: |
     type: object
     properties:
       ok: { type: boolean }
-      holdId: { type: string }
+      hold_ref: { type: string }
+      expires_at: { type: string, format: date-time }
+      request_id: { type: string }
+      source: { type: string }
+      idempotency_key: { type: string }
   rate_limit:
     calls_per_minute: 6
+- key: air.price.watch
+  description: Register fare change alerts for air itineraries.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/air-price-watch
+  method: POST
+  auth: user_jwt
+  required:
+    - origin
+    - destination
+    - departure_date
+    - seats
+    - cabin
+    - traveler_name
+    - contact_email
+  input_schema: |
+    type: object
+    required: [origin, destination, departure_date, seats, cabin, traveler_name, contact_email]
+    properties:
+      origin: { type: string, pattern: "^[A-Z]{3}$" }
+      destination: { type: string, pattern: "^[A-Z]{3}$" }
+      departure_date: { type: string, format: date }
+      return_date: { type: string, format: date }
+      seats: { type: integer, minimum: 1, maximum: 9 }
+      cabin: { type: string, enum: [economy, premium_economy, business] }
+      target_price_cents: { type: integer, minimum: 1 }
+      traveler_name: { type: string }
+      contact_email: { type: string, format: email }
+      itinerary_id: { type: string, format: uuid }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      watch_id: { type: string }
+      request_id: { type: string }
+      submitted_at: { type: string, format: date-time }
+  rate_limit:
+    calls_per_minute: 8
 - key: groups.create
   description: Create a split-pay escrow for a traveler group.
   endpoint: https://{project_ref}.supabase.co/functions/v1/groups-create-escrow
