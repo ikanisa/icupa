@@ -22,7 +22,7 @@ export class EcoTripsFunctionClient {
   readonly loyalty: DomainClients["loyalty"];
   readonly privacy: DomainClients["privacy"];
   readonly dr: DomainClients["dr"];
-  readonly user: DomainClients["user"];
+  readonly travel: DomainClients["travel"];
 
   constructor(private readonly options: ClientOptions) {
     this.fetchImpl = options.fetch ?? fetch;
@@ -43,7 +43,7 @@ export class EcoTripsFunctionClient {
     this.loyalty = domains.loyalty;
     this.privacy = domains.privacy;
     this.dr = domains.dr;
-    this.user = domains.user;
+    this.travel = domains.travel;
   }
 
   async call<K extends DescriptorKey>(

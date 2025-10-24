@@ -1,0 +1,46 @@
+{
+  "quotes": [
+    {
+      "property_id": "KGL-LAKEWOOD",
+      "plan_code": "flex",
+      "currency": "USD",
+      "nights": 3,
+      "rate": {
+        "base_cents": 47400,
+        "taxes_cents": 5400,
+        "fees_cents": 1800,
+        "total_cents": 54600
+      },
+      "inclusions": ["Daily breakfast", "Evening canoe tour"],
+      "cancellation_policy": "Free cancellation until 48h before arrival"
+    },
+    {
+      "property_id": "KGL-GARDENS",
+      "plan_code": "advance",
+      "currency": "USD",
+      "nights": 2,
+      "rate": {
+        "base_cents": 25600,
+        "taxes_cents": 3200,
+        "fees_cents": 1200,
+        "total_cents": 30000
+      },
+      "inclusions": ["Breakfast", "Airport transfers"],
+      "cancellation_policy": "Non-refundable after booking"
+    },
+    {
+      "property_id": "NBO-SKYLINE",
+      "plan_code": "flex",
+      "currency": "USD",
+      "nights": 4,
+      "rate": {
+        "base_cents": 74400,
+        "taxes_cents": 8400,
+        "fees_cents": 2800,
+        "total_cents": 85600
+      },
+      "inclusions": ["Executive lounge access", "Daily breakfast"],
+      "cancellation_policy": "Free cancellation until 24h before arrival"
+    }
+  ]
+}
