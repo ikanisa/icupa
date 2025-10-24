@@ -1,5 +1,5 @@
-import { CardGlass } from "@ecotrips/ui";
-import { InvoiceGenerateInput } from "@ecotrips/types";
+import { CardGlass, ExplainPrice } from "@ecotrips/ui";
+import { InvoiceGenerateInput, type PriceBreakdown } from "@ecotrips/types";
 import { z } from "zod";
 
 import { getOpsFunctionClient } from "../../../lib/functionClient";
@@ -121,7 +121,27 @@ async function submitRefundAction(_: RefundFormState, formData: FormData): Promi
   }
 }
 
-export default function FinancePage() {
+async function loadFinanceBreakdown(): Promise<PriceBreakdown | null> {
+  const client = await getOpsFunctionClient();
+  if (!client) {
+    return null;
+  }
+
+  try {
+    const response = await client.call("helpers.price", { option_ids: ["ledger-ref-104"] });
+    if (!response.ok) {
+      return null;
+    }
+    return response.breakdowns?.[0]?.breakdown ?? null;
+  } catch (error) {
+    console.error("helpers.price finance", error);
+    return null;
+  }
+}
+
+export default async function FinancePage() {
+  const financeBreakdown = await loadFinanceBreakdown();
+
   return (
     <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
       <CardGlass title="Finance ledger" subtitle="Invoices, refunds, and payouts recorded with HITL guardrails.">
@@ -147,6 +167,11 @@ export default function FinancePage() {
           </div>
           <p className="mt-3 text-xs text-white/60">Ledger entry append ensures audit trail and dual control.</p>
         </div>
+        {financeBreakdown && (
+          <div className="mt-6">
+            <ExplainPrice breakdown={financeBreakdown} headline="REF-104 pricing" />
+          </div>
+        )}
       </CardGlass>
       <CardGlass title="Guardrails" subtitle="FinOps approvals require dual control and observability.">
         <ul className="space-y-2 text-sm text-white/80">

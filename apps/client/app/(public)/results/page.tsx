@@ -1,6 +1,6 @@
-import { CardGlass, buttonClassName } from "@ecotrips/ui";
+import { CardGlass, ExplainPrice, buttonClassName } from "@ecotrips/ui";
 import { createEcoTripsFunctionClient } from "@ecotrips/api";
-import { InventorySearchInput } from "@ecotrips/types";
+import { InventorySearchInput, type PriceBreakdown } from "@ecotrips/types";
 import Link from "next/link";
 
 function parseSearchParams(searchParams: Record<string, string | string[] | undefined>) {
@@ -52,9 +52,42 @@ async function loadResults(searchParams: Record<string, string | string[] | unde
   }
 }
 
+async function loadPriceBreakdowns(optionIds: string[]): Promise<Map<string, PriceBreakdown>> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !anonKey || optionIds.length === 0) {
+    return new Map();
+  }
+
+  const client = createEcoTripsFunctionClient({
+    supabaseUrl,
+    anonKey,
+    getAccessToken: async () => null,
+  });
+
+  try {
+    const response = await client.call("helpers.price", { option_ids: optionIds });
+    if (!response.ok) {
+      return new Map();
+    }
+    const map = new Map<string, PriceBreakdown>();
+    for (const entry of response.breakdowns ?? []) {
+      map.set(entry.option_id, entry.breakdown);
+    }
+    return map;
+  } catch (error) {
+    console.error("helpers.price failed", error);
+    return new Map();
+  }
+}
+
 export default async function ResultsPage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
   const input = parseSearchParams(searchParams);
   const results = await loadResults(searchParams);
+  const optionIds = results.items
+    .map((item) => (typeof item.supplier_hotel_id === "string" ? item.supplier_hotel_id : null))
+    .filter((id): id is string => Boolean(id));
+  const breakdowns = await loadPriceBreakdowns(optionIds);
 
   const isOffline = !results.ok || results.cacheHit;
 
@@ -71,33 +104,42 @@ export default async function ResultsPage({ searchParams }: { searchParams: Reco
           </p>
         ) : (
           <ul className="space-y-4">
-            {results.items.map((item) => (
-              <li key={item.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <h3 className="text-lg font-semibold">{item.name ?? "Itinerary option"}</h3>
-                    <p className="text-sm text-white/70">Supplier {item.supplier ?? "tbd"}</p>
+            {results.items.map((item, index) => {
+              const optionId = typeof item.supplier_hotel_id === "string" ? item.supplier_hotel_id : `option-${index}`;
+              const breakdown = breakdowns.get(optionId) ?? breakdowns.get("default");
+              return (
+                <li key={optionId} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-lg font-semibold">{item.name ?? "Itinerary option"}</h3>
+                      <p className="text-sm text-white/70">Supplier {item.supplier ?? "tbd"}</p>
+                    </div>
+                    <p className="text-base font-semibold text-sky-200">
+                      {item.currency ?? "USD"} {Math.round(item.price_cents / 100).toLocaleString()}
+                    </p>
                   </div>
-                  <p className="text-base font-semibold text-sky-200">
-                    {item.currency ?? "USD"} {Math.round(item.price_cents / 100).toLocaleString()}
-                  </p>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Link
-                    href={`/itinerary/${item.id ?? "draft"}`}
-                    className={buttonClassName("glass")}
-                  >
-                    View itinerary
-                  </Link>
-                  <Link
-                    href={`/itinerary/${item.id ?? "draft"}?action=quote`}
-                    className={buttonClassName("secondary")}
-                  >
-                    Request quote
-                  </Link>
-                </div>
-              </li>
-            ))}
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Link
+                      href={`/itinerary/${item.id ?? optionId ?? "draft"}`}
+                      className={buttonClassName("glass")}
+                    >
+                      View itinerary
+                    </Link>
+                    <Link
+                      href={`/itinerary/${item.id ?? optionId ?? "draft"}?action=quote`}
+                      className={buttonClassName("secondary")}
+                    >
+                      Request quote
+                    </Link>
+                  </div>
+                  {breakdown && (
+                    <div className="mt-4">
+                      <ExplainPrice breakdown={breakdown} headline="Fixture pricing" />
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </CardGlass>
