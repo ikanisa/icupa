@@ -1,0 +1,20 @@
+[
+  {
+    "key": "inventory-fixtures",
+    "target": "inventory-search",
+    "mode": "force_failure",
+    "fallback": "fixtures",
+    "enabled": true,
+    "notes": "Simulate HBX outage; inventory functions should serve fixtures.",
+    "expires_at": null
+  },
+  {
+    "key": "inventory-hold-latency",
+    "target": "inventory-hold",
+    "mode": "latency_spike",
+    "fallback": null,
+    "enabled": false,
+    "notes": "Optional: adds 5s latency to hold workflow.",
+    "expires_at": null
+  }
+]

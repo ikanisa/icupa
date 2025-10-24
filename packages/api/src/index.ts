@@ -1,4 +1,12 @@
-import { CheckoutInput, ContributionCreate, EscrowCreate, InventorySearchInput, PermitRequest } from "@ecotrips/types";
+import {
+  CheckoutInput,
+  ContributionCreate,
+  EscrowCreate,
+  InventorySearchInput,
+  MapsTilesListInput,
+  MapsTilesListResponse,
+  PermitRequest,
+} from "@ecotrips/types";
 import {
   DrSnapshotInput,
   GroupsOpsPayoutNowInput,
@@ -40,6 +48,13 @@ type RequestOptions = {
 
 type FunctionMap = {
   [K in keyof typeof descriptors]: (typeof descriptors)[K];
+};
+
+type MapsClient = {
+  tilesList(
+    input?: z.infer<typeof MapsTilesListInput>,
+    options?: RequestOptions,
+  ): Promise<z.infer<typeof MapsTilesListResponse>>;
 };
 
 const paginatedResponse = z.object({
@@ -287,6 +302,14 @@ const descriptors = {
         .optional(),
     }),
   },
+  "maps.tiles.list": {
+    path: "/functions/v1/maps-tiles-list",
+    method: "GET",
+    auth: "anon",
+    input: MapsTilesListInput.partial(),
+    output: MapsTilesListResponse,
+    cacheTtlMs: 300_000,
+  },
   "dr.snapshot": {
     path: "/functions/v1/dr-snapshot",
     method: "POST",
@@ -307,10 +330,19 @@ export type DescriptorKey = keyof FunctionMap;
 export class EcoTripsFunctionClient {
   private readonly fetchImpl: typeof fetch;
   private readonly timeoutMs: number;
+  readonly maps: MapsClient;
 
   constructor(private readonly options: ClientOptions) {
     this.fetchImpl = options.fetch ?? fetch;
     this.timeoutMs = options.defaultTimeoutMs ?? DEFAULT_TIMEOUT_MS;
+    this.maps = {
+      tilesList: (input, options) =>
+        this.call(
+          "maps.tiles.list",
+          (input ?? {}) as z.infer<FunctionMap["maps.tiles.list"]["input"]>,
+          options,
+        ),
+    };
   }
 
   async call<K extends DescriptorKey>(

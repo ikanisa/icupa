@@ -5,6 +5,7 @@ import { createDisasterRecoveryClient, type DisasterRecoveryClient } from "./dr"
 import { createFinanceClient, type FinanceClient } from "./finance";
 import { createGroupsClient, type GroupsClient } from "./groups";
 import { createInventoryClient, type InventoryClient } from "./inventory";
+import { createMapsClient, type MapsClient } from "./maps";
 import { createOpsClient, type OpsClient } from "./ops";
 import { createPermitsClient, type PermitsClient } from "./permits";
 import { createPrivacyClient, type PrivacyClient } from "./privacy";
@@ -20,6 +21,7 @@ export type DomainClients = {
   finance: FinanceClient;
   privacy: PrivacyClient;
   dr: DisasterRecoveryClient;
+  maps: MapsClient;
 };
 
 export function createDomainClients(client: FunctionCaller<FunctionMap>): DomainClients {
@@ -33,6 +35,7 @@ export function createDomainClients(client: FunctionCaller<FunctionMap>): Domain
     finance: createFinanceClient(client),
     privacy: createPrivacyClient(client),
     dr: createDisasterRecoveryClient(client),
+    maps: createMapsClient(client),
   };
 }
 
@@ -45,3 +48,4 @@ export * from "./ops";
 export * from "./permits";
 export * from "./privacy";
 export * from "./wallet";
+export * from "./maps";
