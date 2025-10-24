@@ -55,6 +55,9 @@ agents:
       - notify.whatsapp_send
       - notify.whatsapp
       - agent.log_goal
+      - itinerary.assemble
+      - supplier.match
+      - reservation.handle
     tool_bundles:
       quote.search:
         summary: Resolve search and quote steps with caching + fixtures fallback.
@@ -88,6 +91,45 @@ agents:
               idempotency: payload.idempotency_key + Idempotency-Key header
               expiry_minutes: 15
               offline_source: fixtures (INVENTORY_OFFLINE=1)
+      itinerary.assemble:
+        summary: Compose itinerary shells and persist line items through booking RPC.
+        actions:
+          - key: itinerary.assemble
+            breakdown:
+              endpoint: itinerary-assemble
+              telemetry:
+                - otel.trace
+                - AUDIT itinerary.assemble
+              storage: booking.itineraries + booking.items
+              compliance:
+                license: ecoTrips.internal.itineraries
+                retention: 30_days
+      supplier.match:
+        summary: Score suppliers and traveler cohorts with pgvector similarity.
+        actions:
+          - key: supplier.match
+            breakdown:
+              endpoint: supplier-match
+              telemetry:
+                - otel.trace
+                - AUDIT supplier.match
+              storage: matching.traveler_embeddings + matching.supplier_embeddings
+              compliance:
+                license: ecoTrips.intent_embeddings
+                retention: 90_days
+      reservation.handle:
+        summary: Maintain reservation ledger entries with supplier confirmations.
+        actions:
+          - key: reservation.handle
+            breakdown:
+              endpoint: reservation-handle
+              telemetry:
+                - otel.trace
+                - AUDIT reservation.handle
+              storage: booking.reservations
+              compliance:
+                license: ecoTrips.supplier_terms
+                retention: 365_days
       checkout.intent:
         summary: Bootstrap checkout session with Stripe orchestration.
         actions:
@@ -118,6 +160,42 @@ agents:
               channel: whatsapp
               telemetry:
                 - AUDIT wa.send
+      notify.whatsapp:
+        summary: Compose WhatsApp advisories with route warnings and compliance tags.
+        actions:
+          - key: notify.whatsapp
+            breakdown:
+              endpoint: notify-whatsapp
+              channel: whatsapp
+              telemetry:
+                - AUDIT notify.whatsapp
+              compliance:
+                license: ecoTrips.messaging
+                retention: 90_days
+      chat.voice_call_initiate:
+        summary: Spin up concierge voice call bridges with consent logging.
+        actions:
+          - key: chat.voice_call_initiate
+            breakdown:
+              endpoint: voice-call-initiate
+              telemetry:
+                - AUDIT voice.call.initiate
+              channel: voice
+              compliance:
+                license: ecoTrips.voice.bridge
+                retention: 30_days
+      chat.voice_call_summarize:
+        summary: Summarize and archive concierge voice conversations for compliance.
+        actions:
+          - key: chat.voice_call_summarize
+            breakdown:
+              endpoint: voice-call-summarize
+              telemetry:
+                - AUDIT voice.call.summarize
+              storage: supplier_crm.threads
+              compliance:
+                license: ecoTrips.voice.bridge
+                retention: 30_days
       air.price.watch:
         summary: Register fare watches with traveler contact metadata and audit trails.
         actions:
@@ -226,6 +304,8 @@ agents:
       - notify.whatsapp_send
       - notify.whatsapp
       - ops.bookings
+      - chat.voice_call_initiate
+      - chat.voice_call_summarize
     memory_scopes:
       - short_term
       - working_plan
@@ -279,8 +359,11 @@ agents:
       - ops.exceptions
       - ops.refund
       - groups.payout_now
+      - reservation.handle
       - checkout.intent
       - notify.whatsapp_send
+      - chat.voice_call_initiate
+      - chat.voice_call_summarize
     memory_scopes:
       - short_term
       - team_memory
@@ -305,6 +388,8 @@ agents:
       - ops.refund
       - webhook.stripe
       - groups.payout_now
+      - supplier.match
+      - reservation.handle
     memory_scopes:
       - team_memory
       - long_term

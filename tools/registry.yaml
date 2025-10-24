@@ -847,3 +847,188 @@
   implementation_status: mock
   rate_limit:
     calls_per_minute: 180
+- key: itinerary.assemble
+  description: Assemble a draft itinerary and persist line items via booking RPCs.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/itinerary-assemble
+  method: POST
+  auth: service_role
+  required:
+    - userId
+    - items
+  input_schema: |
+    type: object
+    required: [userId, items]
+    properties:
+      userId: { type: string, format: uuid }
+      currency: { type: string, minLength: 3, maxLength: 3 }
+      notes: { type: string }
+      items:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          required: [itemType, priceCents]
+          properties:
+            itemType: { type: string, enum: [hotel, tour, transfer, permit, other] }
+            supplierRef: { type: string }
+            startAt: { type: string, format: date-time }
+            endAt: { type: string, format: date-time }
+            priceCents: { type: integer, minimum: 0 }
+            currency: { type: string, minLength: 3, maxLength: 3 }
+            pax: { type: array, items: { type: object } }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      request_id: { type: string }
+      result:
+        type: object
+        properties:
+          itinerary_id: { type: string, format: uuid }
+          item_ids:
+            type: array
+            items: { type: string, format: uuid }
+          total_cents: { type: integer }
+          currency: { type: string }
+  implementation_status: experimental
+  rate_limit:
+    calls_per_minute: 12
+- key: supplier.match
+  description: Rank suppliers and traveler cohorts against an intent embedding using pgvector.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/supplier-match
+  method: POST
+  auth: service_role
+  required:
+    - embedding_or_traveler
+  input_schema: |
+    type: object
+    properties:
+      travelerId: { type: string, format: uuid }
+      embedding:
+        type: array
+        items: { type: number }
+      limit: { type: integer, minimum: 1, maximum: 50 }
+    anyOf:
+      - required: [travelerId]
+      - required: [embedding]
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      request_id: { type: string }
+      source: { type: string, enum: [embedding, traveler] }
+      suppliers:
+        type: array
+        items:
+          type: object
+          properties:
+            supplier_id: { type: string, format: uuid }
+            supplier_name: { type: string, nullable: true }
+            score: { type: number }
+            metadata: { type: object }
+      travelers:
+        type: array
+        items:
+          type: object
+          properties:
+            traveler_id: { type: string, format: uuid, nullable: true }
+            score: { type: number }
+            metadata: { type: object }
+  implementation_status: experimental
+  rate_limit:
+    calls_per_minute: 20
+- key: reservation.handle
+  description: Upsert a reservation row for itinerary items and supplier confirmations.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/reservation-handle
+  method: POST
+  auth: service_role
+  required:
+    - itineraryId
+  input_schema: |
+    type: object
+    required: [itineraryId]
+    properties:
+      itineraryId: { type: string, format: uuid }
+      itemId: { type: string, format: uuid }
+      supplierRef: { type: string }
+      supplierId: { type: string, format: uuid }
+      confirmationCode: { type: string }
+      status: { type: string, enum: [pending, confirmed, cancelled, failed] }
+      metadata: { type: object }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      request_id: { type: string }
+      reservation_id: { type: string, format: uuid }
+      status: { type: string }
+  implementation_status: experimental
+  rate_limit:
+    calls_per_minute: 20
+- key: chat.voice_call_initiate
+  description: Initiate a concierge voice call session via mock bridge.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/voice-call-initiate
+  method: POST
+  auth: service_role
+  input_schema: |
+    type: object
+    properties:
+      thread_id: { type: string }
+      traveler_name: { type: string }
+      traveler_phone: { type: string }
+      locale: { type: string, enum: [en, rw] }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      request_id: { type: string }
+      call:
+        type: object
+        properties:
+          call_id: { type: string }
+          thread_id: { type: string }
+          status: { type: string }
+          dialer_url: { type: string }
+          expires_at: { type: string, format: date-time }
+          locale: { type: string }
+          participant: { type: object }
+  implementation_status: mock
+  rate_limit:
+    calls_per_minute: 60
+- key: chat.voice_call_summarize
+  description: Produce a call summary and compliance log for prior voice sessions.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/voice-call-summarize
+  method: POST
+  auth: service_role
+  input_schema: |
+    type: object
+    properties:
+      call_id: { type: string }
+      thread_id: { type: string }
+      transcript:
+        type: array
+        items:
+          type: object
+          properties:
+            speaker: { type: string }
+            text: { type: string }
+            timestamp: { type: string }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      request_id: { type: string }
+      summary:
+        type: object
+        properties:
+          call_id: { type: string }
+          headline: { type: string }
+          sentiment: { type: string }
+          highlights: { type: array, items: { type: string } }
+          next_steps: { type: array, items: { type: string } }
+          duration_seconds: { type: number }
+          transcript_turns: { type: integer }
+      thread_entry: { type: object }
+  implementation_status: mock
+  rate_limit:
+    calls_per_minute: 90

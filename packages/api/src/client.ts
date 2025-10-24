@@ -23,6 +23,18 @@ export class EcoTripsFunctionClient {
   readonly privacy: DomainClients["privacy"];
   readonly dr: DomainClients["dr"];
   readonly travel: DomainClients["travel"];
+  readonly matching: DomainClients["matching"];
+  readonly maps: DomainClients["maps"];
+  readonly voice: DomainClients["voice"];
+  readonly notify: DomainClients["notify"];
+  readonly support: DomainClients["support"];
+  readonly flags: DomainClients["flags"];
+  readonly admin: DomainClients["admin"];
+  readonly supplier: DomainClients["supplier"];
+  readonly user: DomainClients["user"];
+  readonly chat: DomainClients["chat"];
+  readonly search: DomainClients["search"];
+  readonly helpers: DomainClients["helpers"];
 
   constructor(private readonly options: ClientOptions) {
     this.fetchImpl = options.fetch ?? fetch;
@@ -44,6 +56,18 @@ export class EcoTripsFunctionClient {
     this.privacy = domains.privacy;
     this.dr = domains.dr;
     this.travel = domains.travel;
+    this.matching = domains.matching;
+    this.maps = domains.maps;
+    this.voice = domains.voice;
+    this.notify = domains.notify;
+    this.support = domains.support;
+    this.flags = domains.flags;
+    this.admin = domains.admin;
+    this.supplier = domains.supplier;
+    this.user = domains.user;
+    this.chat = domains.chat;
+    this.search = domains.search;
+    this.helpers = domains.helpers;
   }
 
   async call<K extends DescriptorKey>(

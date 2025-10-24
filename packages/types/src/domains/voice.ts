@@ -21,7 +21,7 @@ export type VoiceTranscriptTurn = z.infer<typeof VoiceTranscriptTurn>;
 export const VoiceCallSummarizeInput = z.object({
   thread_id: z.string().min(1),
   call_id: z.string().min(1),
-  transcript: z.array(VoiceTranscriptTurn).min(1),
+  transcript: z.array(VoiceTranscriptTurn).min(1).readonly(),
 });
 
 export type VoiceCallSummarizeInput = z.infer<typeof VoiceCallSummarizeInput>;

@@ -11,7 +11,31 @@ import {
   TravelAirSearchInput,
   TravelStayQuoteInput,
   TravelStaySearchInput,
+  PaymentEscalationInput,
+  PaymentEscalationResponse,
+  GroupSuggestionInput,
+  GroupSuggestionResponse,
+  PricingApplyInput,
+  PricingApplyResult,
+  LoyaltyGrantInput,
+  LoyaltyGrantResult,
+  MapsTilesListInput,
+  MapsTilesListResponse,
+  FxRateQuoteInput,
+  FxRateQuoteResult,
+  AffiliateOutboundInput,
+  AffiliateOutboundResult,
+  SupplierOrdersRequest,
+  SupplierOrdersResponse,
+  SupplierConfirmInput,
+  SupplierConfirmResponse,
+  FlagsConfigResponse,
+  SynthGenerateInput,
+  SynthGenerateResponse,
+  PriceBreakdownRequest,
+  PriceBreakdownResponse,
 } from "@ecotrips/types";
+/*
 import {
   CheckoutInput,
   ContributionCreate,
@@ -19,6 +43,7 @@ import {
   InventorySearchInput,
   PermitRequest,
 } from "@ecotrips/types";
+*/
 import {
   ConciergeDailyBriefQuery,
   ConciergeDailyBriefResponse,
@@ -335,6 +360,22 @@ const descriptors = {
     auth: "user",
     input: PricingApplyInput,
     output: PricingApplyResult,
+  },
+  "maps.tiles.list": {
+    path: "/functions/v1/maps-tiles-list",
+    method: "GET",
+    auth: "anon",
+    input: MapsTilesListInput.default({}),
+    output: MapsTilesListResponse,
+    cacheTtlMs: 600_000,
+  },
+  "helpers.price": {
+    path: "/functions/v1/helpers-price",
+    method: "POST",
+    auth: "anon",
+    input: PriceBreakdownRequest,
+    output: PriceBreakdownResponse,
+    cacheTtlMs: 300_000,
   },
   "ops.bookings": {
     path: "/functions/v1/ops-bookings",

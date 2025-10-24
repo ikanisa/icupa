@@ -73,3 +73,28 @@ export type PriceBreakdown = z.infer<typeof PriceBreakdown>;
 export type PriceBreakdownRequest = z.infer<typeof PriceBreakdownRequest>;
 export type PriceBreakdownEntry = z.infer<typeof PriceBreakdownEntry>;
 export type PriceBreakdownResponse = z.infer<typeof PriceBreakdownResponse>;
+
+export const FxRateQuoteInput = z.object({
+  base_currency: z.string().min(1),
+  quote_currency: z.string().min(1),
+  amount_cents: z.number().int().nonnegative(),
+  itinerary_id: z.string().uuid().optional(),
+  booking_id: z.string().optional(),
+  context: z.record(z.any()).optional(),
+});
+
+export type FxRateQuoteInput = z.infer<typeof FxRateQuoteInput>;
+
+export const FxRateQuoteResult = z.object({
+  ok: z.boolean(),
+  rate: z.number().positive().optional(),
+  provider: z.string().optional(),
+  converted_cents: z.number().int().nonnegative().optional(),
+  base_currency: z.string().optional(),
+  quote_currency: z.string().optional(),
+  request_id: z.string().optional(),
+  source: z.enum(["fixture", "live", "cache"]).optional(),
+  quoted_at: z.string().optional(),
+});
+
+export type FxRateQuoteResult = z.infer<typeof FxRateQuoteResult>;
