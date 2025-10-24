@@ -121,13 +121,15 @@ async function GrowthSnapshots() {
 async function loadGrowthData() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !anonKey) {
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !anonKey || !serviceRoleKey) {
     return { referrals: [], priceLocks: [], disruptions: [], offline: true };
   }
 
   const headers: HeadersInit = {
-    apikey: anonKey,
-    Authorization: `Bearer ${anonKey}`,
+    apikey: serviceRoleKey,
+    Authorization: `Bearer ${serviceRoleKey}`,
     'Accept-Profile': 'public',
   };
 

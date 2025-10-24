@@ -1,6 +1,13 @@
 import { ERROR_CODES } from "../_obs/constants.ts";
 import { getRequestId, healthResponse, withObs } from "../_obs/withObs.ts";
-import { buildGetHeaders, buildGrowthHeaders, resolveGrowthConfig } from "../_shared/growth.ts";
+import {
+  buildGetHeaders,
+  buildGrowthHeaders,
+  isGrowthAuthorized,
+  logGrowthAuthFailure,
+  resolveGrowthAuth,
+  resolveGrowthConfig,
+} from "../_shared/growth.ts";
 
 const REFERRAL_BASE_URL = Deno.env.get("REFERRAL_BASE_URL") ?? "https://go.ecotrips.earth/r";
 
@@ -31,6 +38,20 @@ const handler = withObs(async (req) => {
 
   if (req.method !== "POST") {
     return jsonResponse({ ok: false, error: "POST only" }, 405);
+  }
+
+  const auth = await resolveGrowthAuth(req);
+  const authorized = isGrowthAuthorized(auth, { allowServiceRole: true, allowUser: true });
+  if (!authorized) {
+    const status = auth.type === "anonymous" ? 401 : 403;
+    logGrowthAuthFailure({
+      fn: "referral-link",
+      requestId,
+      auth,
+      required: "user_or_service",
+      status,
+    });
+    return jsonResponse({ ok: false, error: "unauthorized", request_id: requestId }, status);
   }
 
   let body: ReferralRequestBody;

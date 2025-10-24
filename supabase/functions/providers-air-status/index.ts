@@ -1,5 +1,6 @@
 import { ERROR_CODES } from "../_obs/constants.ts";
 import { getRequestId, healthResponse, withObs } from "../_obs/withObs.ts";
+import { isGrowthAuthorized, logGrowthAuthFailure, resolveGrowthAuth } from "../_shared/growth.ts";
 
 const PROVIDER_BASE = Deno.env.get("AIR_STATUS_BASE") ?? "";
 const PROVIDER_TOKEN = Deno.env.get("AIR_STATUS_TOKEN") ?? "";
@@ -15,6 +16,20 @@ const handler = withObs(async (req) => {
 
   if (req.method !== "GET" && req.method !== "POST") {
     return jsonResponse({ ok: false, error: "GET or POST only" }, 405);
+  }
+
+  const auth = await resolveGrowthAuth(req);
+  const authorized = isGrowthAuthorized(auth, { allowServiceRole: true, allowUser: true });
+  if (!authorized) {
+    const status = auth.type === "anonymous" ? 401 : 403;
+    logGrowthAuthFailure({
+      fn: "providers-air-status",
+      requestId,
+      auth,
+      required: "user_or_service",
+      status,
+    });
+    return jsonResponse({ ok: false, error: "unauthorized", request_id: requestId }, status);
   }
 
   const params = req.method === "GET"

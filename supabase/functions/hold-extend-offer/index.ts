@@ -1,6 +1,13 @@
 import { ERROR_CODES } from "../_obs/constants.ts";
 import { getRequestId, healthResponse, withObs } from "../_obs/withObs.ts";
-import { buildGetHeaders, buildGrowthHeaders, resolveGrowthConfig } from "../_shared/growth.ts";
+import {
+  buildGetHeaders,
+  buildGrowthHeaders,
+  isGrowthAuthorized,
+  logGrowthAuthFailure,
+  resolveGrowthAuth,
+  resolveGrowthConfig,
+} from "../_shared/growth.ts";
 
 interface HoldExtendBody {
   offer_id?: unknown;
@@ -26,6 +33,20 @@ const handler = withObs(async (req) => {
 
   if (req.method !== "POST") {
     return jsonResponse({ ok: false, error: "POST only" }, 405);
+  }
+
+  const auth = await resolveGrowthAuth(req);
+  const authorized = isGrowthAuthorized(auth, { allowServiceRole: true });
+  if (!authorized) {
+    const status = auth.type === "anonymous" ? 401 : 403;
+    logGrowthAuthFailure({
+      fn: "hold-extend-offer",
+      requestId,
+      auth,
+      required: "service_role",
+      status,
+    });
+    return jsonResponse({ ok: false, error: "unauthorized", request_id: requestId }, status);
   }
 
   let body: HoldExtendBody;
