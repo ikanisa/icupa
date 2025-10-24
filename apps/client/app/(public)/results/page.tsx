@@ -3,6 +3,8 @@ import { createEcoTripsFunctionClient } from "@ecotrips/api";
 import { InventorySearchInput } from "@ecotrips/types";
 import Link from "next/link";
 
+import { PlannerFeatureGate } from "../components/PlannerFeatureGate";
+
 function parseSearchParams(searchParams: Record<string, string | string[] | undefined>) {
   const destination = typeof searchParams.destination === "string" ? searchParams.destination : "Kigali";
   const startDate = typeof searchParams.startDate === "string" ? searchParams.startDate : new Date().toISOString().slice(0, 10);
@@ -65,10 +67,20 @@ export default async function ResultsPage({ searchParams }: { searchParams: Reco
         subtitle={`Dates ${input.startDate} → ${input.endDate} · party of ${input.party.adults}${input.party.children ? ` + ${input.party.children} children` : ""}`}
       >
         {results.items.length === 0 ? (
-          <p className="text-sm text-white/80">
-            No live inventory yet. Offline cache fixtures keep the experience responsive; PlannerCoPilot will notify once
-            suppliers respond.
-          </p>
+          <PlannerFeatureGate
+            debugLabel="results.empty"
+            fallback={
+              <p className="text-sm text-white/80">
+                No live inventory yet. Offline cache fixtures keep the experience responsive while ConciergeGuide monitors supplier
+                updates.
+              </p>
+            }
+          >
+            <p className="text-sm text-white/80">
+              No live inventory yet. Offline cache fixtures keep the experience responsive; PlannerCoPilot will notify once
+              suppliers respond.
+            </p>
+          </PlannerFeatureGate>
         ) : (
           <ul className="space-y-4">
             {results.items.map((item) => (
