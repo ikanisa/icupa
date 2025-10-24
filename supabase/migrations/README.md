@@ -52,6 +52,9 @@ baseline. Apply them after `0033_ops_views_additions.sql`.
   staged by `0020_agent_runtime_public_helpers.sql`.
 - `20250922083511_ops_chaos_policies.sql` introduces a shared registry for chaos
   injection scenarios consumed by synthetics and the wallet tile downloader.
+- `20250922101500_travel_discovery_embeddings.sql` layers discovery embeddings,
+  supplier compliance RLS, and storage buckets onto the travel schema introduced
+  in 0038_b2b.sql.
 
 ## Adding new migrations
 

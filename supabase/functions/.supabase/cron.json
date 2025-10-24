@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "schedules": [
+    {
+      "name": "travel-discovery-poi-hourly",
+      "function": "travel-discovery",
+      "cron": "0 * * * *",
+      "requestBody": "{\"mode\":\"poi\",\"location\":\"Kigali\"}"
+    },
+    {
+      "name": "travel-discovery-events-six-hourly",
+      "function": "travel-discovery",
+      "cron": "15 */6 * * *",
+      "requestBody": "{\"mode\":\"events\",\"location\":\"Kigali\"}"
+    }
+  ]
+}
