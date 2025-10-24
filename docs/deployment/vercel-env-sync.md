@@ -16,6 +16,8 @@ Track and audit the environment variables synced into the Vercel Preview and Pro
 | `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Client (Next.js) | ✅ | ✅ | Push notifications on the marketing/admin Next.js apps. |
 | `VERCEL_REGION` | Build/runtime | ✅ (`fra1`) | ✅ (`fra1`) | Keep runtime close to EU Supabase region; update alongside `vercel.json`. |
 
+> ℹ️ `scripts/deploy/vercel-preview.mjs` now refuses to deploy if either `NEXT_PUBLIC_AGENTS_URL` or `VITE_AGENTS_URL` are missing. Keep both environments aligned with the production agents-service hostname before invoking the deploy script.
+
 ## Preview-only Variables
 | Key | Purpose | Status | Notes |
 | --- | --- | --- | --- |
