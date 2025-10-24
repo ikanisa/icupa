@@ -133,41 +133,33 @@ const taskPhases: PhaseDefinition[] = [
     id: "phase-3",
     title: "Phase 3 · Deployment readiness",
     description:
-      "Validate preview builds on Vercel, double-check environment coverage, and shepherd the integration PR through review.",
     highlight: "Ship with confidence by exercising the preview pipeline end-to-end.",
     tasks: [
       {
         id: "task-issue-4",
-        title: "Verify Vercel deployment pipeline",
         summary:
           "Trigger a fresh preview deployment and capture validation evidence for reviewers.",
         steps: [
           "Build each Next.js workspace locally with `npm run build --workspace <app>`.",
-          "Deploy a preview using `vercel deploy --prebuilt` and note the URL.",
           "If Turbopack panics, capture the webpack fallback output from `app/scripts/run-next-build.mjs` and attach it to your evidence.",
           "Record the validation steps and outcomes in `DEPLOYMENT_READINESS_REPORT.md`.",
         ],
         commands: [
           "npm run build --workspace app",
-          "vercel deploy --prebuilt",
         ],
         resources: [
-          { label: "Runbook entry", href: "/docs/phased-tasks#issue-4-deployment-readiness-for-vercel-has-not-been-validated" },
           { label: "Task stub", href: "/docs/phased-tasks#task-issue-4" },
         ],
       },
       {
         id: "task-issue-4-env-audit",
-        title: "Audit Vercel environment configuration",
         summary:
           "Confirm every required secret is populated across Production, Preview, and Development scopes.",
         steps: [
           "Enumerate required variables from `.env.example`.",
-          "Verify each variable is present in Vercel via dashboard or CLI, redacting secrets in captured evidence.",
           "Document missing items and assign owners within `DEPLOYMENT_READINESS_REPORT.md`.",
         ],
         commands: [
-          "vercel env ls",
           "# update DEPLOYMENT_READINESS_REPORT.md",
         ],
         resources: [
