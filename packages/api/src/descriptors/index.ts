@@ -3,9 +3,10 @@ import { drDescriptors } from "./dr";
 import { financeDescriptors } from "./finance";
 import { groupsDescriptors } from "./groups";
 import { inventoryDescriptors } from "./inventory";
-import { growthDescriptors } from "./growth";
+import { loyaltyDescriptors } from "./loyalty";
 import { opsDescriptors } from "./ops";
 import { permitsDescriptors } from "./permits";
+import { pricingDescriptors } from "./pricing";
 import { privacyDescriptors } from "./privacy";
 import { walletDescriptors } from "./wallet";
 import { helpersDescriptors } from "./helpers";
@@ -20,6 +21,8 @@ export const descriptors = {
   ...walletDescriptors,
   ...opsDescriptors,
   ...financeDescriptors,
+  ...pricingDescriptors,
+  ...loyaltyDescriptors,
   ...privacyDescriptors,
   ...drDescriptors,
   ...helpersDescriptors,

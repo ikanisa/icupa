@@ -1,0 +1,12 @@
+{
+  "tiers": [
+    { "tier": "starter", "members": 864, "points": 42800 },
+    { "tier": "silver", "members": 312, "points": 98200 },
+    { "tier": "gold", "members": 104, "points": 188400 },
+    { "tier": "platinum", "members": 18, "points": 94500 }
+  ],
+  "recent_grants": [
+    { "profile": "alice@ecotrips", "points": 420, "reason": "Kigali upgrade", "request_id": "loyalty-9b3" },
+    { "profile": "bernard@ecotrips", "points": 1200, "reason": "Group organizer bonus", "request_id": "loyalty-52a" }
+  ]
+}

@@ -7,10 +7,10 @@ export type FinanceClient = {
     input: InferInput<(typeof financeDescriptors)["fin.invoice.generate"]>,
     options?: RequestOptions,
   ): Promise<InferOutput<(typeof financeDescriptors)["fin.invoice.generate"]>>;
-  summarizeRefundPolicy(
-    input: InferInput<(typeof financeDescriptors)["fin.refund.policySummarize"]>,
+  quoteFx(
+    input: InferInput<(typeof financeDescriptors)["fin.fx.rateQuote"]>,
     options?: RequestOptions,
-  ): Promise<InferOutput<(typeof financeDescriptors)["fin.refund.policySummarize"]>>;
+  ): Promise<InferOutput<(typeof financeDescriptors)["fin.fx.rateQuote"]>>;
 };
 
 export function createFinanceClient(client: FunctionCaller<FunctionMap>): FinanceClient {
@@ -18,8 +18,8 @@ export function createFinanceClient(client: FunctionCaller<FunctionMap>): Financ
     generateInvoice(input, options) {
       return client.call("fin.invoice.generate", input, options);
     },
-    summarizeRefundPolicy(input, options) {
-      return client.call("fin.refund.policySummarize", input, options);
+    quoteFx(input, options) {
+      return client.call("fin.fx.rateQuote", input, options);
     },
   };
 }

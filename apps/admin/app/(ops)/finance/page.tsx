@@ -5,6 +5,10 @@ import { z } from "zod";
 import { getOpsFunctionClient } from "../../../lib/functionClient";
 import { logAdminAction } from "../../../lib/logging";
 
+import pricingRuleFixtures from "../../../../../ops/fixtures/pricing_rules.json" assert { type: "json" };
+import loyaltyDashboardFixture from "../../../../../ops/fixtures/loyalty_dashboard.json" assert { type: "json" };
+import invoiceFxSnapshots from "../../../../../ops/fixtures/invoice_fx_snapshots.json" assert { type: "json" };
+
 import { InvoiceGenerateForm, type InvoiceFormState } from "./InvoiceGenerateForm";
 import { RefundForm, type RefundFormState } from "./RefundForm";
 import { RefundPolicySummaryPanel, type RefundPolicySummaryState } from "./RefundPolicySummaryPanel";

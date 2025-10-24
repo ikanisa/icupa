@@ -3,11 +3,42 @@ import { createEcoTripsFunctionClient } from "@ecotrips/api";
 import { InventorySearchInput, type PriceBreakdown } from "@ecotrips/types";
 import Link from "next/link";
 
-import { createPageMetadata } from "../../../lib/seo/metadata";
-import { loadInventorySearch, parseSearchParams } from "../../../lib/loaders/search";
-import type { RawSearchParams } from "../../../lib/loaders/search";
-import { PublicPage } from "../components/PublicPage";
-import { ResultsHydrator } from "./ResultsHydrator";
+import { ResultsList } from "./ResultsList";
+
+function parseSearchParams(searchParams: Record<string, string | string[] | undefined>) {
+  const destination = typeof searchParams.destination === "string" ? searchParams.destination : "Kigali";
+  const startDate = typeof searchParams.startDate === "string" ? searchParams.startDate : new Date().toISOString().slice(0, 10);
+  const endDate = typeof searchParams.endDate === "string"
+    ? searchParams.endDate
+    : new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const adults = Number(Array.isArray(searchParams.adults) ? searchParams.adults[0] : searchParams.adults ?? 2);
+  const children = Number(Array.isArray(searchParams.children) ? searchParams.children[0] : searchParams.children ?? 0);
+
+  const parsed = InventorySearchInput.safeParse({
+    destination,
+    startDate,
+    endDate,
+    party: { adults: Number.isFinite(adults) ? adults : 2, children: Number.isFinite(children) ? children : 0 },
+  });
+
+  return parsed.success
+    ? parsed.data
+    : {
+        destination,
+        startDate,
+        endDate,
+        party: { adults: 2, children: 0 },
+        budgetHint: "balanced" as const,
+        locale: "en" as const,
+      };
+}
+
+async function loadResults(searchParams: Record<string, string | string[] | undefined>) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !anonKey) {
+    return { items: [], ok: false, cacheHit: true };
+  }
 
 export async function generateMetadata({ searchParams }: { searchParams: RawSearchParams }) {
   const input = parseSearchParams(searchParams);
@@ -56,11 +87,11 @@ export default async function ResultsPage({ searchParams }: { searchParams: Reco
   const breakdowns = await loadPriceBreakdowns(optionIds);
 
   const isOffline = !results.ok || results.cacheHit;
+  const defaultCurrency = (results.items[0]?.currency ?? "USD").toUpperCase();
 
   return (
-    <PublicPage>
-      <ResultsHydrator input={input} results={results} />
-      <CardGlass
+    <div className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 px-4 pb-24 pt-10">
+      <ResultsList
         title={`Top picks for ${input.destination}`}
         subtitle={`Dates ${input.startDate} → ${input.endDate} · party of ${input.party.adults}${input.party.children ? ` + ${input.party.children} children` : ""}`}
       >

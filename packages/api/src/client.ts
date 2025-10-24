@@ -16,6 +16,8 @@ export class EcoTripsFunctionClient {
   readonly wallet: DomainClients["wallet"];
   readonly ops: DomainClients["ops"];
   readonly finance: DomainClients["finance"];
+  readonly pricing: DomainClients["pricing"];
+  readonly loyalty: DomainClients["loyalty"];
   readonly privacy: DomainClients["privacy"];
   readonly dr: DomainClients["dr"];
   readonly helpers: DomainClients["helpers"];
@@ -33,6 +35,8 @@ export class EcoTripsFunctionClient {
     this.wallet = domains.wallet;
     this.ops = domains.ops;
     this.finance = domains.finance;
+    this.pricing = domains.pricing;
+    this.loyalty = domains.loyalty;
     this.privacy = domains.privacy;
     this.dr = domains.dr;
     this.helpers = domains.helpers;
@@ -83,10 +87,10 @@ export class EcoTripsFunctionClient {
       }
 
       const parsed = await safeJson(response);
-      if (descriptor.output) {
-        return descriptor.output.parse(parsed) as InferOutput<FunctionMap[K]>;
-      }
-      return parsed as InferOutput<FunctionMap[K]>;
+      const output = descriptor.output
+        ? (descriptor.output.parse(parsed) as InferOutput<FunctionMap[K]>)
+        : (parsed as InferOutput<FunctionMap[K]>);
+      return output;
     } finally {
       clearTimeout(timeout);
     }

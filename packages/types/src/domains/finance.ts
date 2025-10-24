@@ -56,6 +56,11 @@ export const PriceBreakdownEntry = z.object({
 
 export const PriceBreakdownResponse = z.object({
   ok: z.boolean(),
+  rate: z.number().positive().optional(),
+  provider: z.string().optional(),
+  converted_cents: z.number().int().nonnegative().optional(),
+  base_currency: z.string().optional(),
+  quote_currency: z.string().optional(),
   request_id: z.string().optional(),
   source: z.enum(["fixture", "live"]).optional(),
   breakdowns: z.array(PriceBreakdownEntry).default([]),
