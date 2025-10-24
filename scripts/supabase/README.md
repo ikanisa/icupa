@@ -7,6 +7,14 @@ These helpers streamline setting secrets and deploying the Edge Functions used b
 - Supabase CLI installed and authenticated (`supabase login`)
 - A running Supabase project (local via `supabase start` or hosted)
 
+## Validate migrations before pushing
+
+Run the guardrail script before applying schema changes remotely. It ensures timestamps are ordered, no two migrations share the same timestamp prefix, and every migration ships with a non-empty matching `.down.sql`. The `db-push.sh` wrapper calls it automatically, but you can run it standalone as well:
+
+```bash
+node scripts/supabase/validate-migrations.mjs
+```
+
 ## Configure secrets
 
 1) Copy `.env.supabase.example` to `.env.supabase` and fill values.

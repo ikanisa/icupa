@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark light;
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: rgb(10 10 24);
+}
+
+a {
+  outline: none;
+}
+
+a:focus-visible {
+  outline: 3px solid hsl(var(--primary));
+  outline-offset: 2px;
+}
+
+.text-gradient {
+  background: linear-gradient(90deg, rgba(166, 110, 255, 1) 0%, rgba(255, 175, 204, 1) 100%);
+  -webkit-background-clip: text;
+  color: transparent;
+}

@@ -1,3 +1,4 @@
+import { readHeader } from '../../../_shared/headers.ts';
 import {
   calculateTotals,
   createOrderAndPayment,
@@ -116,8 +117,7 @@ export async function handleAirtelRequestToPay(req: Request): Promise<Response> 
       return errorResponse(400, "empty_cart", "At least one cart item is required");
     }
 
-    const tableSessionId =
-      req.headers.get("x-icupa-session") ?? req.headers.get("x-ICUPA-session") ?? "";
+    const tableSessionId = readHeader(req, 'x-icupa-session') ?? '';
     if (!tableSessionId) {
       return errorResponse(401, "missing_session", "x-icupa-session header is required");
     }
@@ -154,6 +154,21 @@ export async function handleAirtelRequestToPay(req: Request): Promise<Response> 
       items,
       "airtel_money"
     );
+
+    if (!AIRTEL_API_BASE || !AIRTEL_CLIENT_ID || !AIRTEL_CLIENT_SECRET) {
+      await span.end(client, {
+        status: 'error',
+        tenantId: sessionContext.tenantId,
+        locationId: sessionContext.locationId,
+        tableSessionId: sessionContext.tableSessionId,
+        errorMessage: 'airtel_credentials_missing',
+      });
+      return errorResponse(
+        503,
+        "airtel_not_configured",
+        "Airtel Money credentials are not configured. Provide AIRTEL_API_BASE, AIRTEL_CLIENT_ID, and AIRTEL_CLIENT_SECRET before enabling Airtel collections.",
+      );
+    }
 
     const providerRef = crypto.randomUUID();
     const token = await obtainAirtelToken();

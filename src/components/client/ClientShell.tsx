@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Fuse from "fuse.js";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { ActionDock } from "./ActionDock";
@@ -8,6 +8,14 @@ import { PaymentScreen } from "./PaymentScreen";
 import { AIChatScreen } from "./AIChatScreen";
 import { SkipNavLink } from "./SkipNavLink";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   ArrowLeft,
   Search,
@@ -35,6 +43,7 @@ import { useMenuData } from "@/hooks/useMenuData";
 import { useReceiptNotifications } from "@/hooks/useReceiptNotifications";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
 import { useBackgroundSyncToast } from "@/hooks/useBackgroundSyncToast";
+import { emitClientEvent } from "@/lib/client-events";
 
 const DEFAULT_FILTERS: MenuFilters = {
   excludedAllergens: [],
@@ -72,17 +81,59 @@ export function ClientShell() {
   } = useMenuData();
 
   const cartItems = useCartStore(selectCartItems);
-  const addItemToCart = useCartStore((state) => state.addItem);
-  const updateCartQuantity = useCartStore((state) => state.updateItemQuantity);
-  const clearCart = useCartStore((state) => state.clearCart);
-  const setTipPercent = useCartStore((state) => state.setTipPercent);
-  const setCustomTipCents = useCartStore((state) => state.setCustomTipCents);
-  const tipPercent = useCartStore((state) => state.tipPercent);
-  const customTipCents = useCartStore((state) => state.customTipCents);
-  const splitMode = useCartStore((state) => state.splitMode);
-  const splitGuests = useCartStore((state) => state.splitGuests);
-  const setSplitMode = useCartStore((state) => state.setSplitMode);
-  const setSplitGuests = useCartStore((state) => state.setSplitGuests);
+  const addItemToCart = useCartStore.use.addItem();
+  const updateCartQuantity = useCartStore.use.updateItemQuantity();
+  const clearCart = useCartStore.use.clearCart();
+  const setTipPercent = useCartStore.use.setTipPercent();
+  const setCustomTipCents = useCartStore.use.setCustomTipCents();
+  const tipPercent = useCartStore.use.tipPercent();
+  const customTipCents = useCartStore.use.customTipCents();
+  const splitMode = useCartStore.use.splitMode();
+  const splitGuests = useCartStore.use.splitGuests();
+  const setSplitMode = useCartStore.use.setSplitMode();
+  const setSplitGuests = useCartStore.use.setSplitGuests();
+
+  const reportStorageFailure = useCallback((operation: "get" | "set" | "remove", key: string, error: unknown) => {
+    emitClientEvent({
+      type: "storage_error",
+      payload: {
+        storage: "localStorage",
+        operation,
+        key,
+        message: error instanceof Error ? error.message : String(error ?? "unknown error"),
+        quotaExceeded: error instanceof DOMException && error.name === "QuotaExceededError",
+      },
+    });
+  }, []);
+
+  const readFromStorage = useCallback(
+    (key: string): string | null => {
+      if (typeof window === "undefined") {
+        return null;
+      }
+      try {
+        return window.localStorage.getItem(key);
+      } catch (error) {
+        reportStorageFailure("get", key, error);
+        return null;
+      }
+    },
+    [reportStorageFailure]
+  );
+
+  const persistToStorage = useCallback(
+    (key: string, value: string) => {
+      if (typeof window === "undefined") {
+        return;
+      }
+      try {
+        window.localStorage.setItem(key, value);
+      } catch (error) {
+        reportStorageFailure("set", key, error);
+      }
+    },
+    [reportStorageFailure]
+  );
 
   useEffect(() => {
     if (menuSource === "loading") {
@@ -133,36 +184,41 @@ export function ClientShell() {
 
   const handleAgeConfirm = () => {
     setAgeGateChoice("verified");
-    if (typeof window !== "undefined") {
-      try {
-        window.localStorage.setItem("icupa_age_gate_choice", "verified");
-      } catch (_error) {
-        // ignore storage failures
-      }
-    }
+    persistToStorage("icupa_age_gate_choice", "verified");
   };
 
   const handleAgeDecline = () => {
     setAgeGateChoice("declined");
-    if (typeof window !== "undefined") {
-      try {
-        window.localStorage.setItem("icupa_age_gate_choice", "declined");
-      } catch (_error) {
-        // ignore storage failures
-      }
-    }
+    persistToStorage("icupa_age_gate_choice", "declined");
+  };
+
+  const handleInstallDismiss = () => {
+    setDismissInstallBanner(true);
+    persistToStorage("icupa_install_banner_dismissed", "true");
   };
 
   useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-    const stored = window.localStorage.getItem("icupa_age_gate_choice");
+    const stored = readFromStorage("icupa_age_gate_choice");
     if (stored === "verified" || stored === "declined") {
       setAgeGateChoice(stored);
     }
     setHasLoadedAgeGate(true);
-  }, []);
+  }, [readFromStorage]);
+
+  useEffect(() => {
+    const stored = readFromStorage("icupa_install_banner_dismissed");
+    if (stored === "true") {
+      setDismissInstallBanner(true);
+    }
+  }, [readFromStorage]);
+
+  useEffect(() => {
+    if (!installStatus.isStandalone) {
+      return;
+    }
+    setDismissInstallBanner(true);
+    persistToStorage("icupa_install_banner_dismissed", "true");
+  }, [installStatus.isStandalone, persistToStorage]);
 
   const shouldShowPushCard =
     pushSubscription.canSubscribe && pushSubscription.permission !== "unsupported";
@@ -325,30 +381,32 @@ export function ClientShell() {
         <div className="aurora-float absolute bottom-40 left-1/3 w-20 h-20 bg-aurora-accent/20 rounded-full blur-xl" style={{ animationDelay: "4s" }} />
       </div>
 
-      {shouldShowAgeDialog && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur">
-          <div
-            className="glass-card w-full max-w-md rounded-3xl border border-white/20 bg-background/80 p-6 text-center shadow-xl"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Age verification"
-          >
-            <h2 className="text-lg font-semibold">Confirm your legal drinking age</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Local regulations require guests in this venue to be at least {requiredAge}+ to view or order alcoholic
-              beverages. Confirm your age to see the full menu, or continue with the non-alcoholic experience.
-            </p>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <Button onClick={handleAgeConfirm} className="flex-1">
-                I am {requiredAge}+ and understand the policy
-              </Button>
-              <Button variant="outline" onClick={handleAgeDecline} className="flex-1">
-                Show non-alcoholic options
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Dialog
+        open={shouldShowAgeDialog}
+        onOpenChange={(open) => {
+          if (!open && ageGateChoice === "unknown") {
+            handleAgeDecline();
+          }
+        }}
+      >
+        <DialogContent className="glass-card w-full max-w-md border border-white/20 bg-background/90 text-center shadow-xl sm:rounded-3xl [&>button[data-radix-dialog-close]]:hidden">
+          <DialogHeader>
+            <DialogTitle>Confirm your legal drinking age</DialogTitle>
+            <DialogDescription>
+              Local regulations require guests in this venue to be at least {requiredAge}+ to view or order alcoholic beverages.
+              Confirm your age to see the full menu, or continue with the non-alcoholic experience.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4 flex flex-col gap-3 sm:flex-row">
+            <Button onClick={handleAgeConfirm} className="flex-1">
+              I am {requiredAge}+ and understand the policy
+            </Button>
+            <Button variant="outline" onClick={handleAgeDecline} className="flex-1">
+              Show non-alcoholic options
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="relative z-10 flex flex-col min-h-screen">
         <SkipNavLink />
@@ -517,7 +575,7 @@ export function ClientShell() {
                     size="icon"
                     className="rounded-full"
                     aria-label="Dismiss install guidance"
-                    onClick={() => setDismissInstallBanner(true)}
+                    onClick={handleInstallDismiss}
                   >
                     ×
                   </Button>
@@ -707,6 +765,7 @@ export function ClientShell() {
                   items={cartItems}
                   currency={selectedLocation.currency}
                   locale={selectedLocation.locale}
+                  taxRate={selectedLocation.taxRate}
                   tipPercent={tipPercent}
                   customTipCents={customTipCents}
                   splitMode={splitMode}
@@ -726,6 +785,7 @@ export function ClientShell() {
                   currency={selectedLocation.currency}
                   locale={selectedLocation.locale}
                   region={selectedLocation.region}
+                  taxRate={selectedLocation.taxRate}
                   tipPercent={tipPercent}
                   customTipCents={customTipCents}
                   splitMode={splitMode}

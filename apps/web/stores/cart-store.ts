@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage, type StateStorage } from "zustand/middleware";
+import { createSafeStateStorage } from "@/lib/safe-storage";
 
 export type CartModifier = {
   name: string;
@@ -41,7 +42,7 @@ const noopStorage: StateStorage = {
 const storage =
   typeof window === "undefined"
     ? createJSONStorage(() => noopStorage)
-    : createJSONStorage(() => window.localStorage);
+    : createJSONStorage(() => createSafeStateStorage(window.localStorage));
 
 export const useCartStore = create<CartState>()(
   persist(

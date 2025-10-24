@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { withSupabaseCaching } from "@/lib/query-client";
 
 export interface TenantKpiSnapshot {
   id: string;
@@ -39,9 +40,9 @@ async function fetchTenantKpis(tenantId: string): Promise<TenantKpiSnapshot[]> {
 
 export function useTenantKpis(tenantId: string | null) {
   return useQuery({
-    queryKey: ["admin", "tenant-kpis", tenantId],
+    queryKey: ["supabase", "admin", "tenant-kpis", tenantId],
     queryFn: () => fetchTenantKpis(tenantId ?? ""),
     enabled: Boolean(tenantId),
-    staleTime: 60_000,
+    ...withSupabaseCaching({ entity: "tenant-kpis", staleTime: 60_000 }),
   });
 }

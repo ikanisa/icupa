@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { withSupabaseCaching } from "@/lib/query-client";
 
 export interface ComplianceTask {
   id: string;
@@ -40,9 +41,9 @@ async function fetchComplianceTasks(tenantId: string): Promise<ComplianceTask[]>
 
 export function useComplianceTasks(tenantId: string | null) {
   return useQuery({
-    queryKey: ["admin", "compliance-tasks", tenantId],
+    queryKey: ["supabase", "admin", "compliance-tasks", tenantId],
     queryFn: () => fetchComplianceTasks(tenantId ?? ""),
     enabled: Boolean(tenantId),
-    staleTime: 30_000,
+    ...withSupabaseCaching({ entity: "compliance-tasks", staleTime: 30_000 }),
   });
 }

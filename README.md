@@ -33,7 +33,7 @@ ICUPA is a three-surface, multi-tenant Progressive Web Application that powers d
    - npm 10+ (or pnpm/yarn if preferred)
 
 2. **Bootstrap environment variables**
-   - Copy `.env.example` to `.env.local` (ignored by Git) and provide the Supabase project details you intend to use.
+   - Copy `.env.example` to `.env.local` (ignored by Git) and provide the Supabase project details you intend to use. Production builds and CI now fail fast if `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` (or their `NEXT_PUBLIC_*` equivalents) are absent, so populate them before running `npm run build` or deploying to Vercel.
    - Copy `agents-service/.env.example` to `agents-service/.env` when running the OpenAI Agents service locally.
 
 3. **Link your Supabase project** *(optional but recommended for deploy scripts)*
@@ -52,8 +52,7 @@ ICUPA is a three-surface, multi-tenant Progressive Web Application that powers d
 5. **Start Supabase locally**
    ```bash
    supabase start
-   supabase db reset
-   supabase db execute --file supabase/seed/seed.sql
+   supabase db reset --yes
    ```
    These commands provision the Dockerised Supabase stack, apply the Phase 0 + Phase 1 migrations, and seed demo data covering
    tenants, locations, menus, table sessions, orders, and agent telemetry. The Phase 1 migration introduces pgvector-powered
@@ -141,6 +140,7 @@ Environment variables are consumed via `import.meta.env` and validated during mo
 | `npm run preview` | Serves the production bundle locally for smoke testing. |
 | `npm run lint` | Runs ESLint across the repository. |
 | `npm run supabase:test` | Executes the SQL regression suite in `supabase/tests` via the Supabase CLI. |
+| `npm run verify:full` | Runs linting, type checks, unit tests, Playwright journeys, and Supabase SQL tests in one pass. |
 | `npm run test` | Runs the Vitest suite, including offline cart persistence checks. |
 | `npm run test:accessibility` | Audits the Phase 3 diner surfaces with axe-core to keep WCAG 2.2 AA regressions from slipping into the PWA. |
 
@@ -160,8 +160,7 @@ With the Supabase CLI installed, ensure the local instance passes the new RLS an
 
 ```bash
 supabase start
-supabase db reset
-supabase db execute --file supabase/seed/seed.sql
+supabase db reset --yes
 supabase db test
 ```
 

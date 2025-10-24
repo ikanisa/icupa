@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { MerchantLocation } from "@/hooks/useMerchantLocations";
+import { withSupabaseCaching } from "@/lib/query-client";
 
 export type PromoStatus = "draft" | "pending_review" | "approved" | "active" | "paused" | "archived";
 
@@ -79,11 +80,12 @@ async function fetchPromos(location?: MerchantLocation | null): Promise<PromoCam
 
 export function usePromoCampaigns(location?: MerchantLocation | null) {
   const queryClient = useQueryClient();
-  const queryKey = ["merchant", "promos", location?.id ?? "all"];
+  const queryKey = ["supabase", "merchant", "promos", location?.id ?? "all"] as const;
 
   const query = useQuery({
     queryKey,
     queryFn: () => fetchPromos(location),
+    ...withSupabaseCaching({ entity: "promos" }),
   });
 
   const createCampaign = useMutation({

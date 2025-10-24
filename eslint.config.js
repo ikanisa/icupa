@@ -5,7 +5,7 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist"] },
+  { ignores: ["dist", "**/.next/**"] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],
@@ -33,6 +33,7 @@ export default tseslint.config(
       "src/components/ui/**/*.{ts,tsx}",
       "packages/ui/src/**/*.{ts,tsx}",
       "apps/web/app/layout.tsx",
+      "**/app/layout.tsx",
     ],
     rules: {
       "react-refresh/only-export-components": "off",

@@ -1,0 +1,22 @@
+{
+  "name": "@icupa/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "module": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./client": "./src/client.ts",
+    "./types": "./src/types.ts",
+    "./*": "./src/*"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.58.0",
+    "zod": "^3.25.76"
+  },
+  "peerDependencies": {
+    "@icupa/config": "^0.1.0",
+    "@icupa/types": "^0.1.0"
+  }
+}

@@ -12,12 +12,22 @@ import {
 } from "workbox-strategies";
 import { BackgroundSyncPlugin } from "workbox-background-sync";
 import { ExpirationPlugin } from "workbox-expiration";
+import { CacheableResponsePlugin } from "workbox-cacheable-response";
 
 declare let self: ServiceWorkerGlobalScope;
 
 type ManifestEntry = { url: string; revision?: string };
 const manifest = (self.__WB_MANIFEST as Array<ManifestEntry> | undefined) ?? [];
 const FALLBACK_URL = "/offline.html";
+
+const PRECACHE_URLS: ManifestEntry[] = [
+  { url: "/" },
+  { url: "/merchant" },
+  { url: "/merchant/receipts" },
+  { url: "/admin" },
+  { url: "/icons/icon-192.png" },
+  { url: "/icons/icon-512.png" },
+];
 
 const SUPABASE_ORIGIN = (() => {
   try {
@@ -72,7 +82,9 @@ async function broadcastSyncComplete(payload: SyncBroadcastPayload): Promise<voi
 self.skipWaiting();
 clientsClaim();
 
-precacheAndRoute([...manifest, { url: FALLBACK_URL }]);
+precacheAndRoute([...manifest, ...PRECACHE_URLS, { url: FALLBACK_URL }], {
+  cleanURLs: true,
+});
 cleanupOutdatedCaches();
 
 setDefaultHandler(
@@ -97,6 +109,20 @@ setCatchHandler(async ({ event }) => {
     }
   }
 
+  const acceptHeader = event.request.headers.get("accept") ?? "";
+  if (acceptHeader.includes("application/json")) {
+    return new Response(
+      JSON.stringify({
+        error: "offline",
+        message: "Cached data unavailable while offline.",
+      }),
+      {
+        status: 503,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+  }
+
   return Response.error();
 });
 
@@ -111,13 +137,17 @@ registerRoute(
 );
 
 registerRoute(
-  ({ url }) =>
-    url.pathname.startsWith("/menus") ||
-    url.pathname.includes("/rest/v1/menu") ||
-    url.pathname.includes("/rest/v1/items"),
+  ({ url, request }) =>
+    request.method === "GET" &&
+    (url.pathname.startsWith("/menus") ||
+      url.pathname.includes("/rest/v1/menu") ||
+      url.pathname.includes("/rest/v1/items")),
   new StaleWhileRevalidate({
     cacheName: "icupa-menus",
-    plugins: [new ExpirationPlugin({ maxEntries: 30, maxAgeSeconds: 60 * 60 })],
+    plugins: [
+      new CacheableResponsePlugin({ statuses: [0, 200] }),
+      new ExpirationPlugin({ maxEntries: 30, maxAgeSeconds: 60 * 60 }),
+    ],
   })
 );
 
@@ -195,6 +225,10 @@ registerRoute(
   new NetworkFirst({
     cacheName: "icupa-api",
     networkTimeoutSeconds: 5,
+    plugins: [
+      new CacheableResponsePlugin({ statuses: [0, 200] }),
+      new ExpirationPlugin({ maxEntries: 100, maxAgeSeconds: 60 * 5 }),
+    ],
   })
 );
 

@@ -9,6 +9,7 @@ import {
   startEdgeTrace,
   type PaymentCartItem,
 } from "../../../_shared/payments.ts";
+import { readHeader } from "../../../_shared/headers.ts";
 
 interface StripeCheckoutRequest {
   currency?: string;
@@ -53,10 +54,9 @@ export async function handleStripeCheckout(req: Request): Promise<Response> {
       return errorResponse(400, "unsupported_provider", "Stripe/Adyen checkout is required for this endpoint");
     }
 
-    const tableSessionId =
-      req.headers.get("x-icupa-session") ?? req.headers.get("x-ICUPA-session") ?? "";
+    const tableSessionId = readHeader(req, 'x-icupa-session') ?? '';
     if (!tableSessionId) {
-      return errorResponse(401, "missing_session", "x-icupa-session header is required");
+      return errorResponse(401, 'missing_session', 'x-icupa-session header is required');
     }
 
     client = createServiceRoleClient();
@@ -84,18 +84,6 @@ export async function handleStripeCheckout(req: Request): Promise<Response> {
     );
 
     if (!STRIPE_SECRET_KEY) {
-      console.error("Stripe secret not configured; returning pending status", { orderId, paymentId });
-      const pendingResponse = jsonResponse(
-        {
-          order_id: orderId,
-          payment_id: paymentId,
-          payment_status: "pending",
-          payment_method: "stripe",
-          message:
-            "Stripe secret is not configured in this environment. Configure STRIPE_SECRET_KEY to enable live checkout.",
-        },
-        202
-      );
       await span.end(client, {
         status: 'error',
         tenantId: sessionContext.tenantId,
@@ -103,7 +91,11 @@ export async function handleStripeCheckout(req: Request): Promise<Response> {
         tableSessionId: sessionContext.tableSessionId,
         errorMessage: 'stripe_secret_missing',
       });
-      return pendingResponse;
+      return errorResponse(
+        503,
+        "stripe_not_configured",
+        "Stripe secret is not configured for this deployment. Configure STRIPE_SECRET_KEY and redeploy before enabling card payments.",
+      );
     }
 
     const stripe = new Stripe(STRIPE_SECRET_KEY, {

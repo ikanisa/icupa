@@ -23,6 +23,7 @@ interface CartProps {
   items: CartItem[];
   currency: "EUR" | "RWF";
   locale: string;
+  taxRate: number;
   tipPercent: number;
   customTipCents?: number;
   splitMode: SplitMode;
@@ -42,6 +43,7 @@ export function Cart({
   items,
   currency,
   locale,
+  taxRate,
   tipPercent,
   customTipCents,
   splitMode,
@@ -57,7 +59,7 @@ export function Cart({
   const prefersReducedMotion = useReducedMotion();
   const [splitPlannerOpen, setSplitPlannerOpen] = useState(false);
 
-  const { subtotalCents, taxRate, taxCents, tipCents, totalCents } = useMemo(() => {
+  const { subtotalCents, normalizedTaxRate, taxCents, tipCents, totalCents } = useMemo(() => {
     const subtotal = items.reduce((sum, item) => {
       const modifierTotal = item.modifiers?.reduce(
         (modSum, mod) => modSum + mod.priceCents,
@@ -66,8 +68,8 @@ export function Cart({
       return sum + (item.priceCents + modifierTotal) * item.quantity;
     }, 0);
 
-    const rate = 0.18; // Country-specific defaults captured in Phase 0
-    const tax = Math.round(subtotal * rate);
+    const normalizedTaxRate = Number.isFinite(taxRate) ? Math.max(0, Math.min(taxRate, 1)) : 0;
+    const tax = Math.round(subtotal * normalizedTaxRate);
     const computedTip =
       customTipCents !== undefined
         ? customTipCents
@@ -75,12 +77,12 @@ export function Cart({
 
     return {
       subtotalCents: subtotal,
-      taxRate: rate,
+      normalizedTaxRate,
       taxCents: tax,
       tipCents: computedTip,
       totalCents: subtotal + tax + computedTip,
     };
-  }, [items, customTipCents, tipPercent]);
+  }, [items, customTipCents, tipPercent, taxRate]);
 
   const equalShare = useMemo(() => {
     if (splitMode !== "equal" || splitGuests <= 0) return undefined;
@@ -412,7 +414,7 @@ export function Cart({
                 <span>{formatCurrency(subtotalCents, currency, locale)}</span>
               </div>
               <div className="flex justify-between">
-                <span>Tax ({Math.round(taxRate * 100)}%)</span>
+                <span>Tax ({Math.round(normalizedTaxRate * 100)}%)</span>
                 <span>{formatCurrency(taxCents, currency, locale)}</span>
               </div>
               <div className="flex justify-between">

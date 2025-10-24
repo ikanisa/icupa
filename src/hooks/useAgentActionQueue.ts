@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { withSupabaseCaching } from "@/lib/query-client";
 
 export interface AgentActionQueueItem {
   id: string;
@@ -45,10 +46,10 @@ async function fetchAgentActions(tenantId: string): Promise<AgentActionQueueItem
 
 export function useAgentActionQueue(tenantId: string | null) {
   return useQuery({
-    queryKey: ["admin", "agent-action-queue", tenantId],
+    queryKey: ["supabase", "admin", "agent-action-queue", tenantId],
     queryFn: () => fetchAgentActions(tenantId ?? ""),
     enabled: Boolean(tenantId),
-    staleTime: 20_000,
+    ...withSupabaseCaching({ entity: "agent-action-queue", staleTime: 20_000 }),
   });
 }
 
@@ -93,7 +94,9 @@ export function useAgentActionMutation(tenantId: string | null) {
     mutationFn: postAgentAction,
     onSuccess: () => {
       if (tenantId) {
-        queryClient.invalidateQueries({ queryKey: ["admin", "agent-action-queue", tenantId] });
+        queryClient.invalidateQueries({
+          queryKey: ["supabase", "admin", "agent-action-queue", tenantId],
+        });
       }
     },
   });

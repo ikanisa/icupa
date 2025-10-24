@@ -36,7 +36,8 @@ export async function handleEnqueueTestReceipt(req: Request): Promise<Response> 
   let body: { order_id?: string; payment_id?: string } = {};
   try {
     body = (await req.json()) as typeof body;
-  } catch {
+  } catch (error) {
+    console.warn('Failed to parse enqueue_test_receipt payload', error);
     body = {};
   }
 
