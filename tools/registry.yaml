@@ -602,3 +602,82 @@
       payout_id: { type: string }
   rate_limit:
     calls_per_minute: 3
+- key: b2b.inventory
+  description: Serve curated search index fixtures for partner discovery flows (requires inventory.read scope).
+  endpoint: https://{project_ref}.supabase.co/functions/v1/b2b-inventory
+  method: GET
+  auth: b2b_api_key
+  input_schema: |
+    type: object
+    properties:
+      query: { type: string, description: Text search on name, city, region, and tags }
+      page: { type: integer, minimum: 1, default: 1 }
+      page_size: { type: integer, minimum: 1, maximum: 100, default: 20 }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      page: { type: integer }
+      page_size: { type: integer }
+      total: { type: integer }
+      has_next_page: { type: boolean }
+      items:
+        type: array
+        items:
+          type: object
+          required: [id, name, location]
+          properties:
+            id: { type: string }
+            name: { type: string }
+            headline: { type: string }
+            location:
+              type: object
+              properties:
+                city: { type: string }
+                country: { type: string }
+                region: { type: string }
+            tags: { type: array, items: { type: string } }
+            from_price_cents: { type: integer }
+            currency: { type: string }
+  rate_limit:
+    calls_per_minute: 30
+- key: b2b.lead_intent
+  description: Capture partner lead intents with idempotent storage in travel.intents (requires leads.write scope).
+  endpoint: https://{project_ref}.supabase.co/functions/v1/b2b-lead-intent
+  method: POST
+  auth: b2b_api_key
+  required:
+    - company_name
+    - email
+  input_schema: |
+    type: object
+    required: [company_name, email]
+    properties:
+      company_name: { type: string, minLength: 1 }
+      contact_name: { type: string }
+      email: { type: string, format: email }
+      phone: { type: string }
+      party_size: { type: integer, minimum: 1 }
+      start_date: { type: string, format: date }
+      end_date: { type: string, format: date }
+      destinations: { type: array, items: { type: string } }
+      budget_min_cents: { type: integer, minimum: 0 }
+      budget_max_cents: { type: integer, minimum: 0 }
+      notes: { type: string, maxLength: 500 }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      idempotency_reused: { type: boolean }
+      intent:
+        type: object
+        properties:
+          id: { type: string }
+          company_name: { type: string }
+          email: { type: string }
+          status: { type: string }
+          created_at: { type: string, format: date-time }
+  idempotency:
+    header: Idempotency-Key
+  rate_limit:
+    calls_per_minute: 10

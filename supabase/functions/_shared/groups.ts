@@ -1,5 +1,9 @@
 import { ERROR_CODES } from "./constants.ts";
 import { getSupabaseServiceConfig } from "./env.ts";
+import {
+  AgentToolSpanTelemetryOptions,
+  buildAgentToolSpanPayload,
+} from "./agentObservability.ts";
 
 const { url: SUPABASE_URL, serviceRoleKey: SERVICE_ROLE_KEY } =
   getSupabaseServiceConfig({ feature: "groups" });
@@ -449,5 +453,30 @@ export async function insertAgentEventTelemetry(
     await response.json().catch(() => undefined);
   } catch (error) {
     console.error("agent_insert_event", { error, sessionId, event });
+  }
+}
+
+export async function insertAgentToolSpanTelemetry(
+  sessionId: string | null,
+  options: AgentToolSpanTelemetryOptions,
+): Promise<void> {
+  if (!sessionId || !UUID_REGEX.test(sessionId)) {
+    return;
+  }
+
+  try {
+    const payload = await buildAgentToolSpanPayload(options);
+    await insertAgentEventTelemetry(
+      sessionId,
+      "agent.tool_span",
+      payload,
+      "INFO",
+    );
+  } catch (error) {
+    console.error("agent.tool_span telemetry", {
+      error,
+      sessionId,
+      tool: options.toolKey,
+    });
   }
 }
