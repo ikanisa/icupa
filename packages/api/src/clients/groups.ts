@@ -15,6 +15,10 @@ export type GroupsClient = {
     input: InferInput<(typeof groupsDescriptors)["groups.contribute"]>,
     options?: RequestOptions,
   ): Promise<InferOutput<(typeof groupsDescriptors)["groups.contribute"]>>;
+  suggest(
+    input?: InferInput<(typeof groupsDescriptors)["groups.suggest"]>,
+    options?: RequestOptions,
+  ): Promise<InferOutput<(typeof groupsDescriptors)["groups.suggest"]>>;
   payoutsReport(
     input?: InferInput<(typeof groupsDescriptors)["groups.payouts.report"]>,
     options?: RequestOptions,
@@ -35,6 +39,10 @@ export function createGroupsClient(client: FunctionCaller<FunctionMap>): GroupsC
     },
     contribute(input, options) {
       return client.call("groups.contribute", input, options);
+    },
+    suggest(input, options) {
+      const payload = (input ?? {}) as InferInput<(typeof groupsDescriptors)["groups.suggest"]>;
+      return client.call("groups.suggest", payload, options);
     },
     payoutsReport(input, options) {
       const payload = (input ?? {}) as InferInput<(typeof groupsDescriptors)["groups.payouts.report"]>;
