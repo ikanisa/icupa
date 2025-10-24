@@ -582,6 +582,59 @@ const handler = withObs(async (req) => {
       const mergedPlan = existingPlan
         ? deepMerge(existingPlan, payload.plan)
         : payload.plan;
+
+      const optimizerInput = extractOptimizerInput(mergedPlan);
+      if (optimizerInput) {
+        const optimizerArtifacts = await runPlannerOptimizers(
+          optimizerInput,
+          requestId,
+        );
+        if (optimizerArtifacts) {
+          const existingWhyRaw =
+            (mergedPlan as Record<string, unknown>)["why_these_changes"];
+          const existingWhy = Array.isArray(existingWhyRaw)
+            ? (existingWhyRaw as unknown[])
+              .filter((item) => typeof item === "string")
+              .map((item) => item as string)
+            : [];
+          const mergedWhy = dedupeStrings([
+            ...existingWhy,
+            ...optimizerArtifacts.why,
+          ]);
+          if (mergedWhy.length > 0) {
+            (mergedPlan as Record<string, unknown>)["why_these_changes"] =
+              mergedWhy;
+          }
+
+          const existingOptimizerRaw =
+            (mergedPlan as Record<string, unknown>)["optimizer"];
+          const existingOptimizer =
+            existingOptimizerRaw && typeof existingOptimizerRaw === "object" &&
+              !Array.isArray(existingOptimizerRaw)
+              ? (existingOptimizerRaw as Record<string, unknown>)
+              : {};
+
+          const optimizerPayload: Record<string, unknown> = {
+            ...existingOptimizer,
+            last_run_at: optimizerArtifacts.lastRunAt,
+            source: optimizerArtifacts.source,
+            conflicts: optimizerArtifacts.conflicts,
+            day_balance: optimizerArtifacts.dayBalance,
+            diff_summary: optimizerArtifacts.diffSummary,
+            rationales: optimizerArtifacts.rationales,
+          };
+
+          if (optimizerArtifacts.before) {
+            optimizerPayload.before = optimizerArtifacts.before;
+          }
+          if (optimizerArtifacts.after) {
+            optimizerPayload.after = optimizerArtifacts.after;
+          }
+
+          (mergedPlan as Record<string, unknown>)["optimizer"] = optimizerPayload;
+        }
+      }
+
       await upsertWorkingPlan(sessionId!, mergedPlan);
     } catch (error) {
       return jsonResponse({
@@ -1446,6 +1499,198 @@ function serviceHeaders(): Record<string, string> {
     apikey: SERVICE_ROLE_KEY!,
     Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
   };
+}
+
+async function runPlannerOptimizers(
+  input: Record<string, unknown>,
+  requestId: string,
+): Promise<{
+  why: string[];
+  conflicts: unknown[];
+  dayBalance: Record<string, unknown> | null;
+  diffSummary: Record<string, unknown>[];
+  rationales: string[];
+  before?: Record<string, unknown>;
+  after?: Record<string, unknown>;
+  source: string;
+  lastRunAt: string;
+} | null> {
+  const [conflictRes, balanceRes] = await Promise.all([
+    callOptimizerEndpoint("conflict-resolver", input, requestId),
+    callOptimizerEndpoint("day-balancer", input, requestId),
+  ]);
+
+  if (!conflictRes && !balanceRes) {
+    return null;
+  }
+
+  const lastRunAt = new Date().toISOString();
+  const why: string[] = [];
+
+  const conflicts = conflictRes && Array.isArray(conflictRes["conflicts"])
+    ? (conflictRes["conflicts"] as unknown[])
+    : [];
+  for (const entry of conflicts) {
+    if (!entry || typeof entry !== "object") continue;
+    const record = entry as Record<string, unknown>;
+    const recommendation =
+      typeof record.recommendation === "string"
+        ? record.recommendation
+        : null;
+    const rationale =
+      typeof record.rationale === "string" ? record.rationale : null;
+    const id = typeof record.id === "string" ? record.id : "conflict";
+    if (recommendation) {
+      why.push(`Resolve ${id}: ${recommendation}`);
+    } else if (rationale) {
+      why.push(`Resolve ${id}: ${rationale}`);
+    }
+  }
+
+  const rationales = balanceRes && Array.isArray(balanceRes["rationales"])
+    ? (balanceRes["rationales"] as unknown[])
+        .filter((item): item is string => typeof item === "string")
+    : [];
+  for (const note of rationales) {
+    why.push(`Auto-balance: ${note}`);
+  }
+
+  const diffSummary = balanceRes && Array.isArray(balanceRes["diff_summary"])
+    ? (balanceRes["diff_summary"] as Record<string, unknown>[])
+    : [];
+
+  const before =
+    balanceRes && typeof balanceRes["before"] === "object" &&
+      balanceRes["before"] !== null &&
+      !Array.isArray(balanceRes["before"])
+      ? (balanceRes["before"] as Record<string, unknown>)
+      : undefined;
+  const after =
+    balanceRes && typeof balanceRes["after"] === "object" &&
+      balanceRes["after"] !== null && !Array.isArray(balanceRes["after"])
+      ? (balanceRes["after"] as Record<string, unknown>)
+      : undefined;
+
+  return {
+    why,
+    conflicts,
+    dayBalance: after ?? null,
+    diffSummary,
+    rationales,
+    before,
+    after,
+    source:
+      (balanceRes && typeof balanceRes["source"] === "string" &&
+        (balanceRes["source"] as string).length > 0)
+        ? (balanceRes["source"] as string)
+        : (conflictRes && typeof conflictRes["source"] === "string" &&
+            (conflictRes["source"] as string).length > 0)
+        ? (conflictRes["source"] as string)
+        : "fixtures",
+    lastRunAt,
+  };
+}
+
+async function callOptimizerEndpoint(
+  slug: "conflict-resolver" | "day-balancer",
+  input: Record<string, unknown>,
+  requestId: string,
+): Promise<Record<string, unknown> | null> {
+  const endpoint = `${SUPABASE_URL}/functions/v1/${slug}`;
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        ...serviceHeaders(),
+        "content-type": "application/json",
+        "x-request-id": requestId,
+        "x-optimizer-slug": slug,
+      },
+      body: JSON.stringify(input),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.warn(
+        JSON.stringify({
+          level: "WARN",
+          event: "optimizer.endpoint.failure",
+          fn: "agent-orchestrator",
+          requestId,
+          slug,
+          status: response.status,
+          error: errorText,
+        }),
+      );
+      return null;
+    }
+
+    const raw = await response.text();
+    return raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
+  } catch (error) {
+    console.error(
+      JSON.stringify({
+        level: "ERROR",
+        event: "optimizer.endpoint.error",
+        fn: "agent-orchestrator",
+        requestId,
+        slug,
+        message: error instanceof Error ? error.message : String(error),
+      }),
+    );
+    return null;
+  }
+}
+
+function extractOptimizerInput(
+  plan: Record<string, unknown>,
+): Record<string, unknown> | null {
+  if (!plan || typeof plan !== "object") {
+    return null;
+  }
+
+  const candidateValue = (plan as Record<string, unknown>)["optimizer_input"];
+  const candidate =
+    candidateValue && typeof candidateValue === "object" &&
+      candidateValue !== null && !Array.isArray(candidateValue)
+      ? (candidateValue as Record<string, unknown>)
+      : plan;
+
+  if (!Array.isArray(candidate["days"]) || candidate["days"].length === 0) {
+    return null;
+  }
+  if (!Array.isArray(candidate["anchors"])) {
+    return null;
+  }
+  if (!Array.isArray(candidate["windows"])) {
+    return null;
+  }
+  if (typeof candidate["max_drive_minutes"] !== "number") {
+    return null;
+  }
+  if (typeof candidate["pace"] !== "string") {
+    return null;
+  }
+
+  return {
+    days: candidate["days"],
+    anchors: candidate["anchors"],
+    windows: candidate["windows"],
+    max_drive_minutes: candidate["max_drive_minutes"],
+    pace: candidate["pace"],
+  };
+}
+
+function dedupeStrings(values: string[]): string[] {
+  const seen = new Set<string>();
+  const results: string[] = [];
+  for (const value of values) {
+    if (!seen.has(value)) {
+      seen.add(value);
+      results.push(value);
+    }
+  }
+  return results;
 }
 
 function deepMerge(

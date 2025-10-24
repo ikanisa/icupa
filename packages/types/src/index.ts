@@ -10,3 +10,4 @@ export * from "./domains/finance";
 export * from "./domains/ops";
 export * from "./domains/voice";
 export * from "./supabase";
+export * from "./optimizer";
