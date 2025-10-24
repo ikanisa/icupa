@@ -1,4 +1,5 @@
 import { CardGlass, buttonClassName } from "@ecotrips/ui";
+import { OptionCard } from "../components/OptionCard";
 
 export default function SupportPage() {
   return (
@@ -23,6 +24,15 @@ export default function SupportPage() {
           <li>• Daily brief push to wallet and WhatsApp.</li>
         </ul>
       </CardGlass>
+      <OptionCard
+        title="Disruption rebook suggestions"
+        subtitle="ConciergeGuide calls rebook-suggest when flights slip so you stay ahead of queues."
+        actionLabel="Review options"
+        actionHref="/support?rebook=1"
+      >
+        <p>Chat threads surface proactive alternatives with fare, carrier, and lounge entitlements. Every payload links back to disruption-board entries so ops has full context.</p>
+        <p className="text-xs text-white/60">Fixture fallbacks keep the chat hydrated even if providers-air-status is offline; we log the mode so ops can chase suppliers.</p>
+      </OptionCard>
     </div>
   );
 }

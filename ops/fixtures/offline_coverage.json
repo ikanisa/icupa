@@ -1,0 +1,32 @@
+[
+  {
+    "region": "Kigali",
+    "country_code": "RW",
+    "availability_percent": 96.5,
+    "offline_suppliers": 1,
+    "sample_size": 22,
+    "updated_at": "2024-05-04T07:00:00Z",
+    "incident_notes": "Only one WhatsApp supplier retrying webhooks.",
+    "health_label": "healthy"
+  },
+  {
+    "region": "Musanze",
+    "country_code": "RW",
+    "availability_percent": 82.0,
+    "offline_suppliers": 3,
+    "sample_size": 17,
+    "updated_at": "2024-05-04T06:45:00Z",
+    "incident_notes": "Safari guides impacted by fiber cut.",
+    "health_label": "degraded"
+  },
+  {
+    "region": "Goma",
+    "country_code": "CD",
+    "availability_percent": 74.5,
+    "offline_suppliers": 4,
+    "sample_size": 11,
+    "updated_at": "2024-05-04T06:30:00Z",
+    "incident_notes": "Cross-border SIM swap triggered manual failsafe.",
+    "health_label": "degraded"
+  }
+]

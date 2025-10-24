@@ -2,6 +2,8 @@ import { CardGlass, Stepper, buttonClassName } from "@ecotrips/ui";
 import { createEcoTripsFunctionClient } from "@ecotrips/api";
 import Link from "next/link";
 
+import { PlannerFeatureGate } from "../../components/PlannerFeatureGate";
+
 async function loadQuote(id: string) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -53,9 +55,18 @@ export default async function ItineraryPage({ params }: { params: { id: string }
           </p>
         )}
       </CardGlass>
-      <CardGlass title="Trip rhythm" subtitle="PlannerCoPilot ensures daylight transfers and safety.">
-        <Stepper steps={steps} />
-      </CardGlass>
+      <PlannerFeatureGate
+        debugLabel="itinerary.rhythm"
+        fallback={
+          <CardGlass title="Trip rhythm" subtitle="ConciergeGuide ensures daylight transfers and safety.">
+            <Stepper steps={steps} />
+          </CardGlass>
+        }
+      >
+        <CardGlass title="Trip rhythm" subtitle="PlannerCoPilot ensures daylight transfers and safety.">
+          <Stepper steps={steps} />
+        </CardGlass>
+      </PlannerFeatureGate>
       <CardGlass title="Group planning" subtitle="Spin up split-pay escrows and WhatsApp invites.">
         <div className="flex flex-wrap gap-3">
           <Link href={`/group/${params.id}`} className={buttonClassName()}>

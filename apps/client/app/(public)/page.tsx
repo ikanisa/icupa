@@ -1,6 +1,7 @@
 import { BottomNavDock, CardGlass, buttonClassName } from "@ecotrips/ui";
 import type { BottomNavItem } from "@ecotrips/ui";
 import { availableLocales, createTranslator } from "@ecotrips/i18n";
+import { PlannerFeatureGate } from "./components/PlannerFeatureGate";
 
 const navItems = [
   { href: "/", label: "Home", icon: "🏡" },
@@ -45,9 +46,15 @@ export default function HomePage({ searchParams }: { searchParams: Record<string
         <div className="flex flex-wrap gap-2 text-xs text-white/50">
           <span>Offline-first caches itinerary JSON + tickets</span>
           <span>Supabase realtime updates</span>
-          <span>PlannerCoPilot + ConciergeGuide</span>
+          <PlannerFeatureGate
+            debugLabel="home.tagline"
+            fallback={<span>ConciergeGuide automations</span>}
+          >
+            <span>PlannerCoPilot + ConciergeGuide</span>
+          </PlannerFeatureGate>
         </div>
       </header>
+      <PlannerFeatureGate debugLabel="home.hero">
         <CardGlass
           title={t("home.cta")}
           subtitle="PlannerCoPilot turns vague intents into price-aware itineraries."
@@ -57,8 +64,12 @@ export default function HomePage({ searchParams }: { searchParams: Record<string
             </a>
           }
         >
-        <p>Share your dream route — Kigali sunsets, Akagera safari, Nyungwe canopy. We keep daylight transfers and safety nudges.</p>
-      </CardGlass>
+          <p>
+            Share your dream route — Kigali sunsets, Akagera safari, Nyungwe canopy. We keep daylight transfers and safety
+            nudges.
+          </p>
+        </CardGlass>
+      </PlannerFeatureGate>
       <CardGlass
         title="Split-pay escrows"
         subtitle="Create groups with WhatsApp invites, contributions, and payout audit trails."
@@ -69,6 +80,15 @@ export default function HomePage({ searchParams }: { searchParams: Record<string
           <li>• ConciergeGuide pushes daily briefs and safety alerts during the trip.</li>
         </ul>
       </CardGlass>
+      <OptionCard
+        title="Invite friends, earn travel credit"
+        subtitle="Share your concierge with your crew – rewards land in your wallet automatically."
+        actionLabel="Copy referral link"
+        actionHref="/wallet?tab=referrals"
+      >
+        <p>Referral invites issue via the new referral-link edge function. We confirm consent and reuse idempotency keys so your friends never get duplicate SMS or WhatsApp pings.</p>
+        <p className="text-xs text-white/60">PlannerCoPilot logs fixture fallbacks whenever growth services are offline so you always see a link.</p>
+      </OptionCard>
       <BottomNavDock items={navItems} />
     </div>
   );
