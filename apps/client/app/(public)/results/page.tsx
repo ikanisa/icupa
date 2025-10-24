@@ -1,9 +1,8 @@
 import { CardGlass, ExplainPrice, buttonClassName } from "@ecotrips/ui";
 import { createEcoTripsFunctionClient } from "@ecotrips/api";
-import { InventorySearchInput, type PriceBreakdown } from "@ecotrips/types";
+import { InventorySearchInput } from "@ecotrips/types";
 import Link from "next/link";
-
-import { ResultsList } from "./ResultsList";
+import { PushNotificationBanner } from "../components/PushNotificationBanner";
 
 function parseSearchParams(searchParams: Record<string, string | string[] | undefined>) {
   const destination = typeof searchParams.destination === "string" ? searchParams.destination : "Kigali";
@@ -157,7 +156,9 @@ export default async function ResultsPage({ searchParams }: { searchParams: Reco
           </p>
         </CardGlass>
       )}
-    </PublicPage>
+      <PushNotificationBanner context="results" tags={["results", isOffline ? "offline" : "live"]} />
+
+    </div>
   );
 }
 

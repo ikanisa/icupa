@@ -36,6 +36,9 @@ async function loadSupportBreakdowns(): Promise<Record<string, PriceBreakdown>> 
 export default async function SupportPage() {
   const breakdowns = await loadSupportBreakdowns();
 
+import { SosCard } from "./SosCard";
+
+export default function SupportPage() {
   return (
     <PublicPage>
       <CardGlass title="Support" subtitle="SupportCopilot triages with human-in-the-loop controls.">
@@ -43,6 +46,9 @@ export default async function SupportPage() {
           Chat with ConciergeGuide for travel nudges or escalate to ops. Refunds, credit notes, and payouts always require HITL approval.
         </p>
         <ChatOptionModals breakdowns={breakdowns} />
+      </CardGlass>
+      <CardGlass title="SOS kit" subtitle="Escalation-ready contacts with call and share actions.">
+        <SosCard />
       </CardGlass>
       <CardGlass title="Safety" subtitle="SafetyAgent monitors night travel and weather advisories.">
         <ul className="space-y-2 text-sm text-white/80">
