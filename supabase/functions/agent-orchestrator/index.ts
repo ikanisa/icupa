@@ -44,6 +44,29 @@ interface RequestPayload {
   messages?: ConversationMessage[];
 }
 
+interface RouterToolSelection {
+  key?: string;
+  input?: Record<string, unknown>;
+  policy_ref?: string;
+  autonomy_floor?: number;
+  require_license?: boolean;
+}
+
+interface RouterSelection {
+  router_id?: string;
+  router_version?: string;
+  target_agent?: string;
+  reason?: string;
+  tool?: RouterToolSelection;
+  service_tools?: RouterToolSelection[];
+  metadata?: Record<string, unknown>;
+}
+
+interface RequestPayload {
+  router_selection?: RouterSelection;
+  router_trace_id?: string;
+}
+
 type ModerationAction = "allow" | "refuse" | "escalate";
 
 interface ModerationCandidate {
@@ -80,6 +103,69 @@ const AUTONOMY_PREFS_CACHE_TTL_MS = Number(
 const AUTONOMY_DEFAULT_LEVEL: AutonomyLevel = "L1";
 const AUTONOMY_DEFAULT_COMPOSER: ComposerDial = "assist";
 const AUTONOMY_MIN_EXECUTION_LEVEL = 2;
+
+type RouterToolPolicy = {
+  key: string;
+  policy_id?: string;
+  autonomy_floor?: number;
+  require_license?: boolean;
+  metadata?: Record<string, unknown> | null;
+};
+
+type RouterAgentProfile = {
+  router_id: string;
+  router_version?: string | null;
+  target_agent: string;
+  allowed_tools: string[];
+  tool_policies: RouterToolPolicy[];
+  policy_ref?: string | null;
+  metadata?: Record<string, unknown> | null;
+  active: boolean;
+};
+
+type RouterServiceToolContext = {
+  key: string;
+  policyRef?: string;
+  policyAutonomyFloor?: number;
+  policyRequireLicense?: boolean;
+  policyMetadata?: Record<string, unknown> | null;
+  input?: Record<string, unknown> | null;
+};
+
+type RouterNormalizationContext = {
+  routerId: string;
+  routerVersion?: string;
+  targetAgent: string;
+  allowedTools: string[];
+  toolKey?: string;
+  reason?: string;
+  policyRef?: string;
+  policyAutonomyFloor?: number;
+  policyRequireLicense?: boolean;
+  policyMetadata?: Record<string, unknown> | null;
+  serviceTools?: RouterServiceToolContext[];
+  traceId?: string;
+};
+
+type RouterNormalizationResult = {
+  agentKey?: string;
+  toolCall?: ToolCallInput;
+  errors: string[];
+  context: RouterNormalizationContext | null;
+  auditPayload?: Record<string, unknown> | null;
+};
+
+type ComplianceSentinelResult = {
+  status: "clear" | "warn" | "block";
+  warnings: string[];
+  violations: string[];
+  licence_detected?: string | null;
+  triggers: string[];
+  policy_ref?: string;
+  router_id?: string;
+  router_version?: string;
+  tool_key?: string;
+};
 
 const HIGH_RISK_TOOLS = new Set<string>([
   "checkout.intent",
@@ -122,6 +208,46 @@ const AUTONOMY_PREF_CACHE = new Map<
   string,
   { expiresAt: number; prefs: Map<AutonomyCategory, StoredAutonomyPreference> }
 >();
+
+const ROUTER_CONFIG_CACHE_TTL_MS = Number(
+  Deno.env.get("ROUTER_CONFIG_CACHE_MS") ?? "45000",
+);
+const ROUTER_CONFIG_CACHE = new Map<
+  string,
+  { expiresAt: number; profiles: RouterAgentProfile[] }
+>();
+
+const LICENCE_FIELD_PATHS = [
+  "license_id",
+  "licence_id",
+  "compliance.license_id",
+  "compliance.licence_id",
+  "operator.licence_id",
+  "operator.license_id",
+  "policy.licence_id",
+  "policy.license_id",
+  "metadata.licence",
+  "metadata.license",
+  "regulatory.licence",
+  "regulatory.license",
+  "licence_number",
+  "license_number",
+];
+
+const LICENSE_REQUIRED_TOOLS = new Set<string>([
+  "checkout.intent",
+  "inventory.hold",
+  "permits.request",
+  "groups.create_escrow",
+  "groups.payout_now",
+]);
+
+const PACKAGE_TRAVEL_TOOLS = new Set<string>([
+  "checkout.intent",
+  "inventory.hold",
+  "permits.request",
+  "groups.create_escrow",
+]);
 
 const EMBEDDED_REGISTRY: ToolDefinition[] = [
   {
@@ -511,6 +637,31 @@ const handler = withObs(async (req) => {
 
   const registry = TOOL_REGISTRY;
 
+  let routerContext: RouterNormalizationContext | null = null;
+  let routerAuditPayload: Record<string, unknown> | null = null;
+  try {
+    const routerNormalization = await resolveRouterSelection(
+      payload,
+      registry,
+      requestId,
+    );
+    if (routerNormalization.errors.length > 0) {
+      validationErrors.push(...routerNormalization.errors);
+    }
+    if (routerNormalization.agentKey) {
+      payload.agent = routerNormalization.agentKey;
+    }
+    if (routerNormalization.toolCall) {
+      payload.tool_call = routerNormalization.toolCall;
+    }
+    routerContext = routerNormalization.context;
+    routerAuditPayload = routerNormalization.auditPayload ?? null;
+  } catch (error) {
+    validationErrors.push(
+      `router_selection error: ${(error as Error).message}`,
+    );
+  }
+
   const agentKey =
     typeof payload.agent === "string" && payload.agent.trim().length > 0
       ? payload.agent.trim()
@@ -646,6 +797,7 @@ const handler = withObs(async (req) => {
   const dryRun = Boolean(payload.dry_run);
   let sessionId = payload.session_id ?? null;
   let moderationSummary: ModerationSummary | null = null;
+  let routerEventId: number | undefined;
 
   try {
     if (sessionId) {
@@ -662,6 +814,26 @@ const handler = withObs(async (req) => {
       ok: false,
       error: `session error: ${(error as Error).message}`,
     }, 500);
+  }
+
+  if (sessionId && routerAuditPayload) {
+    try {
+      const routerEvent = await insertEvent(
+        sessionId,
+        "AUDIT",
+        "agent.router_selection",
+        {
+          agent: agentKey,
+          selection: routerAuditPayload,
+        },
+      );
+      routerEventId = routerEvent.id;
+    } catch (error) {
+      return jsonResponse({
+        ok: false,
+        error: `router audit error: ${(error as Error).message}`,
+      }, 500);
+    }
   }
 
   // Persist working plan if provided
@@ -745,6 +917,7 @@ const handler = withObs(async (req) => {
   }
 
   let autonomyGate: AutonomyGateResult | null = null;
+  let complianceResult: ComplianceSentinelResult | null = null;
   if (toolDef) {
     if (payload.user_id) {
       autonomyGate = await evaluateAutonomyGate(
@@ -755,6 +928,17 @@ const handler = withObs(async (req) => {
       );
     } else {
       autonomyGate = buildDefaultAutonomyGate(autonomyCategory, toolDef.key);
+    }
+
+    if (
+      autonomyGate &&
+      routerContext?.policyAutonomyFloor !== undefined &&
+      Number.isFinite(routerContext.policyAutonomyFloor)
+    ) {
+      autonomyGate = applyRouterAutonomyPolicy(
+        autonomyGate,
+        routerContext.policyAutonomyFloor,
+      );
     }
 
     if (!dryRun && payload.user_id && autonomyGate && !autonomyGate.allowed) {
@@ -776,6 +960,53 @@ const handler = withObs(async (req) => {
   const toolRequestId = crypto.randomUUID();
   let plannedTool: Record<string, unknown> | undefined;
   let toolResult: Record<string, unknown> | undefined;
+
+  if (toolDef) {
+    complianceResult = evaluateComplianceSentinel(
+      toolDef.key,
+      toolInput ?? {},
+      payload.plan,
+      routerContext,
+    );
+
+    if (sessionId && complianceResult.status === "warn") {
+      try {
+        await insertEvent(sessionId, "WARN", "agent.compliance_warning", {
+          agent: agentKey,
+          tool: toolDef.key,
+          compliance: complianceResult,
+        });
+      } catch (error) {
+        return jsonResponse({
+          ok: false,
+          error: `compliance warn error: ${(error as Error).message}`,
+        }, 500);
+      }
+    }
+
+    if (complianceResult.status === "block") {
+      if (sessionId) {
+        try {
+          await insertEvent(sessionId, "ERROR", "agent.compliance_block", {
+            agent: agentKey,
+            tool: toolDef.key,
+            compliance: complianceResult,
+          });
+        } catch (error) {
+          return jsonResponse({
+            ok: false,
+            error: `compliance block error: ${(error as Error).message}`,
+          }, 500);
+        }
+      }
+
+      return jsonResponse({
+        ok: false,
+        error: "compliance_violation",
+        compliance: complianceResult,
+      }, 422);
+    }
+  }
 
   if (toolDef && sessionId) {
     const resolvedEndpoint = toolDef.endpoint.replace(
@@ -891,6 +1122,51 @@ const handler = withObs(async (req) => {
     responsePayload.tool_result = toolResult;
   }
 
+  if (routerContext) {
+    const routerResponse: Record<string, unknown> = {
+      id: routerContext.routerId,
+      version: routerContext.routerVersion,
+      target_agent: routerContext.targetAgent,
+      tool: routerContext.toolKey,
+      policy_ref: routerContext.policyRef,
+      trace_id: routerContext.traceId,
+    };
+    if (routerEventId !== undefined) {
+      routerResponse.event_id = routerEventId;
+    }
+    if (routerContext.allowedTools.length > 0) {
+      routerResponse.allowed_tools = routerContext.allowedTools;
+    }
+    if (routerContext.serviceTools && routerContext.serviceTools.length > 0) {
+      routerResponse.service_tools = routerContext.serviceTools.map((service) => {
+        const entry: Record<string, unknown> = { key: service.key };
+        if (service.policyRef) {
+          entry.policy_ref = service.policyRef;
+        }
+        if (service.policyAutonomyFloor !== undefined) {
+          entry.autonomy_floor = service.policyAutonomyFloor;
+        }
+        if (service.policyRequireLicense) {
+          entry.require_license = true;
+        }
+        if (service.policyMetadata) {
+          entry.policy_metadata = scrubForAudit(service.policyMetadata);
+        }
+        if (service.input) {
+          entry.input = service.input;
+        }
+        return entry;
+      });
+    }
+    responsePayload.router = routerResponse;
+  } else if (routerEventId !== undefined) {
+    responsePayload.router_event_id = routerEventId;
+  }
+
+  if (complianceResult) {
+    responsePayload.compliance = complianceResult;
+  }
+
   const autonomySnapshot = autonomyGate ??
     buildDefaultAutonomyGate(autonomyCategory, toolDef?.key ?? null);
   responsePayload.autonomy = {
@@ -901,6 +1177,24 @@ const handler = withObs(async (req) => {
     required_level: `L${autonomySnapshot.requiredLevel}`,
     allowed: autonomySnapshot.allowed,
   };
+
+  if (
+    routerContext?.policyAutonomyFloor !== undefined &&
+    Number.isFinite(routerContext.policyAutonomyFloor)
+  ) {
+    const adjusted = applyRouterAutonomyPolicy(
+      autonomySnapshot,
+      routerContext.policyAutonomyFloor,
+    );
+    responsePayload.autonomy = {
+      category: adjusted.category,
+      level: adjusted.level,
+      composer: adjusted.composer,
+      source: adjusted.source,
+      required_level: `L${adjusted.requiredLevel}`,
+      allowed: adjusted.allowed,
+    };
+  }
 
   return jsonResponse(responsePayload, 200);
 }, { fn: "agent-orchestrator", defaultErrorCode: ERROR_CODES.UNKNOWN });
@@ -1771,4 +2065,631 @@ function sanitizeRegistryMapInPlace(map: Map<string, ToolDefinition>): void {
       map.set(key, { ...canonical });
     }
   }
+}
+
+function applyRouterAutonomyPolicy(
+  gate: AutonomyGateResult,
+  requiredFloor: number,
+): AutonomyGateResult {
+  const normalizedFloor = Number.isFinite(requiredFloor)
+    ? Math.max(AUTONOMY_MIN_EXECUTION_LEVEL, Math.floor(requiredFloor))
+    : AUTONOMY_MIN_EXECUTION_LEVEL;
+  const requiredLevel = Math.max(gate.requiredLevel, normalizedFloor);
+  const allowed = rankAutonomyLevel(gate.level) >= requiredLevel;
+  return {
+    ...gate,
+    requiredLevel,
+    allowed,
+  };
+}
+
+async function resolveRouterSelection(
+  payload: RequestPayload,
+  registry: Map<string, ToolDefinition>,
+  requestId: string,
+): Promise<RouterNormalizationResult> {
+  const result: RouterNormalizationResult = {
+    errors: [],
+    context: null,
+    auditPayload: null,
+  };
+
+  const selection = payload.router_selection;
+  if (!selection) {
+    return result;
+  }
+
+  if (!isPlainObject(selection)) {
+    result.errors.push("router_selection must be an object");
+    return result;
+  }
+
+  const routerId = typeof selection.router_id === "string"
+    ? selection.router_id.trim()
+    : "";
+  if (!routerId) {
+    result.errors.push("router_selection.router_id is required");
+    return result;
+  }
+
+  const routerVersion = typeof selection.router_version === "string"
+    ? selection.router_version.trim()
+    : undefined;
+
+  const profiles = await getRouterAgentProfiles(routerId, requestId);
+  if (profiles.length === 0) {
+    result.errors.push(
+      `router ${routerId} is not registered in config.router_agents`,
+    );
+    return result;
+  }
+
+  const traceId = typeof payload.router_trace_id === "string"
+      && payload.router_trace_id.trim().length > 0
+    ? payload.router_trace_id.trim()
+    : undefined;
+
+  let candidates = profiles.filter((profile) => profile.active);
+  if (routerVersion) {
+    const matchedVersion = candidates.filter((profile) =>
+      (profile.router_version ?? "") === routerVersion
+    );
+    if (matchedVersion.length > 0) {
+      candidates = matchedVersion;
+    }
+  }
+
+  if (candidates.length === 0) {
+    result.errors.push(
+      routerVersion
+        ? `router ${routerId} has no active configuration for version ${routerVersion}`
+        : `router ${routerId} has no active configuration`,
+    );
+    return result;
+  }
+
+  let targetAgent = typeof selection.target_agent === "string"
+      && selection.target_agent.trim().length > 0
+    ? selection.target_agent.trim()
+    : undefined;
+
+  if (targetAgent) {
+    const allowedAgent = candidates.find((candidate) =>
+      candidate.target_agent === targetAgent
+    );
+    if (!allowedAgent) {
+      result.errors.push(
+        `router ${routerId} is not permitted to target agent ${targetAgent}`,
+      );
+      return result;
+    }
+  } else {
+    targetAgent = candidates[0]?.target_agent;
+  }
+
+  if (!targetAgent) {
+    result.errors.push("router_selection.target_agent could not be resolved");
+    return result;
+  }
+
+  const profile = candidates.find((candidate) =>
+    candidate.target_agent === targetAgent
+  ) ?? candidates[0];
+
+  const toolSelection = selection.tool;
+  const incomingTool = payload.tool_call;
+
+  const selectedToolKeyRaw = typeof toolSelection?.key === "string"
+      && toolSelection.key.trim().length > 0
+    ? toolSelection.key.trim()
+    : (typeof incomingTool?.key === "string"
+        ? incomingTool.key.trim()
+        : "");
+
+  if (!selectedToolKeyRaw) {
+    result.errors.push("router_selection.tool.key is required when routing");
+    return result;
+  }
+
+  if (!registry.has(selectedToolKeyRaw)) {
+    result.errors.push(`router requested unknown tool ${selectedToolKeyRaw}`);
+    return result;
+  }
+
+  const allowedTools = Array.isArray(profile.allowed_tools)
+    ? profile.allowed_tools
+    : [];
+  const allowAll = allowedTools.includes("*");
+  if (!allowAll && allowedTools.length > 0 &&
+    !allowedTools.includes(selectedToolKeyRaw)) {
+    result.errors.push(
+      `router ${routerId} is not permitted to call tool ${selectedToolKeyRaw} for ${targetAgent}`,
+    );
+    return result;
+  }
+
+  const normalizedInput: Record<string, unknown> = {};
+  if (isPlainObject(incomingTool?.input)) {
+    Object.assign(normalizedInput, incomingTool!.input);
+  }
+  if (isPlainObject(toolSelection?.input)) {
+    Object.assign(normalizedInput, toolSelection!.input);
+  }
+
+  const policy = profile.tool_policies.find((item) =>
+    item.key === selectedToolKeyRaw || item.key === "*"
+  ) ?? null;
+
+  const policyAutonomyFloor =
+    toolSelection?.autonomy_floor ?? policy?.autonomy_floor;
+  const policyRequireLicense = Boolean(
+    toolSelection?.require_license ?? policy?.require_license,
+  );
+  const policyRef = toolSelection?.policy_ref ?? policy?.policy_id ??
+    profile.policy_ref ?? undefined;
+
+  const normalizedServiceTools: RouterServiceToolContext[] = [];
+  const auditServiceTools: Record<string, unknown>[] = [];
+  if (selection.service_tools !== undefined) {
+    if (!Array.isArray(selection.service_tools)) {
+      result.errors.push("router_selection.service_tools must be an array");
+      return result;
+    }
+
+    selection.service_tools.forEach((entry, index) => {
+      if (!isPlainObject(entry)) {
+        result.errors.push(
+          `router_selection.service_tools[${index}] must be an object`,
+        );
+        return;
+      }
+
+      const key = typeof entry.key === "string" ? entry.key.trim() : "";
+      if (!key) {
+        result.errors.push(
+          `router_selection.service_tools[${index}].key is required`,
+        );
+        return;
+      }
+
+      if (!registry.has(key)) {
+        result.errors.push(
+          `router requested unknown service tool ${key}`,
+        );
+        return;
+      }
+
+      if (!allowAll && allowedTools.length > 0 && !allowedTools.includes(key)) {
+        result.errors.push(
+          `router ${routerId} is not permitted to call service tool ${key} for ${targetAgent}`,
+        );
+        return;
+      }
+
+      const entryPolicy = profile.tool_policies.find((item) =>
+        item.key === key || item.key === "*"
+      ) ?? null;
+
+      const entryPolicyAutonomyFloor =
+        typeof entry.autonomy_floor === "number"
+          ? entry.autonomy_floor
+          : entryPolicy?.autonomy_floor;
+      const entryPolicyRequireLicense = Boolean(
+        typeof entry.require_license === "boolean"
+          ? entry.require_license
+          : entryPolicy?.require_license,
+      );
+      const entryPolicyRef = typeof entry.policy_ref === "string" &&
+          entry.policy_ref.trim().length > 0
+        ? entry.policy_ref.trim()
+        : entryPolicy?.policy_id ?? profile.policy_ref ?? undefined;
+
+      const sanitizedInput = isPlainObject(entry.input)
+        ? scrubForAudit(entry.input)
+        : undefined;
+
+      const serviceToolContext: RouterServiceToolContext = {
+        key,
+      };
+      if (entryPolicyRef) {
+        serviceToolContext.policyRef = entryPolicyRef;
+      }
+      if (
+        typeof entryPolicyAutonomyFloor === "number" &&
+        Number.isFinite(entryPolicyAutonomyFloor)
+      ) {
+        serviceToolContext.policyAutonomyFloor = Math.floor(
+          entryPolicyAutonomyFloor,
+        );
+      }
+      if (entryPolicyRequireLicense) {
+        serviceToolContext.policyRequireLicense = true;
+      }
+      if (entryPolicy?.metadata) {
+        serviceToolContext.policyMetadata = entryPolicy.metadata;
+      }
+      if (sanitizedInput) {
+        serviceToolContext.input = sanitizedInput as Record<string, unknown>;
+      }
+
+      normalizedServiceTools.push(serviceToolContext);
+
+      const auditEntry: Record<string, unknown> = { key };
+      if (entryPolicyRef) {
+        auditEntry.policy_ref = entryPolicyRef;
+      }
+      if (serviceToolContext.policyAutonomyFloor !== undefined) {
+        auditEntry.autonomy_floor = serviceToolContext.policyAutonomyFloor;
+      }
+      if (entryPolicyRequireLicense) {
+        auditEntry.require_license = true;
+      }
+      if (entryPolicy?.metadata) {
+        auditEntry.policy_metadata = scrubForAudit(entryPolicy.metadata);
+      }
+      if (sanitizedInput) {
+        auditEntry.input = sanitizedInput;
+      }
+      auditServiceTools.push(auditEntry);
+    });
+  }
+
+  const toolCall: ToolCallInput = {
+    key: selectedToolKeyRaw,
+    input: normalizedInput,
+  };
+
+  result.agentKey = targetAgent;
+  result.toolCall = toolCall;
+
+  const context: RouterNormalizationContext = {
+    routerId,
+    routerVersion,
+    targetAgent,
+    allowedTools,
+    toolKey: selectedToolKeyRaw,
+    reason: typeof selection.reason === "string"
+      ? selection.reason
+      : undefined,
+    policyRef,
+    policyAutonomyFloor: typeof policyAutonomyFloor === "number"
+        && Number.isFinite(policyAutonomyFloor)
+      ? Math.floor(policyAutonomyFloor)
+      : undefined,
+    policyRequireLicense: policyRequireLicense || undefined,
+    policyMetadata: policy?.metadata ?? null,
+    serviceTools: normalizedServiceTools.length > 0
+      ? normalizedServiceTools
+      : undefined,
+    traceId,
+  };
+
+  result.context = context;
+
+  const auditPayload: Record<string, unknown> = {
+    router_id: routerId,
+    router_version: routerVersion,
+    target_agent: targetAgent,
+    allowed_tools: allowedTools,
+    requested_tool: selectedToolKeyRaw,
+    reason: context.reason,
+    trace_id: traceId,
+  };
+  if (policyRef) {
+    auditPayload.policy_ref = policyRef;
+  }
+  if (context.policyAutonomyFloor !== undefined) {
+    auditPayload.policy_autonomy_floor = context.policyAutonomyFloor;
+  }
+  if (context.policyRequireLicense) {
+    auditPayload.policy_require_licence = true;
+  }
+  if (policy?.metadata && Object.keys(policy.metadata).length > 0) {
+    auditPayload.policy_metadata = scrubForAudit(policy.metadata);
+  }
+  if (toolSelection?.input) {
+    auditPayload.router_tool_input = scrubForAudit(toolSelection.input);
+  }
+  if (selection.metadata) {
+    auditPayload.router_metadata = scrubForAudit(selection.metadata);
+  }
+  if (auditServiceTools.length > 0) {
+    auditPayload.service_tools = auditServiceTools;
+  }
+
+  result.auditPayload = auditPayload;
+  return result;
+}
+
+async function getRouterAgentProfiles(
+  routerId: string,
+  requestId: string,
+): Promise<RouterAgentProfile[]> {
+  const cached = ROUTER_CONFIG_CACHE.get(routerId);
+  const now = Date.now();
+  if (cached && cached.expiresAt > now) {
+    return cached.profiles;
+  }
+
+  try {
+    const headers = { ...serviceHeaders(), "Accept-Profile": "config" };
+    const url = new URL(`${SUPABASE_URL}/rest/v1/config.router_agents`);
+    url.searchParams.set(
+      "select",
+      "router_id,router_version,target_agent,allowed_tools,tool_policies,policy_ref,metadata,active",
+    );
+    url.searchParams.set("router_id", `eq.${routerId}`);
+
+    const response = await fetch(url, { headers });
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || response.statusText);
+    }
+
+    const rows = await response.json() as Array<Record<string, unknown>>;
+    const profiles = rows
+      .map((row) => parseRouterAgentProfile(row))
+      .filter((profile): profile is RouterAgentProfile => Boolean(profile));
+
+    ROUTER_CONFIG_CACHE.set(routerId, {
+      profiles,
+      expiresAt: now + ROUTER_CONFIG_CACHE_TTL_MS,
+    });
+
+    return profiles;
+  } catch (error) {
+    console.log(JSON.stringify({
+      level: "WARN",
+      event: "agent.router_config.fetch_failed",
+      fn: "agent-orchestrator",
+      request_id: requestId,
+      router_id: routerId,
+      message: (error as Error).message,
+    }));
+    ROUTER_CONFIG_CACHE.set(routerId, {
+      profiles: [],
+      expiresAt: now + ROUTER_CONFIG_CACHE_TTL_MS,
+    });
+    return [];
+  }
+}
+
+function parseRouterAgentProfile(
+  row: Record<string, unknown>,
+): RouterAgentProfile | null {
+  const routerId = typeof row.router_id === "string" ? row.router_id : null;
+  const targetAgent = typeof row.target_agent === "string"
+    ? row.target_agent
+    : null;
+  if (!routerId || !targetAgent) {
+    return null;
+  }
+
+  const allowedTools = Array.isArray(row.allowed_tools)
+    ? row.allowed_tools.filter((tool): tool is string => typeof tool === "string")
+    : [];
+
+  const toolPolicies = parseRouterToolPolicies(row.tool_policies);
+
+  const metadata = isPlainObject(row.metadata)
+    ? row.metadata as Record<string, unknown>
+    : null;
+
+  const active = typeof row.active === "boolean" ? row.active : true;
+
+  return {
+    router_id: routerId,
+    router_version: typeof row.router_version === "string"
+      ? row.router_version
+      : null,
+    target_agent: targetAgent,
+    allowed_tools: allowedTools,
+    tool_policies: toolPolicies,
+    policy_ref: typeof row.policy_ref === "string" ? row.policy_ref : null,
+    metadata,
+    active,
+  };
+}
+
+function parseRouterToolPolicies(value: unknown): RouterToolPolicy[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const policies: RouterToolPolicy[] = [];
+  for (const entry of value) {
+    if (!isPlainObject(entry)) {
+      continue;
+    }
+    const key = typeof entry.key === "string" ? entry.key.trim() : "";
+    if (!key) {
+      continue;
+    }
+    const policy: RouterToolPolicy = { key };
+    if (typeof entry.policy_id === "string" && entry.policy_id.trim()) {
+      policy.policy_id = entry.policy_id.trim();
+    }
+    if (
+      typeof entry.autonomy_floor === "number" &&
+      Number.isFinite(entry.autonomy_floor)
+    ) {
+      policy.autonomy_floor = Math.floor(entry.autonomy_floor);
+    }
+    if (typeof entry.require_license === "boolean") {
+      policy.require_license = entry.require_license;
+    }
+    if (isPlainObject(entry.metadata)) {
+      policy.metadata = entry.metadata as Record<string, unknown>;
+    }
+    policies.push(policy);
+  }
+  return policies;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function scrubForAudit(value: unknown, depth = 0): unknown {
+  if (depth >= 3) {
+    return Array.isArray(value) ? "[array]" : "[object]";
+  }
+  if (Array.isArray(value)) {
+    return value.slice(0, 5).map((item) => scrubForAudit(item, depth + 1));
+  }
+  if (isPlainObject(value)) {
+    const output: Record<string, unknown> = {};
+    let count = 0;
+    for (const [key, entry] of Object.entries(value)) {
+      if (count >= 8) {
+        output.__truncated__ = true;
+        break;
+      }
+      output[key] = scrubForAudit(entry, depth + 1);
+      count += 1;
+    }
+    return output;
+  }
+  if (typeof value === "string") {
+    return truncateForAudit(value, 120);
+  }
+  return value;
+}
+
+function evaluateComplianceSentinel(
+  toolKey: string,
+  toolInput: Record<string, unknown>,
+  plan: Record<string, unknown> | undefined,
+  routerContext: RouterNormalizationContext | null,
+): ComplianceSentinelResult {
+  const warnings: string[] = [];
+  const violations: string[] = [];
+  const triggers = detectPackageTravelTriggers(toolKey, toolInput, plan);
+  const licence = findLicenceIdentifier(toolInput, plan);
+
+  if (routerContext?.policyRequireLicense && !licence) {
+    violations.push("Router policy requires a licence identifier before execution.");
+  }
+
+  if (LICENSE_REQUIRED_TOOLS.has(toolKey) && !licence) {
+    violations.push(`Tool ${toolKey} requires a licence identifier.`);
+  }
+
+  if (triggers.length > 0 && !licence) {
+    violations.push(
+      "Package travel trigger detected without a licence identifier.",
+    );
+  }
+
+  if (triggers.length > 0 && licence) {
+    warnings.push("Package travel trigger detected with licence present.");
+  }
+
+  const status: "clear" | "warn" | "block" = violations.length > 0
+    ? "block"
+    : warnings.length > 0
+    ? "warn"
+    : "clear";
+
+  return {
+    status,
+    warnings,
+    violations,
+    licence_detected: licence,
+    triggers,
+    policy_ref: routerContext?.policyRef,
+    router_id: routerContext?.routerId,
+    router_version: routerContext?.routerVersion,
+    tool_key: toolKey,
+  };
+}
+
+function findLicenceIdentifier(
+  toolInput: Record<string, unknown>,
+  plan: Record<string, unknown> | undefined,
+): string | null {
+  for (const path of LICENCE_FIELD_PATHS) {
+    const value = extractStringPath(toolInput, path);
+    if (value) {
+      return value;
+    }
+  }
+
+  if (plan) {
+    for (const path of LICENCE_FIELD_PATHS) {
+      const value = extractStringPath(plan, path);
+      if (value) {
+        return value;
+      }
+    }
+  }
+
+  return null;
+}
+
+function extractStringPath(source: unknown, path: string): string | null {
+  if (!isPlainObject(source)) {
+    return null;
+  }
+  const segments = path.split(".");
+  let current: unknown = source;
+  for (const segment of segments) {
+    if (!isPlainObject(current)) {
+      return null;
+    }
+    current = (current as Record<string, unknown>)[segment];
+    if (current === undefined || current === null) {
+      return null;
+    }
+  }
+  if (typeof current === "string" && current.trim().length > 0) {
+    return current.trim();
+  }
+  return null;
+}
+
+function detectPackageTravelTriggers(
+  toolKey: string,
+  toolInput: Record<string, unknown>,
+  plan: Record<string, unknown> | undefined,
+): string[] {
+  const triggers = new Set<string>();
+
+  if (PACKAGE_TRAVEL_TOOLS.has(toolKey)) {
+    triggers.add(`tool:${toolKey}`);
+  }
+
+  if (typeof toolInput.package_type === "string" && toolInput.package_type) {
+    triggers.add("package_type");
+  }
+
+  if (toolInput.package === true || toolInput.bundle === true) {
+    triggers.add("package_flag");
+  }
+
+  if (typeof toolInput.package_reference === "string" &&
+    toolInput.package_reference) {
+    triggers.add("package_reference");
+  }
+
+  if (Array.isArray(toolInput.components) && toolInput.components.length >= 2) {
+    triggers.add("multi_component_tool_input");
+  }
+
+  if (plan) {
+    if (Array.isArray((plan as Record<string, unknown>).days) &&
+      (plan as { days: unknown[] }).days.length >= 2) {
+      triggers.add("multi_day_plan");
+    }
+    if (Array.isArray((plan as Record<string, unknown>).items) &&
+      (plan as { items: unknown[] }).items.length >= 2) {
+      triggers.add("multi_item_plan");
+    }
+    if (Array.isArray((plan as Record<string, unknown>).holds) &&
+      (plan as { holds: unknown[] }).holds.length > 0) {
+      triggers.add("hold_present");
+    }
+  }
+
+  return Array.from(triggers);
 }
