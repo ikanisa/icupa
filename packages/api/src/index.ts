@@ -1,4 +1,12 @@
-import { CheckoutInput, ContributionCreate, EscrowCreate, InventorySearchInput, PermitRequest } from "@ecotrips/types";
+import {
+  CheckoutInput,
+  ContributionCreate,
+  EscrowCreate,
+  GroupSuggestionInput,
+  GroupSuggestionResponse,
+  InventorySearchInput,
+  PermitRequest,
+} from "@ecotrips/types";
 import {
   DrSnapshotInput,
   GroupsOpsPayoutNowInput,
@@ -95,6 +103,14 @@ const descriptors = {
     auth: "user",
     input: ContributionCreate,
     output: z.object({ ok: z.boolean(), contribution_id: z.string().uuid().optional() }),
+  },
+  "groups.suggest": {
+    path: "/functions/v1/groups-suggest",
+    method: "POST",
+    auth: "anon",
+    input: GroupSuggestionInput,
+    output: GroupSuggestionResponse,
+    cacheTtlMs: 30_000,
   },
   "permits.request": {
     path: "/functions/v1/permits-request",
