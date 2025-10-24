@@ -236,3 +236,57 @@ Docker Desktop is a prerequisite for local development. Follow the official docs
 ## Env Hygiene
 - .env.example present with Supabase/Stripe/OpenAI placeholders.
 - .env ignored via .gitignore alongside .supabase.
+
+## Session Snapshot (2025-10-23T22:10:22Z)
+- Timestamp (UTC): Thu Oct 23 22:10:22 UTC 2025
+- Working directory (`pwd`):
+```
+/workspace/ecoTrips
+```
+- `git status --porcelain`:
+```
+
+```
+- Runtime versions:
+```
+node -v
+v20.19.4
+
+npm -v
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+11.4.2
+
+deno --version
+bash: command not found: deno
+```
+- Perf smoke (`deno run -A ops/perf/perf_runner.ts --scenario smoke`):
+```
+bash: command not found: deno
+```
+
+## Session Snapshot (2025-10-23T23:03:51Z)
+- Timestamp (UTC): Thu Oct 23 23:03:51 UTC 2025
+- Working directory (`pwd`):
+```
+/workspace/ecoTrips
+```
+- `git status --porcelain`:
+```
+
+```
+- Runtime versions:
+```
+node -v
+v20.19.4
+
+npm -v
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+11.4.2
+
+deno --version
+bash: command not found: deno
+```
+- Perf smoke (`deno run -A ops/perf/perf_runner.ts --scenario smoke`):
+```
+bash: command not found: deno
+```
