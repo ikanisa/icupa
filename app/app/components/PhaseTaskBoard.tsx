@@ -144,6 +144,7 @@ const taskPhases: PhaseDefinition[] = [
         steps: [
           "Build each Next.js workspace locally with `npm run build --workspace <app>`.",
           "Deploy a preview using `vercel deploy --prebuilt` and note the URL.",
+          "If Turbopack panics, capture the webpack fallback output from `app/scripts/run-next-build.mjs` and attach it to your evidence.",
           "Record the validation steps and outcomes in `DEPLOYMENT_READINESS_REPORT.md`.",
         ],
         commands: [
@@ -190,6 +191,83 @@ const taskPhases: PhaseDefinition[] = [
         resources: [
           { label: "Runbook entry", href: "/docs/phased-tasks#issue-5-pr-workflow-requires-end-to-end-validation" },
           { label: "Task stub", href: "/docs/phased-tasks#task-issue-5" },
+        ],
+      },
+    ],
+  },
+  {
+    id: "phase-4",
+    title: "Phase 4 · Router-agent activation",
+    description:
+      "Exercise router-agent rehearsals, review ChatKit previews, and confirm compliance guardrails before launch.",
+    highlight: "Validate agent routing evidence before enabling traffic.",
+    tasks: [
+      {
+        id: "task-issue-6",
+        title: "Execute router-agent smoke and rehearsal suite",
+        summary:
+          "Run observability and rehearsal scripts to verify WhatsApp pricing, voice fallback, and GDPR logging coverage.",
+        steps: [
+          "Run `npm run test:observability` to confirm Supabase traces capture router-agent telemetry.",
+          "Execute `npm run test:rehearsal` to validate pricing, voice, and GDPR rehearsal evidence.",
+          "Paste the outputs into `DEPLOYMENT_READINESS_REPORT.md` under a new \"Router-agent rehearsals\" heading.",
+          "Escalate failures as Phase 4 blockers so reviewers halt the release until resolved.",
+        ],
+        commands: [
+          "npm run test:observability",
+          "npm run test:rehearsal",
+        ],
+        resources: [
+          {
+            label: "Runbook entry",
+            href: "/docs/phased-tasks#task-issue-6",
+          },
+          {
+            label: "Readiness report",
+            href: "/docs/deployment-readiness-report",
+          },
+        ],
+      },
+      {
+        id: "task-issue-6-chatkit",
+        title: "Publish ChatKit preview evidence",
+        summary:
+          "Share annotated ChatKit previews that demonstrate router-agent interactions for stakeholders.",
+        steps: [
+          "Generate or collect the ChatKit preview URL or screenshots showcasing router-agent prompts.",
+          "Document the assets in `docs/releases/router-agent-activation.md` for async review.",
+          "Record designer and product sign-off details in `DEPLOYMENT_READINESS_REPORT.md`.",
+        ],
+        resources: [
+          {
+            label: "Runbook entry",
+            href: "/docs/phased-tasks#task-issue-6-chatkit",
+          },
+          {
+            label: "Release notes",
+            href: "/docs/releases/router-agent-activation",
+          },
+        ],
+      },
+      {
+        id: "task-issue-6-compliance",
+        title: "Complete compliance audit checkpoints",
+        summary:
+          "Verify GDPR, privacy export, and audit logging safeguards prior to router-agent activation.",
+        steps: [
+          "Cross-check `ops/privacy/DATAMAP.md` against router-agent storage paths.",
+          "Ensure `agents/observability.md` reflects the latest AUDIT logging patterns.",
+          "Log remediation owners and due dates in `DEPLOYMENT_READINESS_REPORT.md`.",
+        ],
+        resources: [
+          {
+            label: "Runbook entry",
+            href: "/docs/phased-tasks#task-issue-6-compliance",
+          },
+          {
+            label: "Compliance notes",
+            href: "/docs/releases/router-agent-activation",
+          },
         ],
       },
     ],

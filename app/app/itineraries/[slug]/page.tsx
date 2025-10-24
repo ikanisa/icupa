@@ -7,10 +7,11 @@ export function generateStaticParams() {
   return itineraries.map((itinerary) => ({ slug: itinerary.slug }));
 }
 
-type Props = { params: { slug: string } };
+type ItineraryPageProps = Readonly<{ params: Promise<{ slug: string }> }>;
 
-export default function ItineraryPage({ params }: Props) {
-  const itinerary = getItinerary(params.slug);
+export default async function ItineraryPage({ params }: ItineraryPageProps) {
+  const { slug } = await params;
+  const itinerary = getItinerary(slug);
 
   if (!itinerary) {
     notFound();
