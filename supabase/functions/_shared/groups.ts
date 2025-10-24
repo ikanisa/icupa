@@ -451,3 +451,101 @@ export async function insertAgentEventTelemetry(
     console.error("agent_insert_event", { error, sessionId, event });
   }
 }
+
+export async function fetchGroupEscrowsByGroup(
+  groupId: string,
+): Promise<GroupEscrowRow[]> {
+  const response = await fetch(
+    `${SUPABASE_URL}/rest/v1/group_escrows_view?select=id,group_id,itinerary_id,currency,target_cents,min_members,deadline,status&group_id=eq.${groupId}`,
+    {
+      headers: PUBLIC_HEADERS,
+    },
+  );
+
+  if (!response.ok) {
+    const text = await response.text();
+    const error = new Error(`Failed to list group escrows: ${text}`);
+    (error as { code?: string }).code = ERROR_CODES.SUPPLIER_TIMEOUT;
+    throw error;
+  }
+
+  const rows = await response.json();
+  if (!Array.isArray(rows)) {
+    return [];
+  }
+  return rows as GroupEscrowRow[];
+}
+
+export interface GroupLiveSlotsUpsertInput {
+  escrowId: string;
+  groupId: string;
+  itineraryId: string | null;
+  totalSlots: number;
+  filledSlots: number;
+  availableSlots: number;
+  waitlistSlots: number;
+  presenceOptIn: number;
+  presenceVisible: number;
+  presenceOnline: number;
+  visible?: boolean;
+}
+
+export async function upsertGroupLiveSlots(
+  entries: GroupLiveSlotsUpsertInput[],
+): Promise<void> {
+  if (!entries.length) return;
+
+  const payload = entries.map((entry) => ({
+    escrow_id: entry.escrowId,
+    group_id: entry.groupId,
+    itinerary_id: entry.itineraryId,
+    total_slots: entry.totalSlots,
+    filled_slots: entry.filledSlots,
+    available_slots: entry.availableSlots,
+    waitlist_slots: entry.waitlistSlots,
+    presence_opt_in: entry.presenceOptIn,
+    presence_visible: entry.presenceVisible,
+    presence_online: entry.presenceOnline,
+    visible: entry.visible ?? true,
+  }));
+
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/group.live_slots`, {
+    method: "POST",
+    headers: {
+      ...GROUP_HEADERS,
+      "Content-Type": "application/json",
+      Prefer: "resolution=merge-duplicates",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    const error = new Error(`Failed to upsert live slots: ${text}`);
+    (error as { code?: string }).code = ERROR_CODES.DATA_CONFLICT;
+    throw error;
+  }
+}
+export async function fetchGroupEscrowsByItinerary(
+  itineraryId: string,
+): Promise<GroupEscrowRow[]> {
+  const response = await fetch(
+    `${SUPABASE_URL}/rest/v1/group_escrows_view?select=id,group_id,itinerary_id,currency,target_cents,min_members,deadline,status&itinerary_id=eq.${itineraryId}`,
+    {
+      headers: PUBLIC_HEADERS,
+    },
+  );
+
+  if (!response.ok) {
+    const text = await response.text();
+    const error = new Error(`Failed to list escrows by itinerary: ${text}`);
+    (error as { code?: string }).code = ERROR_CODES.SUPPLIER_TIMEOUT;
+    throw error;
+  }
+
+  const rows = await response.json();
+  if (!Array.isArray(rows)) {
+    return [];
+  }
+  return rows as GroupEscrowRow[];
+}
