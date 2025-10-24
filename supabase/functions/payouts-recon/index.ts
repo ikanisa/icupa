@@ -80,7 +80,8 @@ const handler = withObs(async (req) => {
 
   const requestId = getRequestId(req) ?? crypto.randomUUID();
   const auth = await resolveAuth(req.headers.get("authorization"));
-  if (!auth.userId || !auth.isOps) {
+  const hasServiceRoleAccess = auth.actorLabel === "service-role" && auth.isOps;
+  if (!hasServiceRoleAccess && (!auth.userId || !auth.isOps)) {
     const error = new Error("ops access required");
     (error as { code?: string }).code = ERROR_CODES.AUTH_REQUIRED;
     throw error;
