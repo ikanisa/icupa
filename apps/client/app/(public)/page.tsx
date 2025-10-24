@@ -1,7 +1,7 @@
 import { BottomNavDock, CardGlass, buttonClassName } from "@ecotrips/ui";
 import type { BottomNavItem } from "@ecotrips/ui";
 import { availableLocales, createTranslator } from "@ecotrips/i18n";
-import { OptionCard } from "./components/OptionCard";
+import { PlannerFeatureGate } from "./components/PlannerFeatureGate";
 
 const navItems = [
   { href: "/", label: "Home", icon: "🏡" },
@@ -46,9 +46,15 @@ export default function HomePage({ searchParams }: { searchParams: Record<string
         <div className="flex flex-wrap gap-2 text-xs text-white/50">
           <span>Offline-first caches itinerary JSON + tickets</span>
           <span>Supabase realtime updates</span>
-          <span>PlannerCoPilot + ConciergeGuide</span>
+          <PlannerFeatureGate
+            debugLabel="home.tagline"
+            fallback={<span>ConciergeGuide automations</span>}
+          >
+            <span>PlannerCoPilot + ConciergeGuide</span>
+          </PlannerFeatureGate>
         </div>
       </header>
+      <PlannerFeatureGate debugLabel="home.hero">
         <CardGlass
           title={t("home.cta")}
           subtitle="PlannerCoPilot turns vague intents into price-aware itineraries."
@@ -58,17 +64,12 @@ export default function HomePage({ searchParams }: { searchParams: Record<string
             </a>
           }
         >
-        <p>Share your dream route — Kigali sunsets, Akagera safari, Nyungwe canopy. We keep daylight transfers and safety nudges.</p>
-      </CardGlass>
-      <OptionCard
-        title="Carbon-neutral & travel assurance"
-        subtitle="Bundle carbon offsets with medical cover from our phase-one partners."
-        actionLabel="Review coverage"
-        actionHref="/wallet?tab=protections"
-      >
-        <p>EcoCare pairs parametric weather coverage with the same payout ledgers you see in the admin console. Carbon sink receipts flow into your wallet ledger for transparency.</p>
-        <p className="text-xs text-white/60">Insurance and carbon toggles stream through reward-grant so balances stay in sync even when fixtures power the UI.</p>
-      </OptionCard>
+          <p>
+            Share your dream route — Kigali sunsets, Akagera safari, Nyungwe canopy. We keep daylight transfers and safety
+            nudges.
+          </p>
+        </CardGlass>
+      </PlannerFeatureGate>
       <CardGlass
         title="Split-pay escrows"
         subtitle="Create groups with WhatsApp invites, contributions, and payout audit trails."
