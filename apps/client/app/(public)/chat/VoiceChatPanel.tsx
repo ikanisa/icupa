@@ -35,13 +35,22 @@ export function VoiceChatPanel() {
       setState((prev) => ({ ...prev, microphone: false }));
       return;
     }
+    let stream: MediaStream | null = null;
     try {
-      await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       setState((prev) => ({ ...prev, microphone: true }));
       captureClientEvent("voice_session_microphone_ready", {});
     } catch (error) {
       console.error("microphone_request_failed", error);
       setState((prev) => ({ ...prev, microphone: false }));
+    } finally {
+      stream?.getTracks().forEach((track) => {
+        try {
+          track.stop();
+        } catch (trackError) {
+          console.error("microphone_track_stop_failed", trackError);
+        }
+      });
     }
   };
 
