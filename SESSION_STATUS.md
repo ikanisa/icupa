@@ -236,3 +236,6 @@ Docker Desktop is a prerequisite for local development. Follow the official docs
 ## Env Hygiene
 - .env.example present with Supabase/Stripe/OpenAI placeholders.
 - .env ignored via .gitignore alongside .supabase.
+
+## Latest Smoke Perf Run
+- `deno run -A ops/perf/perf_runner.ts --scenario smoke` → ✅ `p95=17.7ms`, `errors=0` against local mock Supabase (no external creds).

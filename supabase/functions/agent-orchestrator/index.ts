@@ -1,5 +1,9 @@
 import { getRequestId, healthResponse, withObs } from "../_obs/withObs.ts";
 import { ERROR_CODES } from "../_obs/constants.ts";
+import {
+  AgentToolSpanTelemetryOptions,
+  buildAgentToolSpanPayload,
+} from "../_shared/agentObservability.ts";
 
 interface ToolDefinition {
   key: string;
@@ -30,6 +34,31 @@ interface RequestPayload {
   tool_call?: ToolCallInput;
   dry_run?: boolean;
   messages?: ConversationMessage[];
+}
+
+type ModerationAction = "allow" | "refuse" | "escalate";
+
+interface ModerationCandidate {
+  index: number;
+  role: string;
+  content: string;
+  metadata?: Record<string, unknown>;
+  hints: string[];
+  flaggedReason?: string;
+}
+
+interface ModerationDecisionRecord {
+  message_index: number;
+  action: ModerationAction;
+  category: string;
+  reason?: string;
+  matched?: Record<string, unknown>;
+}
+
+interface ModerationSummary {
+  action: ModerationAction;
+  category: string;
+  decisions: ModerationDecisionRecord[];
 }
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
@@ -154,10 +183,18 @@ const EMBEDDED_REGISTRY: ToolDefinition[] = [
   {
     key: "notify.whatsapp_send",
     endpoint:
-      "https://{project_ref}.supabase.co/functions/v1/notify-whatsapp-send",
+      "https://{project_ref}.supabase.co/functions/v1/wa-send",
     method: "POST",
     auth: "service_role",
     requiredFields: ["to", "template"],
+  },
+  {
+    key: "notify.whatsapp",
+    endpoint:
+      "https://{project_ref}.supabase.co/functions/v1/notify-whatsapp",
+    method: "POST",
+    auth: "service_role",
+    requiredFields: ["to"],
   },
   {
     key: "agent.log_goal",
@@ -365,10 +402,10 @@ const CANONICAL_TOOL_DEFINITIONS: Record<string, ToolDefinition> = {
   },
   "notify.whatsapp": {
     key: "notify.whatsapp",
-    endpoint: "https://{project_ref}.supabase.co/functions/v1/wa-send",
+    endpoint: "https://{project_ref}.supabase.co/functions/v1/notify-whatsapp",
     method: "POST",
     auth: "service_role",
-    requiredFields: ["to", "template"],
+    requiredFields: ["to"],
   },
   "payout.now": {
     key: "payout.now",
@@ -549,6 +586,7 @@ const handler = withObs(async (req) => {
 
   const dryRun = Boolean(payload.dry_run);
   let sessionId = payload.session_id ?? null;
+  let moderationSummary: ModerationSummary | null = null;
 
   try {
     if (sessionId) {
@@ -574,6 +612,59 @@ const handler = withObs(async (req) => {
       const mergedPlan = existingPlan
         ? deepMerge(existingPlan, payload.plan)
         : payload.plan;
+
+      const optimizerInput = extractOptimizerInput(mergedPlan);
+      if (optimizerInput) {
+        const optimizerArtifacts = await runPlannerOptimizers(
+          optimizerInput,
+          requestId,
+        );
+        if (optimizerArtifacts) {
+          const existingWhyRaw =
+            (mergedPlan as Record<string, unknown>)["why_these_changes"];
+          const existingWhy = Array.isArray(existingWhyRaw)
+            ? (existingWhyRaw as unknown[])
+              .filter((item) => typeof item === "string")
+              .map((item) => item as string)
+            : [];
+          const mergedWhy = dedupeStrings([
+            ...existingWhy,
+            ...optimizerArtifacts.why,
+          ]);
+          if (mergedWhy.length > 0) {
+            (mergedPlan as Record<string, unknown>)["why_these_changes"] =
+              mergedWhy;
+          }
+
+          const existingOptimizerRaw =
+            (mergedPlan as Record<string, unknown>)["optimizer"];
+          const existingOptimizer =
+            existingOptimizerRaw && typeof existingOptimizerRaw === "object" &&
+              !Array.isArray(existingOptimizerRaw)
+              ? (existingOptimizerRaw as Record<string, unknown>)
+              : {};
+
+          const optimizerPayload: Record<string, unknown> = {
+            ...existingOptimizer,
+            last_run_at: optimizerArtifacts.lastRunAt,
+            source: optimizerArtifacts.source,
+            conflicts: optimizerArtifacts.conflicts,
+            day_balance: optimizerArtifacts.dayBalance,
+            diff_summary: optimizerArtifacts.diffSummary,
+            rationales: optimizerArtifacts.rationales,
+          };
+
+          if (optimizerArtifacts.before) {
+            optimizerPayload.before = optimizerArtifacts.before;
+          }
+          if (optimizerArtifacts.after) {
+            optimizerPayload.after = optimizerArtifacts.after;
+          }
+
+          (mergedPlan as Record<string, unknown>)["optimizer"] = optimizerPayload;
+        }
+      }
+
       await upsertWorkingPlan(sessionId!, mergedPlan);
     } catch (error) {
       return jsonResponse({
@@ -594,6 +685,52 @@ const handler = withObs(async (req) => {
     }
   }
 
+  const riskyCandidates = extractRiskyModerationCandidates(shortTermMessages);
+  if (riskyCandidates.length > 0) {
+    try {
+      moderationSummary = await requestModerationDecision(
+        riskyCandidates,
+        agentKey,
+        requestId,
+      );
+
+      if (sessionId) {
+        await insertEvent(
+          sessionId,
+          "AUDIT",
+          "agent.moderation",
+          createModerationAuditPayload(agentKey, riskyCandidates, moderationSummary),
+        );
+      }
+    } catch (error) {
+      return jsonResponse({
+        ok: false,
+        error: `moderation error: ${(error as Error).message}`,
+      }, 502);
+    }
+  }
+
+  if (moderationSummary && moderationSummary.action !== "allow") {
+    const responsePayload: Record<string, unknown> = {
+      ok: false,
+      session_id: sessionId,
+      next: "moderation_review",
+      request_id: requestId,
+      moderation: {
+        action: moderationSummary.action,
+        category: moderationSummary.category,
+        decisions: moderationSummary.decisions.map((decision) => ({
+          message_index: decision.message_index,
+          action: decision.action,
+          category: decision.category,
+          reason: decision.reason,
+        })),
+      },
+    };
+
+    return jsonResponse(responsePayload, 200);
+  }
+
   const toolRequestId = crypto.randomUUID();
   let plannedTool: Record<string, unknown> | undefined;
   let toolResult: Record<string, unknown> | undefined;
@@ -610,6 +747,7 @@ const handler = withObs(async (req) => {
     };
 
     if (!dryRun) {
+      const spanStartMs = Date.now();
       try {
         toolResult = await executeTool(
           toolDef,
@@ -617,7 +755,54 @@ const handler = withObs(async (req) => {
           toolInput ?? {},
           toolRequestId,
         );
+        if (sessionId) {
+          const spanDurationMs = Math.max(0, Date.now() - spanStartMs);
+          const toolStatus = (toolResult as { status?: unknown }).status;
+          const toolBody = (toolResult as { body?: unknown }).body;
+          const spanStatus =
+            typeof toolStatus === "number"
+              ? toolStatus
+              : Number(toolStatus ?? NaN);
+          const spanOk = Number.isFinite(spanStatus)
+            ? spanStatus >= 200 && spanStatus < 400
+            : true;
+          await emitToolSpanEvent(
+            sessionId,
+            {
+              agentKey,
+              toolKey: toolDef.key,
+              requestId: toolRequestId,
+              startMs: spanStartMs,
+              durationMs: spanDurationMs,
+              ok: spanOk,
+              status: toolStatus,
+              requestPayload: toolInput ?? {},
+              responsePayload: toolBody,
+              ...(spanOk
+                ? {}
+                : {
+                    error: toolBody,
+                  }),
+            },
+          );
+        }
       } catch (error) {
+        const spanDurationMs = Math.max(0, Date.now() - spanStartMs);
+        if (sessionId) {
+          await emitToolSpanEvent(
+            sessionId,
+            {
+              agentKey,
+              toolKey: toolDef.key,
+              requestId: toolRequestId,
+              startMs: spanStartMs,
+              durationMs: spanDurationMs,
+              ok: false,
+              requestPayload: toolInput ?? {},
+              error,
+            },
+          );
+        }
         return jsonResponse({
           ok: false,
           error: `tool execution failed: ${(error as Error).message}`,
@@ -664,10 +849,39 @@ const handler = withObs(async (req) => {
     responsePayload.tool_result = toolResult;
   }
 
+  if (moderationSummary) {
+    responsePayload.moderation = {
+      action: moderationSummary.action,
+      category: moderationSummary.category,
+      decisions: moderationSummary.decisions.map((decision) => ({
+        message_index: decision.message_index,
+        action: decision.action,
+        category: decision.category,
+        reason: decision.reason,
+      })),
+    };
+  }
+
   return jsonResponse(responsePayload, 200);
 }, { fn: "agent-orchestrator", defaultErrorCode: ERROR_CODES.UNKNOWN });
 
 Deno.serve(handler);
+
+async function emitToolSpanEvent(
+  sessionId: string,
+  options: AgentToolSpanTelemetryOptions,
+): Promise<void> {
+  try {
+    const payload = await buildAgentToolSpanPayload(options);
+    await insertEvent(sessionId, "INFO", "agent.tool_span", payload);
+  } catch (error) {
+    console.error("agent.tool_span", {
+      error,
+      sessionId,
+      tool: options.toolKey,
+    });
+  }
+}
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -927,6 +1141,332 @@ function hasValue(input: Record<string, unknown>, path: string): boolean {
   return current !== undefined && current !== null;
 }
 
+const RISK_FLAG_BOOLEAN_KEYS = new Set<string>([
+  "flagged",
+  "risk_flag",
+  "moderation_flag",
+  "unsafe",
+  "blocked",
+  "risky",
+]);
+
+const RISK_FLAG_STRING_VALUES = new Set<string>([
+  "block",
+  "blocked",
+  "escalate",
+  "refuse",
+  "unsafe",
+  "risky",
+  "deny",
+  "high",
+  "critical",
+]);
+
+const RISK_HINT_KEYS = new Set<string>([
+  "category",
+  "categories",
+  "subcategory",
+  "label",
+  "tag",
+  "type",
+  "policy",
+  "classification",
+  "threat",
+  "abuse",
+  "risk",
+  "topic",
+]);
+
+const RISK_HINT_VALUES = new Set<string>([
+  "threat",
+  "violence",
+  "harassment",
+  "hate",
+  "sexual",
+  "child",
+  "self-harm",
+  "crisis",
+  "illegal",
+  "dangerous",
+  "spam",
+  "fraud",
+  "misinformation",
+  "safety",
+]);
+
+const RISK_REASON_KEYS = new Set<string>([
+  "reason",
+  "note",
+  "explanation",
+  "comment",
+  "message",
+]);
+
+const RISK_SCORE_KEYS = new Set<string>([
+  "score",
+  "probability",
+  "confidence",
+  "likelihood",
+]);
+
+function extractRiskyModerationCandidates(
+  messages: ConversationMessage[],
+): ModerationCandidate[] {
+  const candidates: ModerationCandidate[] = [];
+  messages.forEach((message, index) => {
+    if (!message.metadata) {
+      return;
+    }
+
+    const signal = parseRiskMetadata(message.metadata);
+    if (!signal.flagged) {
+      return;
+    }
+
+    candidates.push({
+      index,
+      role: message.role,
+      content: message.content,
+      metadata: message.metadata,
+      hints: signal.hints,
+      flaggedReason: signal.reason,
+    });
+  });
+  return candidates;
+}
+
+function parseRiskMetadata(metadata: Record<string, unknown>): {
+  flagged: boolean;
+  hints: string[];
+  reason?: string;
+} {
+  const hints: string[] = [];
+  let flagged = false;
+  let reason: string | undefined;
+  const stack: Record<string, unknown>[] = [metadata];
+
+  while (stack.length > 0) {
+    const current = stack.pop()!;
+    for (const [key, value] of Object.entries(current)) {
+      const lowerKey = key.toLowerCase();
+      if (typeof value === "boolean") {
+        if (value && RISK_FLAG_BOOLEAN_KEYS.has(lowerKey)) {
+          flagged = true;
+        }
+      } else if (typeof value === "string") {
+        const trimmed = value.trim();
+        if (!trimmed) continue;
+        const lowerValue = trimmed.toLowerCase();
+        const numericValue = Number(trimmed);
+        if (!Number.isNaN(numericValue) && RISK_SCORE_KEYS.has(lowerKey)) {
+          if (numericValue >= 0.8) {
+            flagged = true;
+          }
+        }
+        if (RISK_FLAG_STRING_VALUES.has(lowerValue)) {
+          flagged = true;
+        }
+        if (RISK_HINT_KEYS.has(lowerKey) || RISK_HINT_VALUES.has(lowerValue)) {
+          hints.push(lowerValue);
+        }
+        if (!reason && RISK_REASON_KEYS.has(lowerKey)) {
+          reason = trimmed;
+        }
+      } else if (typeof value === "number") {
+        if (value >= 0.8 && RISK_SCORE_KEYS.has(lowerKey)) {
+          flagged = true;
+        }
+      } else if (Array.isArray(value)) {
+        for (const item of value) {
+          if (typeof item === "string" && item.trim()) {
+            hints.push(item.trim().toLowerCase());
+          } else if (
+            item &&
+            typeof item === "object" &&
+            !Array.isArray(item)
+          ) {
+            stack.push(item as Record<string, unknown>);
+          }
+        }
+      } else if (value && typeof value === "object") {
+        stack.push(value as Record<string, unknown>);
+      }
+    }
+  }
+
+  const uniqueHints = Array.from(new Set(
+    hints.filter((hint) => typeof hint === "string" && hint.length > 0),
+  ));
+  return { flagged, hints: uniqueHints, reason };
+}
+
+async function requestModerationDecision(
+  candidates: ModerationCandidate[],
+  agentKey: string,
+  requestId: string,
+): Promise<ModerationSummary> {
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/moderate`, {
+    method: "POST",
+    headers: {
+      ...serviceHeaders(),
+      "content-type": "application/json",
+      "x-request-id": requestId,
+      "x-agent-key": agentKey,
+    },
+    body: JSON.stringify({
+      agent: agentKey,
+      request_id: requestId,
+      messages: candidates.map((candidate) => ({
+        role: candidate.role,
+        content: candidate.content,
+        metadata: candidate.metadata ?? {},
+        hints: candidate.hints,
+        flagged: true,
+        flagged_reason: candidate.flaggedReason,
+      })),
+    }),
+  });
+
+  const text = await response.text();
+  if (!response.ok) {
+    const message = text || `moderate responded with ${response.status}`;
+    throw new Error(message);
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = text ? JSON.parse(text) : {};
+  } catch (_error) {
+    throw new Error("moderate returned invalid JSON");
+  }
+
+  return normalizeModerationResponse(parsed);
+}
+
+function normalizeModerationResponse(payload: unknown): ModerationSummary {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return { action: "escalate", category: "unknown", decisions: [] };
+  }
+
+  const record = payload as Record<string, unknown>;
+  const rawDecisions = Array.isArray(record.decisions)
+    ? record.decisions
+    : [];
+
+  const decisions: ModerationDecisionRecord[] = [];
+  for (const item of rawDecisions) {
+    const normalized = normalizeModerationDecision(item);
+    if (normalized) {
+      decisions.push(normalized);
+    }
+  }
+
+  return {
+    action: ensureModerationAction(record.action),
+    category: typeof record.category === "string" && record.category.trim()
+      ? record.category
+      : "unknown",
+    decisions,
+  };
+}
+
+function normalizeModerationDecision(
+  decision: unknown,
+): ModerationDecisionRecord | null {
+  if (!decision || typeof decision !== "object" || Array.isArray(decision)) {
+    return null;
+  }
+
+  const record = decision as Record<string, unknown>;
+  const indexCandidate = record.message_index ?? record.index ?? record.position;
+  const numericIndex = typeof indexCandidate === "number"
+    ? indexCandidate
+    : Number(indexCandidate);
+
+  if (!Number.isFinite(numericIndex)) {
+    return null;
+  }
+
+  const message_index = Math.max(0, Math.floor(Number(numericIndex)));
+  const category = typeof record.category === "string" && record.category.trim()
+    ? record.category
+    : "unknown";
+  const reason = typeof record.reason === "string" && record.reason.trim()
+    ? record.reason
+    : undefined;
+
+  let matched: Record<string, unknown> | undefined;
+  if (
+    record.matched &&
+    typeof record.matched === "object" &&
+    record.matched !== null &&
+    !Array.isArray(record.matched)
+  ) {
+    matched = record.matched as Record<string, unknown>;
+  }
+
+  return {
+    message_index,
+    action: ensureModerationAction(record.action),
+    category,
+    reason,
+    matched,
+  };
+}
+
+function ensureModerationAction(value: unknown): ModerationAction {
+  if (value === "allow" || value === "refuse" || value === "escalate") {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.toLowerCase();
+    if (normalized === "allow" || normalized === "refuse") {
+      return normalized as ModerationAction;
+    }
+    if (normalized === "escalate" || normalized === "review") {
+      return "escalate";
+    }
+    if (normalized === "block" || normalized === "deny") {
+      return "refuse";
+    }
+  }
+
+  return "escalate";
+}
+
+function createModerationAuditPayload(
+  agentKey: string,
+  candidates: ModerationCandidate[],
+  summary: ModerationSummary,
+): Record<string, unknown> {
+  return {
+    agent: agentKey,
+    source: "moderate",
+    action: summary.action,
+    category: summary.category,
+    decisions: summary.decisions.map((decision) => ({
+      message_index: decision.message_index,
+      action: decision.action,
+      category: decision.category,
+      reason: decision.reason,
+    })),
+    flagged_messages: candidates.map((candidate) => ({
+      message_index: candidate.index,
+      role: candidate.role,
+      hints: candidate.hints,
+      excerpt: truncateForAudit(candidate.content),
+    })),
+  };
+}
+
+function truncateForAudit(text: string, limit = 160): string {
+  if (text.length <= limit) {
+    return text;
+  }
+  return `${text.slice(0, limit)}…`;
+}
+
 async function executeTool(
   tool: ToolDefinition,
   endpoint: string,
@@ -989,6 +1529,198 @@ function serviceHeaders(): Record<string, string> {
     apikey: SERVICE_ROLE_KEY!,
     Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
   };
+}
+
+async function runPlannerOptimizers(
+  input: Record<string, unknown>,
+  requestId: string,
+): Promise<{
+  why: string[];
+  conflicts: unknown[];
+  dayBalance: Record<string, unknown> | null;
+  diffSummary: Record<string, unknown>[];
+  rationales: string[];
+  before?: Record<string, unknown>;
+  after?: Record<string, unknown>;
+  source: string;
+  lastRunAt: string;
+} | null> {
+  const [conflictRes, balanceRes] = await Promise.all([
+    callOptimizerEndpoint("conflict-resolver", input, requestId),
+    callOptimizerEndpoint("day-balancer", input, requestId),
+  ]);
+
+  if (!conflictRes && !balanceRes) {
+    return null;
+  }
+
+  const lastRunAt = new Date().toISOString();
+  const why: string[] = [];
+
+  const conflicts = conflictRes && Array.isArray(conflictRes["conflicts"])
+    ? (conflictRes["conflicts"] as unknown[])
+    : [];
+  for (const entry of conflicts) {
+    if (!entry || typeof entry !== "object") continue;
+    const record = entry as Record<string, unknown>;
+    const recommendation =
+      typeof record.recommendation === "string"
+        ? record.recommendation
+        : null;
+    const rationale =
+      typeof record.rationale === "string" ? record.rationale : null;
+    const id = typeof record.id === "string" ? record.id : "conflict";
+    if (recommendation) {
+      why.push(`Resolve ${id}: ${recommendation}`);
+    } else if (rationale) {
+      why.push(`Resolve ${id}: ${rationale}`);
+    }
+  }
+
+  const rationales = balanceRes && Array.isArray(balanceRes["rationales"])
+    ? (balanceRes["rationales"] as unknown[])
+        .filter((item): item is string => typeof item === "string")
+    : [];
+  for (const note of rationales) {
+    why.push(`Auto-balance: ${note}`);
+  }
+
+  const diffSummary = balanceRes && Array.isArray(balanceRes["diff_summary"])
+    ? (balanceRes["diff_summary"] as Record<string, unknown>[])
+    : [];
+
+  const before =
+    balanceRes && typeof balanceRes["before"] === "object" &&
+      balanceRes["before"] !== null &&
+      !Array.isArray(balanceRes["before"])
+      ? (balanceRes["before"] as Record<string, unknown>)
+      : undefined;
+  const after =
+    balanceRes && typeof balanceRes["after"] === "object" &&
+      balanceRes["after"] !== null && !Array.isArray(balanceRes["after"])
+      ? (balanceRes["after"] as Record<string, unknown>)
+      : undefined;
+
+  return {
+    why,
+    conflicts,
+    dayBalance: after ?? null,
+    diffSummary,
+    rationales,
+    before,
+    after,
+    source:
+      (balanceRes && typeof balanceRes["source"] === "string" &&
+        (balanceRes["source"] as string).length > 0)
+        ? (balanceRes["source"] as string)
+        : (conflictRes && typeof conflictRes["source"] === "string" &&
+            (conflictRes["source"] as string).length > 0)
+        ? (conflictRes["source"] as string)
+        : "fixtures",
+    lastRunAt,
+  };
+}
+
+async function callOptimizerEndpoint(
+  slug: "conflict-resolver" | "day-balancer",
+  input: Record<string, unknown>,
+  requestId: string,
+): Promise<Record<string, unknown> | null> {
+  const endpoint = `${SUPABASE_URL}/functions/v1/${slug}`;
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        ...serviceHeaders(),
+        "content-type": "application/json",
+        "x-request-id": requestId,
+        "x-optimizer-slug": slug,
+      },
+      body: JSON.stringify(input),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.warn(
+        JSON.stringify({
+          level: "WARN",
+          event: "optimizer.endpoint.failure",
+          fn: "agent-orchestrator",
+          requestId,
+          slug,
+          status: response.status,
+          error: errorText,
+        }),
+      );
+      return null;
+    }
+
+    const raw = await response.text();
+    return raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
+  } catch (error) {
+    console.error(
+      JSON.stringify({
+        level: "ERROR",
+        event: "optimizer.endpoint.error",
+        fn: "agent-orchestrator",
+        requestId,
+        slug,
+        message: error instanceof Error ? error.message : String(error),
+      }),
+    );
+    return null;
+  }
+}
+
+function extractOptimizerInput(
+  plan: Record<string, unknown>,
+): Record<string, unknown> | null {
+  if (!plan || typeof plan !== "object") {
+    return null;
+  }
+
+  const candidateValue = (plan as Record<string, unknown>)["optimizer_input"];
+  const candidate =
+    candidateValue && typeof candidateValue === "object" &&
+      candidateValue !== null && !Array.isArray(candidateValue)
+      ? (candidateValue as Record<string, unknown>)
+      : plan;
+
+  if (!Array.isArray(candidate["days"]) || candidate["days"].length === 0) {
+    return null;
+  }
+  if (!Array.isArray(candidate["anchors"])) {
+    return null;
+  }
+  if (!Array.isArray(candidate["windows"])) {
+    return null;
+  }
+  if (typeof candidate["max_drive_minutes"] !== "number") {
+    return null;
+  }
+  if (typeof candidate["pace"] !== "string") {
+    return null;
+  }
+
+  return {
+    days: candidate["days"],
+    anchors: candidate["anchors"],
+    windows: candidate["windows"],
+    max_drive_minutes: candidate["max_drive_minutes"],
+    pace: candidate["pace"],
+  };
+}
+
+function dedupeStrings(values: string[]): string[] {
+  const seen = new Set<string>();
+  const results: string[] = [];
+  for (const value of values) {
+    if (!seen.has(value)) {
+      seen.add(value);
+      results.push(value);
+    }
+  }
+  return results;
 }
 
 function deepMerge(

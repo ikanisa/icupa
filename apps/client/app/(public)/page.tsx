@@ -1,6 +1,10 @@
 import { BottomNavDock, CardGlass, buttonClassName } from "@ecotrips/ui";
 import type { BottomNavItem } from "@ecotrips/ui";
 import { availableLocales, createTranslator } from "@ecotrips/i18n";
+import { PlannerFeatureGate } from "./components/PlannerFeatureGate";
+
+import { createPageMetadata } from "../../../lib/seo/metadata";
+import { PublicPage } from "./components/PublicPage";
 
 const navItems = [
   { href: "/", label: "Home", icon: "🏡" },
@@ -30,12 +34,18 @@ function getLocale(searchParams: URLSearchParams) {
   return "en";
 }
 
+export const metadata = createPageMetadata({
+  title: "Home",
+  description: "Plan off-grid eco journeys with realtime inventory, escrows, and offline-first agents.",
+  path: "/",
+});
+
 export default function HomePage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
   const locale = getLocale(toURLSearchParams(searchParams));
   const t = createTranslator(locale);
 
   return (
-    <div className="relative mx-auto flex min-h-screen max-w-3xl flex-col gap-8 px-4 pb-32 pt-10">
+    <PublicPage gapClass="gap-8" className="relative pb-32">
       <header className="space-y-3">
         <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/70">
           <span aria-hidden>🌿</span>
@@ -46,18 +56,23 @@ export default function HomePage({ searchParams }: { searchParams: Record<string
         <div className="flex flex-wrap gap-2 text-xs text-white/50">
           <span>Offline-first caches itinerary JSON + tickets</span>
           <span>Supabase realtime updates</span>
-          <span>PlannerCoPilot + ConciergeGuide</span>
+          <PlannerFeatureGate
+            debugLabel="home.tagline"
+            fallback={<span>ConciergeGuide automations</span>}
+          >
+            <span>PlannerCoPilot + ConciergeGuide</span>
+          </PlannerFeatureGate>
         </div>
       </header>
-        <CardGlass
-          title={t("home.cta")}
-          subtitle="PlannerCoPilot turns vague intents into price-aware itineraries."
-          actions={
-            <a href="/search" className={buttonClassName()}>
-              {t("search.cta")}
-            </a>
-          }
-        >
+      <CardGlass
+        title={t("home.cta")}
+        subtitle="PlannerCoPilot turns vague intents into price-aware itineraries."
+        actions={
+          <a href="/search" className={buttonClassName()}>
+            {t("search.cta")}
+          </a>
+        }
+      >
         <p>Share your dream route — Kigali sunsets, Akagera safari, Nyungwe canopy. We keep daylight transfers and safety nudges.</p>
       </CardGlass>
       <CardGlass
@@ -70,7 +85,16 @@ export default function HomePage({ searchParams }: { searchParams: Record<string
           <li>• ConciergeGuide pushes daily briefs and safety alerts during the trip.</li>
         </ul>
       </CardGlass>
+      <OptionCard
+        title="Invite friends, earn travel credit"
+        subtitle="Share your concierge with your crew – rewards land in your wallet automatically."
+        actionLabel="Copy referral link"
+        actionHref="/wallet?tab=referrals"
+      >
+        <p>Referral invites issue via the new referral-link edge function. We confirm consent and reuse idempotency keys so your friends never get duplicate SMS or WhatsApp pings.</p>
+        <p className="text-xs text-white/60">PlannerCoPilot logs fixture fallbacks whenever growth services are offline so you always see a link.</p>
+      </OptionCard>
       <BottomNavDock items={navItems} />
-    </div>
+    </PublicPage>
   );
 }

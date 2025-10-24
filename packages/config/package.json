@@ -14,6 +14,11 @@
       "import": "./env.js",
       "require": "./env.js",
       "types": "./env.d.ts"
+    },
+    "./feature-flags": {
+      "import": "./feature-flags.js",
+      "require": "./feature-flags.js",
+      "types": "./feature-flags.d.ts"
     }
   },
   "dependencies": {
