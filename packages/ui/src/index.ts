@@ -23,5 +23,6 @@ export type {
   AdminActionFormProps,
   AdminActionState,
 } from "./components/AdminActionForm";
+export type { OptionCardHighlight, OptionCardProps, OptionCardRiskLevel } from "./components/OptionCard";
 export type { AdminDataTableColumn, AdminDataTableProps } from "./components/AdminDataTable";
 export type { ExplainPriceProps } from "./components/ExplainPrice";

@@ -7,7 +7,7 @@ import { logAdminAction } from "../../../lib/logging";
 
 import { InvoiceGenerateForm, type InvoiceFormState } from "./InvoiceGenerateForm";
 import { RefundForm, type RefundFormState } from "./RefundForm";
-import { PayoutAgingWidget } from "./PayoutAgingWidget";
+import { RefundPolicySummaryPanel, type RefundPolicySummaryState } from "./RefundPolicySummaryPanel";
 
 async function generateInvoiceAction(_: InvoiceFormState, formData: FormData): Promise<InvoiceFormState> {
   "use server";
@@ -144,8 +144,8 @@ export default async function FinancePage() {
   const financeBreakdown = await loadFinanceBreakdown();
 
   return (
-    <>
-      <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
+    <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
+      <div className="space-y-6">
         <CardGlass title="Finance ledger" subtitle="Invoices, refunds, and payouts recorded with HITL guardrails.">
           <p className="text-sm text-white/80">
             Generate invoices directly from ledger payments. Signed URLs are short-lived; store them in secure channels and audit

@@ -23,6 +23,10 @@ export type PrivacyClient = {
     input: InferInput<(typeof privacyDescriptors)["privacy.erasure.execute"]>,
     options?: RequestOptions,
   ): Promise<InferOutput<(typeof privacyDescriptors)["privacy.erasure.execute"]>>;
+  scanPii(
+    input: InferInput<(typeof privacyDescriptors)["privacy.pii.scan"]>,
+    options?: RequestOptions,
+  ): Promise<InferOutput<(typeof privacyDescriptors)["privacy.pii.scan"]>>;
 };
 
 export function createPrivacyClient(client: FunctionCaller<FunctionMap>): PrivacyClient {
@@ -41,6 +45,9 @@ export function createPrivacyClient(client: FunctionCaller<FunctionMap>): Privac
     },
     executeErasure(input, options) {
       return client.call("privacy.erasure.execute", input, options);
+    },
+    scanPii(input, options) {
+      return client.call("privacy.pii.scan", input, options);
     },
   };
 }
