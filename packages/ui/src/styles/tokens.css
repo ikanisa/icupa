@@ -1,10 +1,37 @@
 :root {
+  /* Brand palette */
+  --eco-color-brand: 0 209 255;
+  --eco-color-brand-foreground: 2 6 23;
+  --eco-color-accent: 124 58 237;
+  --eco-color-accent-foreground: 240 240 255;
+  --eco-color-surface: 15 23 42;
+  --eco-color-surface-foreground: 226 232 240;
+  --eco-color-muted: 148 163 184;
+  --eco-color-positive: 16 185 129;
+  --eco-color-negative: 244 63 94;
+
+  /* Effects */
   --eco-gradient-primary: linear-gradient(135deg, #00d1ff 0%, #7c3aed 100%);
   --eco-gradient-rwanda: linear-gradient(135deg, #20603d 0%, #fad201 50%, #00a1de 100%);
-  --eco-glass-bg: rgba(255, 255, 255, 0.08);
-  --eco-glass-border: rgba(255, 255, 255, 0.22);
+  --eco-glass-rgb: 255 255 255;
+  --eco-glass-opacity: 0.08;
+  --eco-glass-border-opacity: 0.22;
   --eco-glass-blur: 20px;
   --eco-glass-shadow: 0 12px 40px rgba(2, 6, 23, 0.35);
+  --eco-glass-bg: rgba(var(--eco-glass-rgb) / var(--eco-glass-opacity));
+  --eco-glass-border: rgba(var(--eco-glass-rgb) / var(--eco-glass-border-opacity));
+
+  /* Typography */
+  --eco-font-sans: "InterVariable", system-ui, sans-serif;
+  --eco-font-display: "ClashDisplay-Variable", "InterVariable", system-ui, sans-serif;
+
+  /* Radii */
+  --eco-radius-sm: 0.75rem;
+  --eco-radius-md: 1rem;
+  --eco-radius-lg: 1.5rem;
+  --eco-radius-xl: 2rem;
+
+  /* Motion */
   --eco-duration-fast: 120ms;
   --eco-duration-base: 220ms;
   --eco-duration-slow: 380ms;

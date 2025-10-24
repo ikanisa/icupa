@@ -9,6 +9,7 @@ export class EcoTripsFunctionClient {
   private readonly fetchImpl: typeof fetch;
   private readonly timeoutMs: number;
   readonly inventory: DomainClients["inventory"];
+  readonly growth: DomainClients["growth"];
   readonly checkout: DomainClients["checkout"];
   readonly concierge: DomainClients["concierge"];
   readonly groups: DomainClients["groups"];
@@ -16,8 +17,11 @@ export class EcoTripsFunctionClient {
   readonly wallet: DomainClients["wallet"];
   readonly ops: DomainClients["ops"];
   readonly finance: DomainClients["finance"];
+  readonly pricing: DomainClients["pricing"];
+  readonly loyalty: DomainClients["loyalty"];
   readonly privacy: DomainClients["privacy"];
   readonly dr: DomainClients["dr"];
+  readonly helpers: DomainClients["helpers"];
 
   constructor(private readonly options: ClientOptions) {
     this.fetchImpl = options.fetch ?? fetch;
@@ -25,6 +29,7 @@ export class EcoTripsFunctionClient {
 
     const domains = createDomainClients(this);
     this.inventory = domains.inventory;
+    this.growth = domains.growth;
     this.checkout = domains.checkout;
     this.concierge = domains.concierge;
     this.groups = domains.groups;
@@ -32,8 +37,11 @@ export class EcoTripsFunctionClient {
     this.wallet = domains.wallet;
     this.ops = domains.ops;
     this.finance = domains.finance;
+    this.pricing = domains.pricing;
+    this.loyalty = domains.loyalty;
     this.privacy = domains.privacy;
     this.dr = domains.dr;
+    this.helpers = domains.helpers;
   }
 
   async call<K extends DescriptorKey>(
@@ -81,7 +89,10 @@ export class EcoTripsFunctionClient {
       }
 
       const parsed = await safeJson(response);
-      return descriptor.output ? descriptor.output.parse(parsed) : (parsed as InferOutput<FunctionMap[K]>);
+      const output = descriptor.output
+        ? (descriptor.output.parse(parsed) as InferOutput<FunctionMap[K]>)
+        : (parsed as InferOutput<FunctionMap[K]>);
+      return output;
     } finally {
       clearTimeout(timeout);
     }

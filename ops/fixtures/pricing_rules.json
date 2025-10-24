@@ -1,0 +1,26 @@
+[
+  {
+    "code": "ECOLOYALTY",
+    "kind": "percentage",
+    "value": 12.5,
+    "active": true,
+    "redemptions": 148,
+    "currency": "USD"
+  },
+  {
+    "code": "LOCALLOVE",
+    "kind": "fixed_amount",
+    "value": 45,
+    "active": true,
+    "redemptions": 62,
+    "currency": "EUR"
+  },
+  {
+    "code": "LATECHECKIN",
+    "kind": "loyalty_multiplier",
+    "value": 30,
+    "active": false,
+    "redemptions": 204,
+    "currency": "USD"
+  }
+]

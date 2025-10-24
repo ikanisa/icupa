@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import type { DescriptorMap } from "../types";
-import { CheckoutInput } from "@ecotrips/types";
+import { CheckoutInput, PaymentEscalationInput, PaymentEscalationResponse } from "@ecotrips/types";
 
 export const checkoutDescriptors = {
   "checkout.intent": {
@@ -15,5 +15,12 @@ export const checkoutDescriptors = {
       client_secret: z.string().optional(),
       ledger_entry_id: z.string().optional(),
     }),
+  },
+  "checkout.escalate": {
+    path: "/functions/v1/payment-escalate",
+    method: "POST",
+    auth: "user",
+    input: PaymentEscalationInput,
+    output: PaymentEscalationResponse,
   },
 } satisfies DescriptorMap;
