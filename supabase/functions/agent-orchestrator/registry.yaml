@@ -345,3 +345,165 @@
   implementation_status: planned
   rate_limit:
     calls_per_minute: 60
+- key: growth.referral_link
+  description: Generate or reuse traveller referral invitations and return the shareable link.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/referral-link
+  method: POST
+  auth: user_jwt
+  input_schema: |
+    type: object
+    required: [inviter_user_id, invitee_email, consent]
+    properties:
+      inviter_user_id: { type: string, format: uuid }
+      invitee_email: { type: string, format: email }
+      invitee_user_id: { type: string, format: uuid }
+      channel:
+        oneOf:
+          - type: string
+          - type: array
+            items: { type: string }
+      consent: { type: boolean }
+      idempotency_key: { type: string }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      referral_code: { type: string }
+      link: { type: string, format: uri }
+      status: { type: string }
+  idempotency:
+    key_field: idempotency_key
+  rate_limit:
+    calls_per_minute: 10
+- key: growth.reward_grant
+  description: Append a reward ledger entry and update referral balances for incentives.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/reward-grant
+  method: POST
+  auth: service_token
+  input_schema: |
+    type: object
+    required: [user_id, amount_cents, idempotency_key, consent]
+    properties:
+      user_id: { type: string, format: uuid }
+      amount_cents: { type: integer, minimum: 1 }
+      currency: { type: string, minLength: 3 }
+      source: { type: string }
+      status: { type: string, enum: [pending, granted, cancelled, expired] }
+      referral_invitation_id: { type: string, format: uuid }
+      idempotency_key: { type: string }
+      consent: { type: boolean }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      ledger_entry:
+        type: object
+        properties:
+          id: { type: string }
+          status: { type: string }
+          amount_cents: { type: integer }
+          currency: { type: string }
+  idempotency:
+    key_field: idempotency_key
+  rate_limit:
+    calls_per_minute: 20
+- key: growth.price_lock_offer
+  description: Issue a price lock offer backed by inventory holds and capture consent.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/price-lock-offer
+  method: POST
+  auth: user_jwt
+  input_schema: |
+    type: object
+    required: [price_cents, idempotency_key, consent]
+    properties:
+      itinerary_id: { type: string, format: uuid }
+      user_id: { type: string, format: uuid }
+      price_cents: { type: integer, minimum: 1 }
+      currency: { type: string, minLength: 3 }
+      hold_reference: { type: string }
+      hold_expires_at: { type: string, format: date-time }
+      idempotency_key: { type: string }
+      consent: { type: boolean }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      offer:
+        type: object
+        properties:
+          id: { type: string }
+          status: { type: string }
+          hold_expires_at: { type: string, format: date-time }
+  idempotency:
+    key_field: idempotency_key
+  rate_limit:
+    calls_per_minute: 12
+- key: growth.hold_extend
+  description: Extend an existing price lock hold while maintaining idempotent audit trails.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/hold-extend-offer
+  method: POST
+  auth: service_token
+  input_schema: |
+    type: object
+    required: [offer_id, idempotency_key]
+    properties:
+      offer_id: { type: string, format: uuid }
+      extension_minutes: { type: integer, minimum: 1 }
+      idempotency_key: { type: string }
+      consent: { type: boolean }
+      reason: { type: string }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      hold_expires_at: { type: string, format: date-time }
+  idempotency:
+    key_field: idempotency_key
+  rate_limit:
+    calls_per_minute: 30
+- key: growth.air_status
+  description: Fetch live or fixture airline disruption telemetry for proactive messaging.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/providers-air-status
+  method: GET
+  auth: user_jwt
+  input_schema: |
+    type: object
+    properties:
+      provider: { type: string }
+      flight: { type: string }
+      route: { type: string }
+      date: { type: string, format: date }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      status: { type: object }
+  rate_limit:
+    calls_per_minute: 30
+- key: growth.rebook_suggest
+  description: Generate traveller-facing rebooking suggestions when disruptions are detected.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/rebook-suggest
+  method: POST
+  auth: service_token
+  input_schema: |
+    type: object
+    required: [idempotency_key, consent]
+    properties:
+      disruption_id: { type: string, format: uuid }
+      itinerary_id: { type: string, format: uuid }
+      idempotency_key: { type: string }
+      consent: { type: boolean }
+      suggestion: { type: object }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      suggestion:
+        type: object
+        properties:
+          id: { type: string }
+          status: { type: string }
+  idempotency:
+    key_field: idempotency_key
+  rate_limit:
+    calls_per_minute: 12

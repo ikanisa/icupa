@@ -1,6 +1,7 @@
 import { CardGlass, buttonClassName } from "@ecotrips/ui";
 
 import { GroupEscrowActions } from "../../components/GroupEscrowActions";
+import { GroupLiveSlotsPanel } from "../../components/GroupLiveSlotsPanel";
 
 export default function GroupPage({ params }: { params: { id: string } }) {
   return (
@@ -20,6 +21,7 @@ export default function GroupPage({ params }: { params: { id: string } }) {
         </p>
         <GroupEscrowActions itineraryId={params.id} />
       </CardGlass>
+      <GroupLiveSlotsPanel itineraryId={params.id} />
       <CardGlass title="Invite flow" subtitle="WhatsApp invites share contributions link and due dates.">
         <p className="text-sm text-white/80">
           GroupBuilder agent tracks contributions and nudges participants. Idempotency keys guard duplicate payments. Admin HITL

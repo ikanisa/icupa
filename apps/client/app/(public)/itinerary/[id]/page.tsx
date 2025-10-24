@@ -3,6 +3,8 @@ import { createEcoTripsFunctionClient } from "@ecotrips/api";
 import Link from "next/link";
 import { AutoBalanceDayControl } from "./AutoBalanceDayControl";
 
+import { PlannerFeatureGate } from "../../components/PlannerFeatureGate";
+
 async function loadQuote(id: string) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;

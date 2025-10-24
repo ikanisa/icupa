@@ -8,5 +8,6 @@ export * from "./domains/privacy";
 export * from "./domains/dr";
 export * from "./domains/finance";
 export * from "./domains/ops";
+export * from "./domains/voice";
 export * from "./supabase";
 export * from "./optimizer";
