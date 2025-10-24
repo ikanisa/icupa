@@ -29,7 +29,7 @@ ICUPA is a three-surface, multi-tenant Progressive Web Application that powers d
 ## Getting started
 
 1. **Install prerequisites**
-   - Node.js 20+
+   - Node.js 20.11.1
    - npm 10+ (or pnpm/yarn if preferred)
 
 2. **Bootstrap environment variables**

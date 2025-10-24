@@ -18,7 +18,7 @@
 
 ## Build & Tooling Scripts
 - Ensured `package.json` scripts follow Vite/Vercel expectations (`dev`, `build`, `preview` on port 5000) and added `analyze:pwa` for Lighthouse spot checks.
-- Declared the Node runtime requirement (`>=18.18.0`) to align with Vercel’s build image.
+- Declared the Node runtime requirement (`>=20.11.1`) to align with Vercel’s build image.
 
 ## Environment Variables
 - Added `.env.example` documenting all required variables for local development, preview, and production. Keep real values in `.env` (ignored via `.gitignore`).

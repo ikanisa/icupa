@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 20.11.1
           cache: npm
       - uses: supabase/setup-cli@v1
         with:
@@ -43,7 +43,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 20.11.1
           cache: npm
       - run: npm ci
       - run: npm run lint
@@ -54,10 +54,26 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 20.11.1
           cache: npm
       - run: npm ci
       - run: npm run typecheck
+
+  verify-full:
+    needs:
+      - lint
+      - typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20.11.1
+          cache: npm
+      - run: npm ci
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+      - run: npm run verify:full
 
   performance:
     needs:
@@ -68,7 +84,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 20.11.1
           cache: npm
       - run: npm ci
       - run: npm run build
@@ -133,7 +149,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 20.11.1
           cache: npm
       - run: npm ci
       - name: Install Playwright browsers
