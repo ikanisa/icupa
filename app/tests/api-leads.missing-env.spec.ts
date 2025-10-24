@@ -12,6 +12,13 @@ test.describe("lead capture env hardening", () => {
     );
     const originalSupabaseUrl = process.env.SUPABASE_URL;
     const originalServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const originalFetch: typeof fetch = globalThis.fetch;
+    const fetchInvocations: Array<Parameters<typeof fetch>> = [];
+
+    globalThis.fetch = (async (...args) => {
+      fetchInvocations.push(args);
+      return new Response(null, { status: 204 });
+    }) as typeof fetch;
 
     delete process.env.SUPABASE_URL;
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -34,6 +41,8 @@ test.describe("lead capture env hardening", () => {
       expect(body.ok).toBe(false);
       expect(body.message ?? "").toContain("configuration");
     } finally {
+      globalThis.fetch = originalFetch;
+
       if (hadUrl) {
         process.env.SUPABASE_URL = originalSupabaseUrl;
       } else {
