@@ -3,6 +3,7 @@ import { CardGlass, buttonClassName } from "@ecotrips/ui";
 import { createPageMetadata } from "../../../lib/seo/metadata";
 import { PublicPage } from "../components/PublicPage";
 import { WalletOfflinePack } from "../components/WalletOfflinePack";
+import { TilePackDownloads } from "../components/TilePackDownloads";
 
 export const metadata = createPageMetadata({
   title: "Wallet",
@@ -23,6 +24,12 @@ export default function WalletPage() {
             View invoices
           </a>
         </div>
+      </CardGlass>
+      <CardGlass
+        title="Offline map tile packs"
+        subtitle="Download Kigali and Akagera tiles for field navigation. Progress bars simulate bundle sync until live endpoints ship."
+      >
+        <TilePackDownloads />
       </CardGlass>
       <CardGlass title="Escrow contributions" subtitle="Track contributions and payouts from your wallet.">
         <ul className="space-y-2 text-sm text-white/80">
