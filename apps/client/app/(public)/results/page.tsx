@@ -1,11 +1,43 @@
-import { CardGlass, buttonClassName } from "@ecotrips/ui";
+import { CardGlass, ExplainPrice, buttonClassName } from "@ecotrips/ui";
+import { createEcoTripsFunctionClient } from "@ecotrips/api";
+import { InventorySearchInput } from "@ecotrips/types";
 import Link from "next/link";
+import { PushNotificationBanner } from "../components/PushNotificationBanner";
 
-import { createPageMetadata } from "../../../lib/seo/metadata";
-import { loadInventorySearch, parseSearchParams } from "../../../lib/loaders/search";
-import type { RawSearchParams } from "../../../lib/loaders/search";
-import { PublicPage } from "../components/PublicPage";
-import { ResultsHydrator } from "./ResultsHydrator";
+function parseSearchParams(searchParams: Record<string, string | string[] | undefined>) {
+  const destination = typeof searchParams.destination === "string" ? searchParams.destination : "Kigali";
+  const startDate = typeof searchParams.startDate === "string" ? searchParams.startDate : new Date().toISOString().slice(0, 10);
+  const endDate = typeof searchParams.endDate === "string"
+    ? searchParams.endDate
+    : new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const adults = Number(Array.isArray(searchParams.adults) ? searchParams.adults[0] : searchParams.adults ?? 2);
+  const children = Number(Array.isArray(searchParams.children) ? searchParams.children[0] : searchParams.children ?? 0);
+
+  const parsed = InventorySearchInput.safeParse({
+    destination,
+    startDate,
+    endDate,
+    party: { adults: Number.isFinite(adults) ? adults : 2, children: Number.isFinite(children) ? children : 0 },
+  });
+
+  return parsed.success
+    ? parsed.data
+    : {
+        destination,
+        startDate,
+        endDate,
+        party: { adults: 2, children: 0 },
+        budgetHint: "balanced" as const,
+        locale: "en" as const,
+      };
+}
+
+async function loadResults(searchParams: Record<string, string | string[] | undefined>) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !anonKey) {
+    return { items: [], ok: false, cacheHit: true };
+  }
 
 export async function generateMetadata({ searchParams }: { searchParams: RawSearchParams }) {
   const input = parseSearchParams(searchParams);
@@ -16,16 +48,49 @@ export async function generateMetadata({ searchParams }: { searchParams: RawSear
   });
 }
 
-export default async function ResultsPage({ searchParams }: { searchParams: RawSearchParams }) {
+async function loadPriceBreakdowns(optionIds: string[]): Promise<Map<string, PriceBreakdown>> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !anonKey || optionIds.length === 0) {
+    return new Map();
+  }
+
+  const client = createEcoTripsFunctionClient({
+    supabaseUrl,
+    anonKey,
+    getAccessToken: async () => null,
+  });
+
+  try {
+    const response = await client.call("helpers.price", { option_ids: optionIds });
+    if (!response.ok) {
+      return new Map();
+    }
+    const map = new Map<string, PriceBreakdown>();
+    for (const entry of response.breakdowns ?? []) {
+      map.set(entry.option_id, entry.breakdown);
+    }
+    return map;
+  } catch (error) {
+    console.error("helpers.price failed", error);
+    return new Map();
+  }
+}
+
+export default async function ResultsPage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
   const input = parseSearchParams(searchParams);
-  const results = await loadInventorySearch(searchParams);
+  const results = await loadResults(searchParams);
+  const optionIds = results.items
+    .map((item) => (typeof item.supplier_hotel_id === "string" ? item.supplier_hotel_id : null))
+    .filter((id): id is string => Boolean(id));
+  const breakdowns = await loadPriceBreakdowns(optionIds);
 
   const isOffline = !results.ok || results.cacheHit;
+  const defaultCurrency = (results.items[0]?.currency ?? "USD").toUpperCase();
 
   return (
-    <PublicPage>
-      <ResultsHydrator input={input} results={results} />
-      <CardGlass
+    <div className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 px-4 pb-24 pt-10">
+      <ResultsList
         title={`Top picks for ${input.destination}`}
         subtitle={`Dates ${input.startDate} → ${input.endDate} · party of ${input.party.adults}${input.party.children ? ` + ${input.party.children} children` : ""}`}
       >
@@ -46,38 +111,40 @@ export default async function ResultsPage({ searchParams }: { searchParams: RawS
           </PlannerFeatureGate>
         ) : (
           <ul className="space-y-4">
-            {results.items.map((item) => (
-              <li key={item.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <h3 className="text-lg font-semibold">{item.name ?? "Itinerary option"}</h3>
-                    <p className="text-sm text-white/70">Supplier {item.supplier ?? "tbd"}</p>
+            {results.items.map((item, index) => {
+              const optionId = typeof item.supplier_hotel_id === "string" ? item.supplier_hotel_id : `option-${index}`;
+              const breakdown = breakdowns.get(optionId) ?? breakdowns.get("default");
+              const itinerarySlug = typeof item.id === "string" && item.id.length > 0 ? item.id : "draft";
+              return (
+                <li key={optionId} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-lg font-semibold">{item.name ?? "Itinerary option"}</h3>
+                      <p className="text-sm text-white/70">Supplier {item.supplier ?? "tbd"}</p>
+                    </div>
+                    <p className="text-base font-semibold text-sky-200">
+                      {item.currency ?? "USD"} {Math.round(item.price_cents / 100).toLocaleString()}
+                    </p>
                   </div>
-                  <ExplainPrice
-                    amountCents={typeof item.price_cents === "number" ? item.price_cents : 0}
-                    currency={item.currency ?? "USD"}
-                    breakdown={(item as { explain_price?: string[] }).explain_price}
-                  />
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Link
-                    href={`/itinerary/${item.id ?? "draft"}`}
-                    className={buttonClassName("glass")}
-                  >
-                    View itinerary
-                  </Link>
-                  <Link
-                    href={`/itinerary/${item.id ?? "draft"}?action=quote`}
-                    className={buttonClassName("secondary")}
-                  >
-                    Request quote
-                  </Link>
-                </div>
-                <div className="mt-4">
-                  <PriceLockOption item={item as unknown as Record<string, unknown>} />
-                </div>
-              </li>
-            ))}
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Link href={`/itinerary/${itinerarySlug}`} className={buttonClassName("glass")}>
+                      View itinerary
+                    </Link>
+                    <Link
+                      href={`/itinerary/${itinerarySlug}?action=quote`}
+                      className={buttonClassName("secondary")}
+                    >
+                      Request quote
+                    </Link>
+                  </div>
+                  {breakdown && (
+                    <div className="mt-4">
+                      <ExplainPrice breakdown={breakdown} headline="Fixture pricing" />
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </CardGlass>
@@ -89,7 +156,9 @@ export default async function ResultsPage({ searchParams }: { searchParams: RawS
           </p>
         </CardGlass>
       )}
-    </PublicPage>
+      <PushNotificationBanner context="results" tags={["results", isOffline ? "offline" : "live"]} />
+
+    </div>
   );
 }
 

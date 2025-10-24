@@ -1,0 +1,26 @@
+[
+  {
+    "key": "OPS_CONSOLE_BOOKINGS_FIXTURES",
+    "description": "Serve bookings fixtures when ops-bookings is unavailable.",
+    "variants": [
+      { "name": "control", "exposure": 0.72, "conversions": 138, "uplift": 0.0 },
+      { "name": "fixtures", "exposure": 0.28, "conversions": 52, "uplift": -0.04 }
+    ]
+  },
+  {
+    "key": "OPS_CONSOLE_EXCEPTIONS_FIXTURES",
+    "description": "Fallback to exception fixtures when queue API is down.",
+    "variants": [
+      { "name": "control", "exposure": 0.81, "conversions": 164, "uplift": 0.0 },
+      { "name": "fixtures", "exposure": 0.19, "conversions": 31, "uplift": -0.02 }
+    ]
+  },
+  {
+    "key": "OPS_CONSOLE_WHATSAPP_LABS",
+    "description": "Enable WhatsApp automation UI experiments.",
+    "variants": [
+      { "name": "control", "exposure": 0.65, "conversions": 98, "uplift": 0.0 },
+      { "name": "automation", "exposure": 0.35, "conversions": 56, "uplift": 0.08 }
+    ]
+  }
+]

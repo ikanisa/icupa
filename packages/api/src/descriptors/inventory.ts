@@ -1,7 +1,12 @@
 import { z } from "zod";
 
 import type { DescriptorMap } from "../types";
-import { InventoryQuoteInput, InventorySearchInput } from "@ecotrips/types";
+import {
+  InventoryHoldInput,
+  InventoryHoldResult,
+  InventoryQuoteInput,
+  InventorySearchInput,
+} from "@ecotrips/types";
 
 export const inventoryDescriptors = {
   "inventory.search": {
@@ -23,5 +28,12 @@ export const inventoryDescriptors = {
     input: InventoryQuoteInput,
     output: z.object({ ok: z.boolean(), quote: z.record(z.any()).optional() }),
     cacheTtlMs: 120_000,
+  },
+  "inventory.hold": {
+    path: "/functions/v1/inventory-hold",
+    method: "POST",
+    auth: "user",
+    input: InventoryHoldInput,
+    output: InventoryHoldResult,
   },
 } satisfies DescriptorMap;

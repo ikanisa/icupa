@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Button, Toast } from "@ecotrips/ui";
+import { useState } from "react";
+import { Badge, Button, Toast } from "@ecotrips/ui";
 import { CheckoutInput } from "@ecotrips/types";
 import { createEcoTripsFunctionClient } from "@ecotrips/api";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
@@ -28,153 +28,8 @@ export function CheckoutForm({ itineraryId }: { itineraryId: string }) {
   const [amount, setAmount] = useState(182000);
   const [currency, setCurrency] = useState("USD");
   const [intent, setIntent] = useState<string | null>(null);
-  const [toast, setToast] = useState<ToastState>(null);
-  const [pending, setPending] = useState(false);
-  const [sessionReady, setSessionReady] = useState(false);
-  const [sessionAvailable, setSessionAvailable] = useState(false);
-  const [authError, setAuthError] = useState<string | null>(
-    SUPABASE_URL && SUPABASE_ANON_KEY
-      ? null
-      : "Checkout unavailable. Configure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.",
-  );
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-      setSessionReady(true);
-      setSessionAvailable(false);
-      return;
-    }
-
-    const supabase = createClientComponentClient({
-      supabaseUrl: SUPABASE_URL,
-      supabaseKey: SUPABASE_ANON_KEY,
-    });
-
-    let mounted = true;
-
-    const syncSession = (session: Session | null) => {
-      if (!mounted) return;
-      const hasSession = Boolean(session);
-      setSessionAvailable(hasSession);
-      setAccessToken(session?.access_token ?? null);
-      if (!hasSession && !ALLOW_ANON_CHECKOUT) {
-        setAuthError("Sign in to continue checkout.");
-      } else {
-        setAuthError(null);
-      }
-      setSessionReady(true);
-    };
-
-    supabase.auth.getSession().then(({ data, error }) => {
-      if (!mounted) return;
-      if (error) {
-        setAuthError(`Unable to load session: ${error.message}`);
-        setSessionReady(true);
-        setSessionAvailable(false);
-        return;
-      }
-      syncSession(data.session ?? null);
-    });
-
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
-      syncSession(session);
-    });
-
-    return () => {
-      mounted = false;
-      authListener?.subscription.unsubscribe();
-    };
-  }, []);
-
-  const client = useMemo(() => {
-    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
-    return createEcoTripsFunctionClient({
-      supabaseUrl: SUPABASE_URL,
-      anonKey: SUPABASE_ANON_KEY,
-      getAccessToken: async () => accessToken,
-    });
-  }, [accessToken]);
-
-  const interpretError = (error: unknown): ToastState => {
-    const fallback: ToastState = {
-      id: "checkout_error",
-      title: "Checkout failed",
-      description: "An unexpected error occurred while creating the payment intent.",
-    };
-
-    const message = error instanceof Error ? error.message : String(error ?? "");
-    const jsonStart = message.indexOf("{");
-    let parsed: Record<string, unknown> | null = null;
-    if (jsonStart >= 0) {
-      try {
-        parsed = JSON.parse(message.slice(jsonStart));
-      } catch (_err) {
-        parsed = null;
-      }
-    }
-
-    if (parsed && Array.isArray(parsed.errors) && parsed.errors.length > 0) {
-      const description = parsed.errors.map((item) => String(item)).join("\n");
-      return {
-        id: "validation",
-        title: "Fix checkout inputs",
-        description,
-      };
-    }
-
-    if (parsed && typeof parsed.error === "string" && parsed.error === "stripe_unavailable") {
-      const requestId = typeof parsed.request_id === "string" ? parsed.request_id : null;
-      const fallbackMode = typeof parsed.fallback_mode === "string" ? parsed.fallback_mode : null;
-      const reason = typeof parsed.message === "string"
-        ? parsed.message
-        : "Stripe temporarily unavailable.";
-      const suffix = [
-        requestId ? `Request ${requestId}` : null,
-        fallbackMode ? `mode ${fallbackMode}` : null,
-      ]
-        .filter(Boolean)
-        .join(" · ");
-      return {
-        id: "stripe_unavailable",
-        title: "Stripe unavailable",
-        description: suffix ? `${reason} (${suffix}).` : reason,
-      };
-    }
-
-    const normalized = message.toLowerCase();
-    if (normalized.includes("23505") || normalized.includes("duplicate key") || normalized.includes("idempotency")) {
-      return {
-        id: "idempotency_conflict",
-        title: "Payment already initialized",
-        description:
-          "An existing payment intent already exists for this itinerary. Refresh to reuse it or adjust the idempotency key.",
-      };
-    }
-
-    if (parsed && typeof parsed.message === "string" && parsed.message.toLowerCase().includes("idempotency")) {
-      return {
-        id: "idempotency_conflict",
-        title: "Payment already initialized",
-        description: parsed.message,
-      };
-    }
-
-    return fallback;
-  };
-
-  const baseIdempotencyKey = useMemo(() => `intent-${itineraryId}`, [itineraryId]);
-
-  const deriveFailureCode = (error: unknown): string => {
-    const message = error instanceof Error ? error.message : String(error ?? "");
-    if (message.includes("stripe_unavailable") || message.includes("429")) {
-      return "stripe_unavailable";
-    }
-    if (message.toLowerCase().includes("declined")) {
-      return "card_declined";
-    }
-    return "unknown";
-  };
+  const [toast, setToast] = useState<{ id: string; title: string; description?: string } | null>(null);
+  const loyaltyProjection = Math.max(0, Math.round(amount / 100));
 
   const resolveEscalation = async (
     client: Awaited<typeof clientPromise>,
@@ -236,31 +91,20 @@ export function CheckoutForm({ itineraryId }: { itineraryId: string }) {
     }
 
     try {
-      setPending(true);
-      const response = await client.call("checkout.intent", parsed.data, {
-        idempotencyKey: parsed.data.idempotencyKey,
-      });
-      const paymentIntentId =
-        response.payment_intent_id ?? (response as { payment_intent?: string }).payment_intent ?? null;
-      setIntent(paymentIntentId);
-
-      const fallbackDetails = response as { fallback?: boolean; fallback_reason?: string; request_id?: string };
-      if (fallbackDetails.fallback) {
-        setToast({
-          id: "fallback",
-          title: "Stripe fallback active",
-          description:
-            fallbackDetails.fallback_reason ??
-            "Stripe degraded. Using mock payment intent while live mode is unavailable.",
-        });
-        return;
+      setIsSubmitting(true);
+      const response = await client.call("checkout.intent", parsed.data, { idempotencyKey: parsed.data.idempotencyKey });
+      setIntent(response.payment_intent_id ?? null);
+      setToast({ id: "success", title: "Checkout ready", description: `Intent ${response.payment_intent_id ?? "fixture"}` });
+      setEscalation(null);
+      const ledgerPaymentId = response.payment_id ?? null;
+      const stripeIntentId = response.payment_intent ?? null;
+      if (ledgerPaymentId || stripeIntentId) {
+        const normalizedIntent = ledgerPaymentId ?? stripeIntentId ?? response.payment_intent_id ?? null;
+        const normalizedIntentLabel = stripeIntentId ?? ledgerPaymentId ?? response.payment_intent_id ?? "fixture";
+        setIntent(normalizedIntent);
+        setToast({ id: "success", title: "Checkout ready", description: `Intent ${normalizedIntentLabel}` });
       }
-
-      setToast({
-        id: "success",
-        title: "Checkout ready",
-        description: paymentIntentId ? `Intent ${paymentIntentId}` : "Payment intent created.",
-      });
+      return true;
     } catch (error) {
       console.error(error);
       setToast(interpretError(error));
@@ -326,7 +170,16 @@ export function CheckoutForm({ itineraryId }: { itineraryId: string }) {
       <Button fullWidth disabled={pending} onClick={submit}>
         {pending ? "Creating payment intent…" : "Create payment intent"}
       </Button>
-      {checkoutIntent && <p className="text-sm text-sky-200">Payment intent {checkoutIntent}</p>}
+      {intent && <p className="text-sm text-sky-200">Payment intent {intent}</p>}
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/80">
+        <div className="flex items-center gap-2">
+          <Badge>Loyalty</Badge>
+          <p className="font-medium text-white">Projected {loyaltyProjection.toLocaleString()} points</p>
+        </div>
+        <p className="mt-2 text-xs text-white/60">
+          Granting runs through loyalty-grant edge function with request keys to keep ledger idempotent. Points settle once payment.capture succeeds.
+        </p>
+      </div>
       <div className="fixed bottom-24 left-1/2 z-50 w-full max-w-sm -translate-x-1/2">
         {toast && <Toast id={toast.id} title={toast.title} description={toast.description} onDismiss={() => setToast(null)} />}
       </div>

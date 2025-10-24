@@ -1,5 +1,6 @@
 export * from "./domains/shared";
 export * from "./domains/inventory";
+export * from "./domains/air";
 export * from "./domains/checkout";
 export * from "./domains/groups";
 export * from "./domains/permits";
@@ -8,6 +9,8 @@ export * from "./domains/privacy";
 export * from "./domains/dr";
 export * from "./domains/finance";
 export * from "./domains/ops";
-export * from "./domains/safety";
+export * from "./domains/supplier";
+export * from "./domains/flags";
+export * from "./domains/admin";
 export * from "./supabase";
-export * from "./optimizer";
+export * from "./domains/travel";

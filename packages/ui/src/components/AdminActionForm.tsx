@@ -54,7 +54,12 @@ export function AdminActionForm<State extends AdminActionState>({
   offlineTitle = "Authentication required",
   defaultDescription = "Check withObs logs for details.",
 }: AdminActionFormProps<State>) {
-  const [state, formAction] = useFormState(action, initialState);
+  const formStateAction = action as unknown as (
+    state: Awaited<State>,
+    formData: FormData,
+  ) => State | Promise<State>;
+  const awaitedInitialState = initialState as Awaited<State>;
+  const [state, formAction] = useFormState(formStateAction, awaitedInitialState);
   const { pending } = useFormStatus();
 
   return (

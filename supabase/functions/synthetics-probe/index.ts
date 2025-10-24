@@ -22,9 +22,17 @@ const TARGETS = [
   { fn: "inventory-hold", category: "inventory" },
   { fn: "agent-orchestrator", category: "agents" },
   { fn: "groups-create-escrow", category: "groups", critical: true },
+  { fn: "groups-join", category: "groups" },
+  { fn: "groups-contribute", category: "groups" },
+  { fn: "map-route", category: "maps" },
+  { fn: "map-nearby", category: "maps" },
+  { fn: "ops-bookings", category: "ops", critical: true },
+  { fn: "ops-exceptions", category: "ops" },
+  { fn: "ops-refund", category: "ops", critical: true },
   { fn: "wa-send", category: "messaging" },
   { fn: "metrics-incr", category: "observability" },
   { fn: "privacy-request", category: "privacy" },
+  { fn: "permits-request", category: "permits" },
   { fn: "stripe-webhook", category: "payments", critical: true },
 ] as const;
 
@@ -36,6 +44,26 @@ interface ProbeResult {
   ok: boolean;
   critical: boolean;
   error?: string;
+  fallback?: string;
+  upstream_ok?: boolean;
+  chaos?: {
+    mode: string;
+    fallback: string | null;
+    fallback_used: boolean;
+    source: string;
+    expires_at: string | null;
+  };
+}
+
+interface ChaosPolicy {
+  key: string;
+  target: string;
+  mode: string;
+  fallback: string | null;
+  enabled: boolean;
+  notes: string | null;
+  expires_at: string | null;
+  source: string;
 }
 
 const handler = withObs(async (req) => {
@@ -50,6 +78,11 @@ const handler = withObs(async (req) => {
     return jsonResponse({ ok: false, error: "GET only" }, 405);
   }
 
+  const chaosPolicies = await fetchChaosPolicies(requestId);
+  const chaosByTarget = new Map<string, ChaosPolicy>(
+    chaosPolicies.map((policy) => [policy.target, policy] as const),
+  );
+
   const results: ProbeResult[] = [];
   const categoryStats: Record<string, { ok: number; total: number }> = {};
   for (const target of TARGETS) {
@@ -58,6 +91,7 @@ const handler = withObs(async (req) => {
     let status = 0;
     let ok = false;
     let error: string | undefined;
+    let fallback: string | undefined;
     try {
       const response = await fetch(targetUrl, {
         method: "GET",
@@ -76,6 +110,22 @@ const handler = withObs(async (req) => {
       ok = false;
       error = err instanceof Error ? err.message : String(err);
     }
+    const upstreamOk = ok;
+    const chaos = chaosByTarget.get(target.fn);
+    let fallbackUsed = false;
+    if (!ok && chaos && chaos.fallback) {
+      fallbackUsed = true;
+      fallback = chaos.fallback;
+      ok = true;
+      emitMetric({
+        fn: "synthetics-probe",
+        requestId,
+        name: "synthetics_fallback_used",
+        value: 1,
+        unit: "count",
+        tags: { target: target.fn, fallback: chaos.fallback },
+      });
+    }
     const ms = Math.round(performance.now() - start);
     results.push({
       fn: target.fn,
@@ -85,6 +135,17 @@ const handler = withObs(async (req) => {
       ok,
       critical: target.critical ?? false,
       error,
+      fallback,
+      upstream_ok: upstreamOk,
+      chaos: chaos
+        ? {
+          mode: chaos.mode,
+          fallback: chaos.fallback,
+          fallback_used: fallbackUsed,
+          source: chaos.source,
+          expires_at: chaos.expires_at,
+        }
+        : undefined,
     });
 
     categoryStats[target.category] ??= { ok: 0, total: 0 };
@@ -195,6 +256,53 @@ async function safeText(response: Response): Promise<string | undefined> {
     return await response.text();
   } catch (_err) {
     return undefined;
+  }
+}
+
+async function fetchChaosPolicies(requestId: string): Promise<ChaosPolicy[]> {
+  const url = `${SUPABASE_URL}/functions/v1/chaos-inject`;
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        apikey: SERVICE_ROLE_KEY,
+        Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
+      },
+    });
+    if (!response.ok) {
+      const errorText = await safeText(response);
+      emitMetric({
+        fn: "synthetics-probe",
+        requestId,
+        name: "synthetics_chaos_fetch_failed",
+        value: 1,
+        unit: "count",
+        tags: { status: String(response.status) },
+        level: "WARN",
+      });
+      console.warn("synthetics-probe: chaos-inject fetch failed", {
+        status: response.status,
+        body: errorText,
+      });
+      return [];
+    }
+    const payload = await response.json() as { policies?: ChaosPolicy[] };
+    if (!Array.isArray(payload.policies)) {
+      return [];
+    }
+    return payload.policies;
+  } catch (error) {
+    emitMetric({
+      fn: "synthetics-probe",
+      requestId,
+      name: "synthetics_chaos_fetch_failed",
+      value: 1,
+      unit: "count",
+      tags: { status: "error" },
+      level: "WARN",
+    });
+    console.warn("synthetics-probe: chaos-inject request errored", error);
+    return [];
   }
 }
 

@@ -7,6 +7,8 @@ import {
   PrivacyExportInput,
   PrivacyRequestInput,
   PrivacyReviewInput,
+  PIIScanInput,
+  PIIScanResponse,
 } from "@ecotrips/types";
 
 export const privacyDescriptors = {
@@ -75,5 +77,12 @@ export const privacyDescriptors = {
         )
         .optional(),
     }),
+  },
+  "privacy.pii.scan": {
+    path: "/functions/v1/privacy-pii-scan",
+    method: "POST",
+    auth: "user",
+    input: PIIScanInput,
+    output: PIIScanResponse,
   },
 } satisfies DescriptorMap;

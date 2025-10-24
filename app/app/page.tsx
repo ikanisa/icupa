@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LeadCaptureForm } from "./components/LeadCaptureForm";
 import { itineraries } from "./itineraries/data";
+import { loadTrustBadges } from "./lib/trustBadges";
 
 const highlights = [
   {
@@ -27,11 +28,6 @@ const sustainabilityStats = [
 ];
 
 const featuredItineraries = itineraries.slice(0, 2);
-const trustBadges = [
-  "Certified B-Corp operators",
-  "Global Sustainable Tourism Council member",
-  "Stripe Climate climate-action partner",
-];
 
 const faqs = [
   {
@@ -66,7 +62,9 @@ const testimonials = [
   },
 ];
 
-export default function Home() {
+export default async function Home() {
+  const trustBadges = await loadTrustBadges();
+
   return (
     <div className="bg-slate-950 text-slate-100">
       <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-24 px-6 pb-32 pt-16 sm:px-10 lg:px-12">
@@ -106,11 +104,12 @@ export default function Home() {
             <div className="flex flex-wrap gap-3 text-sm text-slate-300">
               {trustBadges.map((badge) => (
                 <span
-                  key={badge}
+                  key={badge.code ?? badge.label}
+                  title={badge.description ?? undefined}
                   className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-2"
                 >
                   <span className="inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-                  {badge}
+                  {badge.label}
                 </span>
               ))}
             </div>

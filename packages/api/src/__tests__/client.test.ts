@@ -132,9 +132,42 @@ describe("EcoTripsFunctionClient", () => {
     expect(init?.body).toBeUndefined();
   });
 
-  it("exposes growth domain helpers with correct descriptor wiring", async () => {
+  it("fetches map tile pack metadata via the maps domain", async () => {
+    const payload = {
+      ok: true,
+      request_id: "req-123",
+      source: "fixtures",
+      generated_at: new Date().toISOString(),
+      packs: [
+        {
+          id: "tilepack-kigali-202502",
+          slug: "kigali-city-core",
+          region: "kigali",
+          title: "Kigali City Core",
+          description: "Downtown tiles",
+          updated_at: new Date().toISOString(),
+          tiles: 10,
+          bundle_bytes: 1024,
+          offline_zip_bytes: 512,
+          storage_path: "maps_tiles/kigali/20250212/tiles.mbtiles",
+          manifest_path: null,
+          preview_url: null,
+          checksum_sha256: null,
+          languages: ["en"],
+          coverage: {
+            center: { lat: 0, lng: 0 },
+            radius_km: 1,
+            bounding_box: { north: 1, south: -1, east: 1, west: -1 },
+          },
+          offline_layers: [],
+          notes: null,
+          recommended_app_version: null,
+        },
+      ],
+    };
+
     const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ ok: true, provider: "mockair" }), {
+      new Response(JSON.stringify(payload), {
         status: 200,
         headers: { "Content-Type": "application/json" },
       }),
@@ -142,15 +175,15 @@ describe("EcoTripsFunctionClient", () => {
 
     const client = createEcoTripsFunctionClient({ supabaseUrl, anonKey, fetch: fetchMock });
 
-    const result = await client.growth.providersAirStatus({ provider: "mockair", flight: "EC202" });
+    const result = await client.maps.tilesList({ region: "kigali" });
 
-    expect(result).toMatchObject({ ok: true, provider: "mockair" });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toContain("/functions/v1/providers-air-status?");
-    expect(url).toContain("provider=mockair");
-    expect(url).toContain("flight=EC202");
+    expect(url).toBe(
+      `${supabaseUrl}/functions/v1/maps-tiles-list?region=kigali`,
+    );
     expect(init?.method).toBe("GET");
+    expect(result).toEqual(payload);
   });
 
   it("uses user access token and idempotency headers when provided", async () => {
@@ -186,6 +219,54 @@ describe("EcoTripsFunctionClient", () => {
       Authorization: "Bearer user-token",
       "Idempotency-Key": "intent-key-123",
     });
+  });
+
+  it("provides concierge domain helpers for edge functions", async () => {
+    const responsePayload = {
+      ok: true,
+      request_id: "req-123",
+      source: "fixtures",
+      itinerary_id: "itn-1",
+      timezone: "Africa/Kigali",
+      briefs: [],
+    };
+
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify(responsePayload), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+
+    const client = createEcoTripsFunctionClient({ supabaseUrl, anonKey, fetch: fetchMock });
+
+    const result = await client.concierge.dailyBrief({ day: 2, limit: 1 });
+
+    expect(result).toEqual(responsePayload);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toContain("/functions/v1/concierge-daily-brief?");
+    expect(url).toContain("day=2");
+    expect(url).toContain("limit=1");
+    expect(init?.method).toBe("GET");
+
+    fetchMock.mockClear();
+
+    await client.concierge.timeToLeave();
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${supabaseUrl}/functions/v1/time-to-leave`,
+      expect.objectContaining({ method: "GET" }),
+    );
+
+    fetchMock.mockClear();
+
+    await client.concierge.safetyAdvisory({ channel: "wallet_modal" });
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${supabaseUrl}/functions/v1/safety-advisory?channel=wallet_modal`,
+      expect.objectContaining({ method: "GET" }),
+    );
   });
 
   it("aborts long running requests based on the configured timeout", async () => {

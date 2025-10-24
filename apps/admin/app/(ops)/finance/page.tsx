@@ -1,14 +1,17 @@
-import Link from "next/link";
-import { Button, CardGlass } from "@ecotrips/ui";
-import { InvoiceGenerateInput } from "@ecotrips/types";
+import { CardGlass, ExplainPrice } from "@ecotrips/ui";
+import { InvoiceGenerateInput, type PriceBreakdown } from "@ecotrips/types";
 import { z } from "zod";
 
 import { getOpsFunctionClient } from "../../../lib/functionClient";
 import { logAdminAction } from "../../../lib/logging";
 
+import pricingRuleFixtures from "../../../../../ops/fixtures/pricing_rules.json" assert { type: "json" };
+import loyaltyDashboardFixture from "../../../../../ops/fixtures/loyalty_dashboard.json" assert { type: "json" };
+import invoiceFxSnapshots from "../../../../../ops/fixtures/invoice_fx_snapshots.json" assert { type: "json" };
+
 import { InvoiceGenerateForm, type InvoiceFormState } from "./InvoiceGenerateForm";
 import { RefundForm, type RefundFormState } from "./RefundForm";
-import { PayoutAgingWidget } from "./PayoutAgingWidget";
+import { RefundPolicySummaryPanel, type RefundPolicySummaryState } from "./RefundPolicySummaryPanel";
 
 async function generateInvoiceAction(_: InvoiceFormState, formData: FormData): Promise<InvoiceFormState> {
   "use server";
@@ -123,10 +126,30 @@ async function submitRefundAction(_: RefundFormState, formData: FormData): Promi
   }
 }
 
-export default function FinancePage() {
+async function loadFinanceBreakdown(): Promise<PriceBreakdown | null> {
+  const client = await getOpsFunctionClient();
+  if (!client) {
+    return null;
+  }
+
+  try {
+    const response = await client.call("helpers.price", { option_ids: ["ledger-ref-104"] });
+    if (!response.ok) {
+      return null;
+    }
+    return response.breakdowns?.[0]?.breakdown ?? null;
+  } catch (error) {
+    console.error("helpers.price finance", error);
+    return null;
+  }
+}
+
+export default async function FinancePage() {
+  const financeBreakdown = await loadFinanceBreakdown();
+
   return (
-    <>
-      <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
+    <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
+      <div className="space-y-6">
         <CardGlass title="Finance ledger" subtitle="Invoices, refunds, and payouts recorded with HITL guardrails.">
           <p className="text-sm text-white/80">
             Generate invoices directly from ledger payments. Signed URLs are short-lived; store them in secure channels and audit
@@ -150,18 +173,21 @@ export default function FinancePage() {
             </div>
             <p className="mt-3 text-xs text-white/60">Ledger entry append ensures audit trail and dual control.</p>
           </div>
-        </CardGlass>
-        <CardGlass title="Guardrails" subtitle="FinOps approvals require dual control and observability.">
-          <ul className="space-y-2 text-sm text-white/80">
-            <li>• payments-refund edge function logs structured telemetry with request IDs.</li>
-            <li>• fin-ledger-append enforces allowed entry types and idempotency.</li>
-            <li>• fin-invoice-generate writes signed URLs to Storage invoices/ bucket.</li>
-          </ul>
-        </CardGlass>
-      </div>
-      <div className="mt-6">
-        <PayoutAgingWidget />
-      </div>
-    </>
+          <p className="mt-3 text-xs text-white/60">Ledger entry append ensures audit trail and dual control.</p>
+        </div>
+        {financeBreakdown && (
+          <div className="mt-6">
+            <ExplainPrice breakdown={financeBreakdown} headline="REF-104 pricing" />
+          </div>
+        )}
+      </CardGlass>
+      <CardGlass title="Guardrails" subtitle="FinOps approvals require dual control and observability.">
+        <ul className="space-y-2 text-sm text-white/80">
+          <li>• payments-refund edge function logs structured telemetry with request IDs.</li>
+          <li>• fin-ledger-append enforces allowed entry types and idempotency.</li>
+          <li>• fin-invoice-generate writes signed URLs to Storage invoices/ bucket.</li>
+        </ul>
+      </CardGlass>
+    </div>
   );
 }
