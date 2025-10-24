@@ -1,4 +1,22 @@
 export type AdminDatabase = {
+  fin: {
+    Tables: {
+      cost_estimates: {
+        Row: {
+          id: string;
+          month: string;
+          category: "llm_tokens" | "storage" | "egress";
+          label: string;
+          estimated_cents: number;
+          currency: string;
+          confidence: "low" | "medium" | "high";
+          usage_notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+      };
+    };
+  };
   sec: {
     Tables: {
       user_roles: {
