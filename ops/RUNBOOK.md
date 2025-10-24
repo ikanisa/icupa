@@ -326,3 +326,15 @@ curl -s -X POST "https://woyknezboamabahknmjr.supabase.co/functions/v1/search-pl
 - Outcomes
   - On success, `payment.payments` is marked `refunded` with provider ref suffixed `-refund`.
   - Stripe dashboard (or mock log) should be reconciled during daily close.
+
+## Malta PMA/MTA Compliance Notes
+- Confirm that any traveler- or supplier-facing outreach referencing payments or tour operations discloses ecoTrips' Malta **Package Travel and Linked Travel Arrangements (PMA/MTA)** licence numbers in the opening paragraph of the message template or call script.
+- Store licence identifiers in the ops configuration store (`ops/observability/regulatory_notes.md` when available) so ConciergeGuide and SupportCopilot pulls stay version controlled.
+- When routing escalations to human operators, attach the licence reference and ensure WhatsApp transcripts tag `licence_disclosed=true` inside the audit payload before closing the interaction.
+- If the router escalates to SupplierOpsAgent for Maltese suppliers, verify the supplier's acknowledgement of ecoTrips' PMA/MTA status is logged in `team_memory` for subsequent audits.
+
+## AI Disclosure Expectations
+- Always disclose AI involvement within the first message each agent sends in a new Malta itinerary interaction; for WhatsApp this lives inside the `notify.whatsapp_send` template metadata.
+- Agents must offer a human handoff sentence (e.g., "Reply HUMAN for an operator") and record the traveler preference flag in `short_term` memory for PlannerCoPilot and SupportCopilot.
+- During incident reviews, SupportCopilot should attach the latest AI disclosure text and timestamp to the case file so compliance can prove conformance.
+- When adding new automated flows, run a transcript review ensuring the disclosure survives translation and remains visible alongside the PMA/MTA licence line.
