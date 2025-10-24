@@ -1,18 +1,27 @@
-import { CardGlass } from "@ecotrips/ui";
+import { CardGlass, Toast } from "@ecotrips/ui";
 import {
   PrivacyErasureExecuteInput,
   PrivacyErasurePlanInput,
   PrivacyExportInput,
   PrivacyRequestInput,
   PrivacyReviewInput,
+  PIIScanInput,
+  type PIIFinding,
 } from "@ecotrips/types";
 
 import { getOpsFunctionClient } from "../../../lib/functionClient";
-import { logAdminAction } from "../../../lib/logging";
+import { logAdminAction, recordAuditEvent } from "../../../lib/logging";
 
 import { ActionForm, type ActionFormState } from "./ActionForm";
 
 type ServerState = ActionFormState;
+
+type PIIScanState = ActionFormState & {
+  findings?: PIIFinding[];
+  riskScore?: number;
+  requestId?: string;
+  label?: string;
+};
 
 async function requestAction(_: ServerState, formData: FormData): Promise<ServerState> {
   "use server";
@@ -207,6 +216,94 @@ async function executeAction(_: ServerState, formData: FormData): Promise<Server
   }
 }
 
+async function piiScanAction(_: PIIScanState, formData: FormData): Promise<PIIScanState> {
+  "use server";
+
+  const payload = PIIScanInput.safeParse({
+    label: (() => {
+      const value = String(formData.get("label") ?? "").trim();
+      return value.length > 0 ? value : undefined;
+    })(),
+    content: String(formData.get("content") ?? ""),
+  });
+
+  if (!payload.success) {
+    logAdminAction("privacy.pii.scan", { status: "validation_failed" });
+    return { status: "error", message: "Provide text to scan." };
+  }
+
+  const client = await getOpsFunctionClient();
+  if (!client) {
+    logAdminAction("privacy.pii.scan", { status: "offline" });
+    return { status: "offline", message: "Supabase session missing." };
+  }
+
+  const idempotencyKey = crypto.randomUUID();
+
+  try {
+    const response = await client.call("privacy.pii.scan", payload.data, { idempotencyKey });
+
+    if (!response.ok) {
+      logAdminAction("privacy.pii.scan", {
+        status: "error",
+        requestId: response.request_id ?? idempotencyKey,
+        findings: response.findings.length,
+      });
+
+      await recordAuditEvent("privacy.pii.scan", {
+        label: payload.data.label ?? null,
+        request_id: response.request_id ?? idempotencyKey,
+        findings: response.findings,
+        risk_score: response.risk_score ?? null,
+        status: "error",
+      });
+
+      return {
+        status: "error",
+        message: "Scan failed. Review telemetry for details.",
+      };
+    }
+
+    logAdminAction("privacy.pii.scan", {
+      status: "success",
+      requestId: response.request_id ?? idempotencyKey,
+      findings: response.findings.length,
+      riskScore: response.risk_score ?? null,
+    });
+
+    await recordAuditEvent("privacy.pii.scan", {
+      label: payload.data.label ?? null,
+      request_id: response.request_id ?? idempotencyKey,
+      findings: response.findings,
+      risk_score: response.risk_score ?? null,
+      status: "success",
+    });
+
+    return {
+      status: "success",
+      findings: response.findings,
+      riskScore: response.risk_score ?? 0,
+      requestId: response.request_id ?? idempotencyKey,
+      label: payload.data.label ?? undefined,
+      detail:
+        response.summary ??
+        `Detected ${response.findings.length} potential matches.`,
+    };
+  } catch (error) {
+    console.error("privacy.pii.scan", error);
+    logAdminAction("privacy.pii.scan", {
+      status: "error",
+      error: error instanceof Error ? error.message : String(error),
+    });
+    await recordAuditEvent("privacy.pii.scan", {
+      label: payload.success ? payload.data.label ?? null : null,
+      error: error instanceof Error ? error.message : String(error),
+      request_id: idempotencyKey,
+    });
+    return { status: "error", message: "Scan failed. Review telemetry for details." };
+  }
+}
+
 export default function PrivacyPage() {
   return (
     <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
@@ -262,6 +359,32 @@ export default function PrivacyPage() {
               />
             </div>
           </div>
+          <div>
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-white/60">PII detection</h3>
+            <div className="space-y-4">
+              <ActionForm<PIIScanState>
+                action={piiScanAction}
+                submitLabel="Scan text"
+                pendingLabel="Scanning…"
+                fields={[
+                  { name: "label", label: "Label", placeholder: "ticket id or context" },
+                  {
+                    name: "content",
+                    label: "Content",
+                    type: "textarea",
+                    placeholder: "Paste redaction candidate",
+                    required: true,
+                  },
+                ]}
+                renderStatus={(state) => <PIIScanStatus state={state} />}
+                toastId="privacy-pii-scan"
+                successTitle="Scan completed"
+                errorTitle="Scan failed"
+                offlineTitle="Auth required"
+                defaultDescription="Use the regex stub for quick reviews while NLP is offline."
+              />
+            </div>
+          </div>
         </div>
       </CardGlass>
       <CardGlass title="Policies" subtitle="RLS enforced with service-role only inside edge functions.">
@@ -270,6 +393,52 @@ export default function PrivacyPage() {
           review decisions, and erasure confirmations before executing irreversible actions.
         </p>
       </CardGlass>
+    </div>
+  );
+}
+
+type PIIScanStatusProps = {
+  state: PIIScanState;
+};
+
+function PIIScanStatus({ state }: PIIScanStatusProps) {
+  if (state.status === "idle") return null;
+
+  const tone = state.status === "success" ? "success" : state.status === "offline" ? "warning" : "error";
+  const title =
+    state.status === "success"
+      ? "Scan completed"
+      : state.status === "offline"
+        ? "Auth required"
+        : "Scan failed";
+  const description = state.detail ?? state.message ?? "Review withObs logs for scan telemetry.";
+
+  return (
+    <div className="space-y-4">
+      <Toast id={`privacy-pii-scan-${tone}`} title={title} description={description} onDismiss={() => undefined} />
+      {state.status === "success" && state.findings ? (
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-white/60">{state.label ?? "Ad-hoc scan"}</p>
+              <p className="text-white/80">{state.findings.length} findings</p>
+            </div>
+            <div className="text-right text-xs text-white/60">
+              <p>Risk score: {(state.riskScore ?? 0).toFixed(2)}</p>
+              {state.requestId ? <p>Request {state.requestId}</p> : null}
+            </div>
+          </div>
+          <ul className="mt-3 space-y-2 text-xs text-white/70">
+            {state.findings.map((finding, index) => (
+              <li key={`${finding.type}-${finding.value}-${index}`} className="rounded-2xl border border-white/5 bg-black/20 p-3">
+                <span className="font-semibold text-white">{finding.type.toUpperCase()}</span>
+                <span className="ml-2 text-white/80">{finding.value}</span>
+                {finding.context ? <span className="ml-2 text-white/50">({finding.context})</span> : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </div>
   );
 }
