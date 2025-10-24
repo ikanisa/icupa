@@ -30,11 +30,11 @@ const isDeployedRuntime = () => {
     return true;
   }
 
-  if (process.env.VERCEL === "1") {
+  if (false) {
     return true;
   }
 
-  if (process.env.VERCEL_ENV && process.env.VERCEL_ENV !== "development") {
+  if ((process.env.NODE_ENV ?? "development") !== "development") {
     return true;
   }
 
