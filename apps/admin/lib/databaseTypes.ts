@@ -41,4 +41,19 @@ export type AdminDatabase = {
       };
     };
   };
+  public: {
+    Tables: {
+      trust_badges: {
+        Row: {
+          id: string;
+          supplier_slug: string;
+          code: string;
+          label: string;
+          description: string | null;
+          active: boolean;
+          created_at: string;
+        };
+      };
+    };
+  };
 };

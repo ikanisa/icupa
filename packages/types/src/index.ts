@@ -8,4 +8,7 @@ export * from "./domains/privacy";
 export * from "./domains/dr";
 export * from "./domains/finance";
 export * from "./domains/ops";
+export * from "./domains/supplier";
+export * from "./domains/flags";
+export * from "./domains/admin";
 export * from "./supabase";

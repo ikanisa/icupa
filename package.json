@@ -26,7 +26,8 @@
     "check:binaries": "node ./scripts/audit/ensure-no-binaries.mjs",
     "perf:smoke": "deno run -A ops/perf/perf_runner.ts --scenario smoke",
     "build:client": "npm run build --workspace @ecotrips/client",
-    "build:admin": "npm run build --workspace @ecotrips/admin"
+    "build:admin": "npm run build --workspace @ecotrips/admin",
+    "build:supplier": "npm run build --workspace @ecotrips/supplier"
   },
   "devDependencies": {
     "turbo": "^2.5.8"
