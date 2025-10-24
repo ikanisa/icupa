@@ -31,6 +31,7 @@ Each directory includes a `vercel.json` file to keep the configuration co-locate
 - **Framework:** Next.js 14 App Router.
 - **Edge/SSR:** UI components call Supabase client-side only; validated env ensures presence of anon key.
 - **Env Vars:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+- **Optional Env Vars:** `NEXT_PUBLIC_CHECKOUT_ALLOW_ANON` (set to `1` in previews to bypass auth gating).
 - **Images:** Remote patterns allow Unsplash; extend in Vercel UI if marketing assets hosted elsewhere.
 
 ## Admin App (`apps/admin`)
