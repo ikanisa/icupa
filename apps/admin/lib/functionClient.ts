@@ -30,11 +30,14 @@ export async function getOpsFunctionClient(): Promise<AdminFunctionClient> {
     return null;
   }
 
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  const accessToken = session?.access_token ?? process.env.OPS_CONSOLE_MOCK_ACCESS_TOKEN ?? null;
   if (!accessToken) {
     return null;
   }
-
-  const accessToken = session.access_token ?? process.env.OPS_CONSOLE_MOCK_ACCESS_TOKEN ?? null;
 
   return createEcoTripsFunctionClient({
     supabaseUrl,

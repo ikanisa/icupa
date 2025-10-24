@@ -1,0 +1,152 @@
+{
+  "default": {
+    "request": {
+      "method": "GET",
+      "path": "/functions/v1/supplier-sla-forecast"
+    },
+    "response": {
+      "ok": true,
+      "filters": {
+        "tier": null,
+        "risk": null
+      },
+      "totals": {
+        "suppliers": 3,
+        "by_risk": {
+          "breach": 1,
+          "warning": 1,
+          "on_track": 1
+        },
+        "by_tier": {
+          "gold": 1,
+          "silver": 2
+        }
+      },
+      "visible": {
+        "suppliers": 3,
+        "by_risk": {
+          "breach": 1,
+          "warning": 1,
+          "on_track": 1
+        },
+        "by_tier": {
+          "gold": 1,
+          "silver": 2
+        }
+      },
+      "heatmap": [
+        {
+          "supplier": "akagera-safaris",
+          "display_name": "Akagera Safaris",
+          "risk": "warning",
+          "tier": "gold",
+          "profile_url": "/ops/suppliers/akagera-safaris"
+        },
+        {
+          "supplier": "lake-kivu-lodge",
+          "display_name": "Lake Kivu Lodge",
+          "risk": "on_track",
+          "tier": "silver",
+          "profile_url": "/ops/suppliers/lake-kivu-lodge"
+        },
+        {
+          "supplier": "nyungwe-treks",
+          "display_name": "Nyungwe Treks",
+          "risk": "breach",
+          "tier": "silver",
+          "profile_url": "/ops/suppliers/nyungwe-treks"
+        }
+      ],
+      "buckets": {
+        "breach": {
+          "suppliers": [
+            "nyungwe-treks"
+          ],
+          "avg_confirmation_hours": 14.8,
+          "avg_cancellations_pct": 6.7,
+          "total_open_confirms": 5
+        },
+        "warning": {
+          "suppliers": [
+            "akagera-safaris"
+          ],
+          "avg_confirmation_hours": 9.5,
+          "avg_cancellations_pct": 3.1,
+          "total_open_confirms": 2
+        },
+        "on_track": {
+          "suppliers": [
+            "lake-kivu-lodge"
+          ],
+          "avg_confirmation_hours": 4.2,
+          "avg_cancellations_pct": 1.4,
+          "total_open_confirms": 0
+        }
+      },
+      "health_checks": [
+        {
+          "name": "fixtures_loaded",
+          "status": "pass",
+          "observed_at": "2025-09-12T00:00:00.000Z",
+          "detail": "loaded_records=3"
+        },
+        {
+          "name": "recent_breach_signal",
+          "status": "warn",
+          "observed_at": "2025-09-12T00:00:00.000Z",
+          "detail": "2025-09-11T07:55:00.000Z"
+        }
+      ],
+      "samples": {
+        "request": {
+          "method": "GET",
+          "path": "/functions/v1/supplier-sla-forecast?tier=silver",
+          "description": "Retrieve SLA forecast for silver tier suppliers"
+        },
+        "response": {
+          "summary": {
+            "supplier": "lake-kivu-lodge",
+            "risk": "on_track",
+            "profile_url": "/ops/suppliers/lake-kivu-lodge"
+          }
+        }
+      }
+    }
+  },
+  "silver_tier": {
+    "request": {
+      "method": "GET",
+      "path": "/functions/v1/supplier-sla-forecast?tier=silver"
+    },
+    "response": {
+      "ok": true,
+      "filters": {
+        "tier": "silver",
+        "risk": null
+      },
+      "visible": {
+        "suppliers": 2,
+        "by_risk": {
+          "breach": 1,
+          "warning": 0,
+          "on_track": 1
+        },
+        "by_tier": {
+          "silver": 2
+        }
+      },
+      "heatmap": [
+        {
+          "supplier": "lake-kivu-lodge",
+          "risk": "on_track",
+          "profile_url": "/ops/suppliers/lake-kivu-lodge"
+        },
+        {
+          "supplier": "nyungwe-treks",
+          "risk": "breach",
+          "profile_url": "/ops/suppliers/nyungwe-treks"
+        }
+      ]
+    }
+  }
+}

@@ -15,9 +15,9 @@ type ToastProps = {
 };
 
 const intentClasses: Record<ToastIntent, string> = {
-  success: "border-emerald-400/70 bg-emerald-500/20 text-emerald-50",
-  error: "border-rose-400/70 bg-rose-500/20 text-rose-50",
-  info: "border-sky-400/70 bg-sky-500/20 text-sky-50",
+  success: "border-positive/70 bg-positive/20 text-positive/95",
+  error: "border-negative/70 bg-negative/20 text-negative/95",
+  info: "border-brand/70 bg-brand/15 text-brand/95",
 };
 
 export function Toast({

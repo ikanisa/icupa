@@ -1,32 +1,91 @@
 /// <reference lib="webworker" />
 
-const STATIC_CACHE = "static-v1";
-const API_CACHE = "api-v1";
-const INVENTORY_CACHE = "inventory-v1";
+const serviceWorker = self as unknown as ServiceWorkerGlobalScope;
 
-self.addEventListener("install", (event) => {
+type PrecacheEntry = {
+  url: string;
+  revision: string;
+};
+
+const BUILD_VERSION = "__BUILD_VERSION__";
+
+const STATIC_CACHE = `static-${BUILD_VERSION}`;
+const API_CACHE = `api-${BUILD_VERSION}`;
+const INVENTORY_CACHE = `inventory-${BUILD_VERSION}`;
+
+const PRECACHE_MANIFEST = /* __PRECACHE_MANIFEST__ */ [] as readonly PrecacheEntry[];
+const PRECACHE_URLS = Array.from(
+  new Set(["/", ...PRECACHE_MANIFEST.map((entry) => entry.url)]),
+);
+const PRECACHE_URL_SET = new Set(PRECACHE_URLS);
+const PRECACHE_REVISION_MAP = new Map(
+  PRECACHE_MANIFEST.map((entry) => [entry.url, entry.revision] as const),
+);
+const RUNTIME_CACHES = [STATIC_CACHE, API_CACHE, INVENTORY_CACHE];
+
+serviceWorker.addEventListener("install", (event) => {
   const swEvent = event as ExtendableEvent;
+  serviceWorker.skipWaiting();
   swEvent.waitUntil(
-    caches.open(STATIC_CACHE).then((cache) =>
-      cache.addAll(["/", "/manifest.json"]),
-    ),
+    (async () => {
+      const cache = await caches.open(STATIC_CACHE);
+      await Promise.all(
+        PRECACHE_URLS.map(async (url) => {
+          const request = new Request(url, { cache: "reload" });
+          const response = await fetch(request);
+          const pathname = new URL(request.url).pathname;
+          const revision =
+            PRECACHE_REVISION_MAP.get(pathname) ??
+            (pathname === "/" ? BUILD_VERSION : undefined);
+          await cache.put(request, stamp(response, { revision }));
+        }),
+      );
+    })(),
   );
 });
 
-self.addEventListener("activate", (event) => {
+serviceWorker.addEventListener("activate", (event) => {
   const swEvent = event as ExtendableEvent;
   swEvent.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(
         keys
-          .filter((key) => ![STATIC_CACHE, API_CACHE, INVENTORY_CACHE].includes(key))
+          .filter((key) => !RUNTIME_CACHES.includes(key))
           .map((key) => caches.delete(key)),
-      ),
-    ),
+      );
+
+      const staticCache = await caches.open(STATIC_CACHE);
+      const cachedRequests = await staticCache.keys();
+      await Promise.all(
+        cachedRequests.map(async (request) => {
+          const pathname = new URL(request.url).pathname;
+          if (!PRECACHE_URL_SET.has(pathname)) {
+            await staticCache.delete(request);
+            return;
+          }
+
+          const expectedRevision =
+            PRECACHE_REVISION_MAP.get(pathname) ??
+            (pathname === "/" ? BUILD_VERSION : undefined);
+          if (!expectedRevision) {
+            return;
+          }
+
+          const cachedResponse = await staticCache.match(request);
+          const cachedRevision = cachedResponse?.headers.get("sw-revision");
+          if (cachedRevision !== expectedRevision) {
+            await staticCache.delete(request);
+          }
+        }),
+      );
+
+      await serviceWorker.clients.claim();
+    })(),
   );
 });
 
-self.addEventListener("fetch", (event) => {
+serviceWorker.addEventListener("fetch", (event) => {
   const fetchEvent = event as FetchEvent;
   const request = fetchEvent.request;
   const url = new URL(request.url);
@@ -85,13 +144,47 @@ async function staleWhileRevalidate(request: Request, cacheName: string) {
   return cached || networkPromise;
 }
 
-function stamp(response: Response) {
+type StampMetadata = {
+  revision?: string;
+};
+
+function stamp(response: Response, metadata?: StampMetadata) {
   const clone = response.clone();
   const headers = new Headers(clone.headers);
   headers.set("sw-fetched-at", Date.now().toString());
+  if (metadata?.revision) {
+    headers.set("sw-revision", metadata.revision);
+  }
   return new Response(clone.body, {
     status: clone.status,
     statusText: clone.statusText,
     headers,
   });
 }
+
+self.addEventListener("push", (event) => {
+  const pushEvent = event as PushEvent;
+  let payload: Record<string, unknown> = {};
+  try {
+    payload = pushEvent.data?.json?.() ?? {};
+  } catch (_error) {
+    payload = { title: "ecoTrips alert", body: pushEvent.data?.text?.() ?? "" };
+  }
+  const title = typeof payload.title === "string" ? payload.title : "ecoTrips";
+  const body = typeof payload.body === "string" ? payload.body : "Offline push demo";
+  pushEvent.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      data: payload,
+      tag: typeof payload.tag === "string" ? payload.tag : undefined,
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  const notificationEvent = event as NotificationEvent;
+  notificationEvent.notification.close();
+  notificationEvent.waitUntil(
+    clients.openWindow((notificationEvent.notification.data as { url?: string })?.url ?? "/support"),
+  );
+});

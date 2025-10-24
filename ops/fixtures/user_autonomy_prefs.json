@@ -1,0 +1,9 @@
+{
+  "preferences": [
+    { "category": "planner", "level": "L3", "composer": "co_create" },
+    { "category": "concierge", "level": "L2", "composer": "assist" },
+    { "category": "support", "level": "L2", "composer": "observe" },
+    { "category": "ops", "level": "L1", "composer": "observe" },
+    { "category": "marketing", "level": "L3", "composer": "delegate" }
+  ]
+}

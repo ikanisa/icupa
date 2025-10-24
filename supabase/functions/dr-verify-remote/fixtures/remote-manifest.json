@@ -1,0 +1,11 @@
+{
+  "snapshot_id": "snap-remote-2024-09-15",
+  "label": "daily-dr",
+  "generated_at": "2024-09-15T02:20:30.000Z",
+  "tables": {
+    "core.profiles": { "rows": 1285, "checksum": "8b2137a8" },
+    "booking.itineraries": { "rows": 452, "checksum": "bb12c77d" },
+    "payment.payments": { "rows": 341, "checksum": "4aa901ce" },
+    "group.escrows": { "rows": 112, "checksum": "5c1a8001" }
+  }
+}
