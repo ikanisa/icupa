@@ -1,4 +1,5 @@
 import { checkoutDescriptors } from "./checkout";
+import { conciergeDescriptors } from "./concierge";
 import { drDescriptors } from "./dr";
 import { financeDescriptors } from "./finance";
 import { groupsDescriptors } from "./groups";
@@ -12,6 +13,7 @@ import type { DescriptorMap } from "../types";
 export const descriptors = {
   ...inventoryDescriptors,
   ...checkoutDescriptors,
+  ...conciergeDescriptors,
   ...groupsDescriptors,
   ...permitsDescriptors,
   ...walletDescriptors,

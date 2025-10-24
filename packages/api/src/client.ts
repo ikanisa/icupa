@@ -10,6 +10,7 @@ export class EcoTripsFunctionClient {
   private readonly timeoutMs: number;
   readonly inventory: DomainClients["inventory"];
   readonly checkout: DomainClients["checkout"];
+  readonly concierge: DomainClients["concierge"];
   readonly groups: DomainClients["groups"];
   readonly permits: DomainClients["permits"];
   readonly wallet: DomainClients["wallet"];
@@ -25,6 +26,7 @@ export class EcoTripsFunctionClient {
     const domains = createDomainClients(this);
     this.inventory = domains.inventory;
     this.checkout = domains.checkout;
+    this.concierge = domains.concierge;
     this.groups = domains.groups;
     this.permits = domains.permits;
     this.wallet = domains.wallet;

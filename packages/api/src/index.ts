@@ -1,5 +1,13 @@
-import { CheckoutInput, ContributionCreate, EscrowCreate, InventorySearchInput, PermitRequest } from "@ecotrips/types";
 import {
+  CheckoutInput,
+  ContributionCreate,
+  EscrowCreate,
+  InventorySearchInput,
+  PermitRequest,
+} from "@ecotrips/types";
+import {
+  ConciergeDailyBriefQuery,
+  ConciergeDailyBriefResponse,
   DrSnapshotInput,
   GroupsOpsPayoutNowInput,
   GroupsPayoutReportQuery,
@@ -9,6 +17,10 @@ import {
   PrivacyExportInput,
   PrivacyRequestInput,
   PrivacyReviewInput,
+  SafetyAdvisoryQuery,
+  SafetyAdvisoryResponse,
+  TimeToLeaveQuery,
+  TimeToLeaveResponse,
 } from "@ecotrips/types";
 import { z } from "zod";
 
@@ -67,6 +79,30 @@ const descriptors = {
     input: z.object({ quoteId: z.string().min(1), locale: z.enum(["en", "rw"]).default("en") }),
     output: z.object({ ok: z.boolean(), quote: z.record(z.any()).optional() }),
     cacheTtlMs: 120_000,
+  },
+  "concierge.dailyBrief": {
+    path: "/functions/v1/concierge-daily-brief",
+    method: "GET",
+    auth: "user",
+    input: ConciergeDailyBriefQuery,
+    output: ConciergeDailyBriefResponse,
+    cacheTtlMs: 120_000,
+  },
+  "concierge.timeToLeave": {
+    path: "/functions/v1/time-to-leave",
+    method: "GET",
+    auth: "user",
+    input: TimeToLeaveQuery,
+    output: TimeToLeaveResponse,
+    cacheTtlMs: 60_000,
+  },
+  "concierge.safetyAdvisory": {
+    path: "/functions/v1/safety-advisory",
+    method: "GET",
+    auth: "user",
+    input: SafetyAdvisoryQuery,
+    output: SafetyAdvisoryResponse,
+    cacheTtlMs: 180_000,
   },
   "checkout.intent": {
     path: "/functions/v1/bff-checkout",

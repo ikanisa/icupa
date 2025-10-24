@@ -110,6 +110,54 @@ describe("EcoTripsFunctionClient", () => {
     });
   });
 
+  it("provides concierge domain helpers for edge functions", async () => {
+    const responsePayload = {
+      ok: true,
+      request_id: "req-123",
+      source: "fixtures",
+      itinerary_id: "itn-1",
+      timezone: "Africa/Kigali",
+      briefs: [],
+    };
+
+    const fetchMock = vi.fn().mockImplementation(() =>
+      Promise.resolve(
+        new Response(JSON.stringify(responsePayload), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
+    );
+
+    const client = createEcoTripsFunctionClient({ supabaseUrl, anonKey, fetch: fetchMock });
+
+    const result = await client.concierge.dailyBrief({ day: 2, limit: 1 });
+
+    expect(result).toEqual(responsePayload);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toContain("/functions/v1/concierge-daily-brief?");
+    expect(url).toContain("day=2");
+    expect(url).toContain("limit=1");
+    expect(init?.method).toBe("GET");
+
+    fetchMock.mockClear();
+
+    await client.concierge.timeToLeave();
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${supabaseUrl}/functions/v1/time-to-leave`,
+      expect.objectContaining({ method: "GET" }),
+    );
+
+    fetchMock.mockClear();
+
+    await client.concierge.safetyAdvisory({ channel: "wallet_modal" });
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${supabaseUrl}/functions/v1/safety-advisory?channel=wallet_modal`,
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
   it("aborts long running requests based on the configured timeout", async () => {
     vi.useFakeTimers();
 

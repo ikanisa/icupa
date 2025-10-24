@@ -1,6 +1,7 @@
 import type { FunctionCaller } from "../types";
 import type { FunctionMap } from "../descriptors";
 import { createCheckoutClient, type CheckoutClient } from "./checkout";
+import { createConciergeClient, type ConciergeClient } from "./concierge";
 import { createDisasterRecoveryClient, type DisasterRecoveryClient } from "./dr";
 import { createFinanceClient, type FinanceClient } from "./finance";
 import { createGroupsClient, type GroupsClient } from "./groups";
@@ -13,6 +14,7 @@ import { createWalletClient, type WalletClient } from "./wallet";
 export type DomainClients = {
   inventory: InventoryClient;
   checkout: CheckoutClient;
+  concierge: ConciergeClient;
   groups: GroupsClient;
   permits: PermitsClient;
   wallet: WalletClient;
@@ -26,6 +28,7 @@ export function createDomainClients(client: FunctionCaller<FunctionMap>): Domain
   return {
     inventory: createInventoryClient(client),
     checkout: createCheckoutClient(client),
+    concierge: createConciergeClient(client),
     groups: createGroupsClient(client),
     permits: createPermitsClient(client),
     wallet: createWalletClient(client),
@@ -37,6 +40,7 @@ export function createDomainClients(client: FunctionCaller<FunctionMap>): Domain
 }
 
 export * from "./checkout";
+export * from "./concierge";
 export * from "./dr";
 export * from "./finance";
 export * from "./groups";

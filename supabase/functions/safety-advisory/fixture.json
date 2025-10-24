@@ -1,0 +1,36 @@
+{
+  "itinerary_id": "ITN-2025-001",
+  "region": "Volcanoes National Park",
+  "source": "ConciergeGuide",
+  "advisories": [
+    {
+      "id": "weather-volcanoes-20251002",
+      "level": "moderate",
+      "title": "Afternoon thunderstorms near Kinigi",
+      "summary": "Rwanda Meteorology projects rain bands from 14:00-18:00 with slippery trails.",
+      "details": "Carry waterproof boots and gloves. Trek duration may extend by 30 minutes if troop relocates downhill.",
+      "effective_from": "2025-10-02T12:00:00+02:00",
+      "effective_to": "2025-10-02T18:30:00+02:00",
+      "actions": [
+        "Confirm ponchos packed before departure",
+        "Share ETA updates with concierge if trek extends"
+      ],
+      "channels": ["wallet_modal", "whatsapp_broadcast"],
+      "external_reference": "https://www.meteorwanda.gov.rw/forecast"
+    },
+    {
+      "id": "security-ruhondo-bridge",
+      "level": "low",
+      "title": "Speed checkpoint near Ruhondo bridge",
+      "summary": "Local police operating 40 km/h checkpoint between Musanze and Kigali after 16:00.",
+      "details": "Driver briefed to carry insurance docs and trip manifest. Expect a 5 minute stop for verification.",
+      "effective_from": "2025-10-02T15:30:00+02:00",
+      "effective_to": "2025-10-02T21:00:00+02:00",
+      "actions": [
+        "Keep passports accessible for inspection",
+        "Message concierge if stop exceeds 10 minutes"
+      ],
+      "channels": ["wallet_modal", "sms_backup"]
+    }
+  ]
+}
