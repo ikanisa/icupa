@@ -34,6 +34,28 @@ const handler = withObs(async (req) => {
     return jsonResponse({ ok: false, error: "partner_lookup_failed", request_id: requestId }, 502);
   }
 
+  if (partner && !partner.active) {
+    console.warn(
+      JSON.stringify({
+        level: "WARN",
+        event: "affiliate.inbound.inactive_partner",
+        fn: "affiliate-inbound",
+        requestId,
+        partner: partner.slug,
+        eventType,
+      }),
+    );
+
+    return jsonResponse(
+      {
+        ok: false,
+        error: "partner_inactive",
+        request_id: requestId,
+      },
+      403,
+    );
+  }
+
   const signature = await verifyAffiliateSignature({
     header: signatureHeader,
     timestampHeader,
