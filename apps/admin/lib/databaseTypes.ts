@@ -86,6 +86,38 @@ export type AdminDatabase = {
           updated_at: string;
         };
       };
+      v_supplier_onboarding_queue: {
+        Row: {
+          id: string;
+          supplier_name: string;
+          contact_email: string;
+          onboarding_stage: string;
+          status: string;
+          priority: number;
+          assigned_admin: string;
+          hours_open: number;
+        };
+      };
+      v_offline_coverage: {
+        Row: {
+          region: string;
+          country_code: string;
+          availability_percent: number;
+          offline_suppliers: number;
+          sample_size: number;
+          health_label: string;
+        };
+      };
+      v_analytics_event_counts: {
+        Row: {
+          event: string;
+          captured_hour: string;
+          total: number;
+          unique_sessions: number;
+          first_seen: string;
+          last_seen: string;
+        };
+      };
       v_dr_snapshots: {
         Row: {
           id: string;
