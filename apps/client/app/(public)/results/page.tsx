@@ -39,25 +39,18 @@ async function loadResults(searchParams: Record<string, string | string[] | unde
     return { items: [], ok: false, cacheHit: true };
   }
 
+export async function generateMetadata({ searchParams }: { searchParams: RawSearchParams }) {
   const input = parseSearchParams(searchParams);
-  const client = createEcoTripsFunctionClient({
-    supabaseUrl,
-    anonKey,
-    getAccessToken: async () => null,
+  return createPageMetadata({
+    title: `Results · ${input.destination}`,
+    description: `Top picks for ${input.destination} between ${input.startDate} and ${input.endDate}.`,
+    path: "/results",
   });
-
-  try {
-    const response = await client.call("inventory.search", input);
-    return response;
-  } catch (error) {
-    console.error("inventory.search failed", error);
-    return { items: [], ok: false, cacheHit: true };
-  }
 }
 
-export default async function ResultsPage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
+export default async function ResultsPage({ searchParams }: { searchParams: RawSearchParams }) {
   const input = parseSearchParams(searchParams);
-  const results = await loadResults(searchParams);
+  const results = await loadInventorySearch(searchParams);
 
   const isOffline = !results.ok || results.cacheHit;
   const defaultCurrency = (results.items[0]?.currency ?? "USD").toUpperCase();
@@ -78,6 +71,32 @@ export default async function ResultsPage({ searchParams }: { searchParams: Reco
           </p>
         </CardGlass>
       )}
-    </div>
+    </PublicPage>
   );
 }
+
+function PriceLockOption({ item }: { item: Record<string, unknown> }) {
+  const expiresAt = typeof item.hold_expires_at === "string"
+    ? item.hold_expires_at
+    : typeof item.expires_at === "string"
+      ? item.expires_at
+      : new Date(Date.now() + 10 * 60 * 1000).toISOString();
+  const itineraryId = typeof item.id === "string" ? item.id : "draft";
+  const currency = typeof item.currency === "string" ? item.currency : "USD";
+  const rawPrice = typeof item.price_cents === "number" ? item.price_cents : Number(item.price_cents ?? 0);
+  const priceCents = Number.isFinite(rawPrice) ? rawPrice : 0;
+  const displayPrice = Math.max(0, Math.round(priceCents / 100)).toLocaleString();
+
+  return (
+    <OptionCard
+      title="Lock this fare"
+      subtitle="Edge function price-lock-offer uses idempotency so you never double-charge."
+      chip={<CountdownChip expiresAt={expiresAt} />}
+      actionLabel="Hold price"
+      actionHref={`/itinerary/${itineraryId}?action=price-lock`}
+    >
+      <p>Hold {currency} {displayPrice} for 15 minutes while ConciergeGuide coordinates payment. If suppliers are offline we fall back to fixtures and log it via withObs.</p>
+    </OptionCard>
+  );
+}
+

@@ -1,0 +1,42 @@
+[
+  {
+    "id": "fixture-queue-001",
+    "supplier_name": "Kivu Treks",
+    "contact_name": "Ange Uwimana",
+    "contact_email": "ange@kivutreks.rw",
+    "contact_phone": "+250 784 123 456",
+    "region": "Rwanda",
+    "onboarding_stage": "kyc-review",
+    "status": "in_progress",
+    "priority": 2,
+    "assigned_admin": "leon@ecotrips.africa",
+    "submitted_at": "2024-05-01T08:15:00Z",
+    "updated_at": "2024-05-04T07:10:00Z",
+    "last_touch_at": "2024-05-04T07:10:00Z",
+    "compliance_score": 72.5,
+    "docs_received": ["trade_license", "bank_letter"],
+    "notes": "Awaiting proof-of-funds letter from BK.",
+    "hours_open": 72,
+    "hours_since_touch": 12
+  },
+  {
+    "id": "fixture-queue-002",
+    "supplier_name": "Sahara Stays",
+    "contact_name": "Laila Benyoussef",
+    "contact_email": "laila@saharastays.ma",
+    "contact_phone": "+212 661 234 567",
+    "region": "Morocco",
+    "onboarding_stage": "intake",
+    "status": "pending",
+    "priority": 3,
+    "assigned_admin": "",
+    "submitted_at": "2024-05-03T15:30:00Z",
+    "updated_at": "2024-05-04T09:40:00Z",
+    "last_touch_at": null,
+    "compliance_score": 15,
+    "docs_received": ["questionnaire"],
+    "notes": "Needs intro call scheduled.",
+    "hours_open": 40,
+    "hours_since_touch": 22
+  }
+]

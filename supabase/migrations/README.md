@@ -46,8 +46,12 @@ baseline. Apply them after `0033_ops_views_additions.sql`.
 - `20250922083459_privacy_datamap.sql` layers on the privacy request surfaces
   introduced in `0011_permits_public_functions.sql` and
   `0024_agent_evals.sql`.
+- `0035_trust_badges.sql` introduces supplier trust badges with public read access and ops-managed edits, layering on top of ops console roles from 0034.
+
 - `20250922083500_dr_registry.sql` expects the disaster-recovery registry tables
   staged by `0020_agent_runtime_public_helpers.sql`.
+- `20250922083511_ops_chaos_policies.sql` introduces a shared registry for chaos
+  injection scenarios consumed by synthetics and the wallet tile downloader.
 
 ## Adding new migrations
 

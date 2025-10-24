@@ -327,7 +327,7 @@
     calls_per_minute: 30
 - key: notify.whatsapp_send
   description: Stub: send templated or free-form WhatsApp messages via Business API.
-  endpoint: https://{project_ref}.supabase.co/functions/v1/notify-whatsapp-send
+  endpoint: https://{project_ref}.supabase.co/functions/v1/wa-send
   method: POST
   auth: service_role
   input_schema: |
@@ -343,5 +343,83 @@
       ok: { type: boolean }
       message_id: { type: string }
   implementation_status: planned
+  rate_limit:
+    calls_per_minute: 60
+- key: notify.whatsapp
+  description: Compose a safety advisory card and deliver via WhatsApp (fetches map-route warnings when needed).
+  endpoint: https://{project_ref}.supabase.co/functions/v1/notify-whatsapp
+  method: POST
+  auth: service_role
+  input_schema: |
+    type: object
+    required: [to]
+    properties:
+      to: { type: string }
+      session_id: { type: string }
+      user_wa: { type: string }
+      route:
+        type: object
+        properties:
+          origin: { type: string }
+          destination: { type: string }
+          departure_time: { type: string, format: date-time }
+      warnings:
+        type: array
+        items:
+          type: object
+          required: [code, severity, summary, detail]
+          properties:
+            code: { type: string }
+            severity: { type: string, enum: [info, watch, alert] }
+            summary: { type: string }
+            detail: { type: string }
+            tags:
+              type: array
+              items: { type: string }
+            advisories:
+              type: array
+              items:
+                type: object
+                required: [code, audience, headline, detail]
+                properties:
+                  code: { type: string }
+                  audience: { type: string, enum: [traveler, ops, safety] }
+                  headline: { type: string }
+                  detail: { type: string }
+                  actions:
+                    type: array
+                    items: { type: string }
+                  effective_from: { type: string, format: date-time }
+                  effective_to: { type: string, format: date-time }
+                  tags:
+                    type: array
+                    items: { type: string }
+      advisories:
+        type: array
+        items:
+          type: object
+          required: [code, audience, headline, detail]
+          properties:
+            code: { type: string }
+            audience: { type: string, enum: [traveler, ops, safety] }
+            headline: { type: string }
+            detail: { type: string }
+            actions:
+              type: array
+              items: { type: string }
+            effective_from: { type: string, format: date-time }
+            effective_to: { type: string, format: date-time }
+            tags:
+              type: array
+              items: { type: string }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      warnings:
+        type: array
+        items: { type: string }
+      message_id: { type: string }
+  implementation_status: stub
   rate_limit:
     calls_per_minute: 60

@@ -36,9 +36,24 @@ async function main() {
     );
   }
 
+  const fallbackViolations = (payload.results ?? []).filter(
+    (item) => item?.chaos?.fallback && !item.chaos.fallback_used,
+  );
+
+  if (fallbackViolations.length > 0) {
+    throw new Error(
+      `chaos policies active without fallback coverage: ${JSON.stringify(fallbackViolations)}`,
+    );
+  }
+
+  const fallbackSummaries = (payload.results ?? [])
+    .filter((item) => item?.chaos?.fallback_used)
+    .map((item) => ({ fn: item.fn, fallback: item.chaos.fallback }));
+
   console.log("✅ Observability probe healthy", {
     okCount: payload.ok_count,
     checked: payload.results?.length ?? 0,
+    fallbacks: fallbackSummaries,
   });
 }
 
