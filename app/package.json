@@ -13,7 +13,7 @@
     "pretest": "npx playwright install --with-deps chromium firefox",
     "lint": "node ./scripts/run-next-lint.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "playwright test",
+    "test": "playwright test -c playwright.config.js",
     "check": "npm run lint && npm run test"
   },
   "dependencies": {
