@@ -1,0 +1,7 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+Need to install the following packages:
+supabase@2.53.6
+Ok to proceed? (y) 
+npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+Initialising login role...
+2025/10/23 22:17:17 Access token not provided. Supply an access token by running supabase login or setting the SUPABASE_ACCESS_TOKEN environment variable.
