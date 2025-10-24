@@ -38,6 +38,17 @@
 - **Fixtures**: `ops/fixtures/offline_coverage.json`
 - **Query params**: `region` filter for partial matches
 
+## Travel Discovery (`travel-discovery`)
+- **Endpoint**: `https://<project-ref>.functions.supabase.co/travel-discovery`
+- **Health**: `GET /travel-discovery/health`
+- **Fixtures**: `ops/fixtures/travel_discovery.json`
+- **Cron**:
+  - `travel-discovery-poi-hourly` → `0 * * * *` with body `{ "mode": "poi", "location": "Kigali" }`
+  - `travel-discovery-events-six-hourly` → `15 */6 * * *` with body `{ "mode": "events", "location": "Kigali" }`
+- **Notes**: writes embeddings into `travel.trips`, `travel.itinerary_items`, `travel.suppliers`, and `travel.reservations` using the
+  pgvector columns introduced in `20250922101500_travel_discovery_embeddings.sql`. Falls back to fixtures if the allowlisted web
+  search hosts are unreachable or not configured.
+
 ## Sample Analytics Events
 
 Event Name | Payload

@@ -128,6 +128,47 @@ export type AdminDatabase = {
           updated_at: string | null;
         };
       };
+      v_supplier_licence_status: {
+        Row: {
+          supplier_id: string;
+          supplier_slug: string;
+          display_name: string;
+          licence_status: string;
+          licence_expires_at: string | null;
+          licence_document_path: string | null;
+          menu_document_path: string | null;
+          last_ingested_at: string | null;
+          ingestion_source: string | null;
+          days_until_expiry: number | null;
+          hours_since_ingest: number | null;
+        };
+      };
+      v_travel_ingestion_health: {
+        Row: {
+          trip_id: string;
+          trip_name: string;
+          trip_kind: string;
+          discovery_key: string | null;
+          summary: string | null;
+          last_ingested_at: string | null;
+          ingestion_source: string | null;
+          hours_since_refresh: number | null;
+          poi_items: number | null;
+          event_items: number | null;
+        };
+      };
+      v_trip_embeddings: {
+        Row: {
+          trip_id: string;
+          trip_name: string;
+          trip_kind: string;
+          itinerary_id: string | null;
+          discovery_key: string | null;
+          last_ingested_at: string | null;
+          embedding_dimensions: number | null;
+          embedding_norm: number | null;
+        };
+      };
     };
   };
   b2b: {

@@ -1,0 +1,62 @@
+{
+  "poi": [
+    {
+      "id": "poi-nyungwe-canopy",
+      "title": "Nyungwe Canopy Walk",
+      "summary": "Suspended walkway through Nyungwe Forest with guided naturalist tours.",
+      "url": "https://guides.ecotrips.local/nyungwe-canopy",
+      "location": "Nyungwe Forest National Park",
+      "supplier": {
+        "slug": "nyungwe-guides",
+        "name": "Nyungwe Trails Cooperative",
+        "licence_status": "verified",
+        "licence_expires_at": "2026-03-01"
+      }
+    },
+    {
+      "id": "poi-lake-kivu-coffee",
+      "title": "Lake Kivu Coffee Cruise",
+      "summary": "Sunset cruise with cupping workshop featuring local co-ops.",
+      "url": "https://guides.ecotrips.local/lake-kivu-coffee",
+      "location": "Lake Kivu",
+      "supplier": {
+        "slug": "kivu-coffee-collective",
+        "name": "Kivu Coffee Collective",
+        "licence_status": "under_review",
+        "licence_expires_at": "2025-10-15"
+      }
+    }
+  ],
+  "events": [
+    {
+      "id": "event-kigali-jazz",
+      "title": "Kigali Jazz Sundowner",
+      "summary": "Weekly jazz set overlooking the Kigali skyline with prix-fixe tasting menu.",
+      "url": "https://events.ecotrips.local/kigali-jazz",
+      "location": "Kigali",
+      "start": "2025-03-01T17:30:00Z",
+      "end": "2025-03-01T20:30:00Z",
+      "supplier": {
+        "slug": "skyline-lounge",
+        "name": "Skyline Lounge Kigali",
+        "licence_status": "verified",
+        "licence_expires_at": "2025-12-31"
+      }
+    },
+    {
+      "id": "event-gisenyi-market",
+      "title": "Gisenyi Night Market",
+      "summary": "Seasonal market featuring lakefront artisans and street food pop-ups.",
+      "url": "https://events.ecotrips.local/gisenyi-market",
+      "location": "Gisenyi",
+      "start": "2025-03-05T18:00:00Z",
+      "end": "2025-03-05T22:00:00Z",
+      "supplier": {
+        "slug": "gisenyi-market-guild",
+        "name": "Gisenyi Market Guild",
+        "licence_status": "pending",
+        "licence_expires_at": "2025-04-30"
+      }
+    }
+  ]
+}
