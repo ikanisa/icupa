@@ -1,4 +1,5 @@
 import { Agent } from '@openai/agents';
+import type { RunContext } from '@openai/agents';
 import { createAgentTools } from '../tools';
 import {
   AllergenGuardianOutputSchema,
@@ -45,9 +46,9 @@ function buildLocaleInstruction(context: AgentSessionContext): string {
   return `You are assisting diners in region ${context.region}. Respond in ${context.language || 'English'} using clear, friendly sentences. ${alcoholClause}`;
 }
 
-export const upsellAgent = Agent.create<AgentSessionContext>({
+export const upsellAgent = new Agent<AgentSessionContext, typeof UpsellOutputSchema>({
   name: 'ICUPA Upsell Agent',
-  instructions: async (runContext) => {
+  instructions: async (runContext: RunContext<AgentSessionContext>) => {
     const context = runContext.context;
     return `${buildLocaleInstruction(context)}
 Use the available tools to retrieve menu knowledge and propose 2-3 upsell or pairing options. Never recommend items that conflict with declared allergens or age restrictions, and always include prices and citation tokens.`;
@@ -58,9 +59,12 @@ Use the available tools to retrieve menu knowledge and propose 2-3 upsell or pai
   outputType: UpsellOutputSchema
 });
 
-export const allergenGuardianAgent = Agent.create<AgentSessionContext>({
+export const allergenGuardianAgent = new Agent<
+  AgentSessionContext,
+  typeof AllergenGuardianOutputSchema
+>({
   name: 'ICUPA Allergen Guardian',
-  instructions: async (runContext) => {
+  instructions: async (runContext: RunContext<AgentSessionContext>) => {
     const context = runContext.context;
     return `${buildLocaleInstruction(context)}
 Validate the proposed upsell suggestions against the guest allergen list (${context.allergies.join(', ') || 'none declared'}). Flag any conflicts and explain the risk. If an item is blocked, provide a short explanation.`;
@@ -71,9 +75,9 @@ Validate the proposed upsell suggestions against the guest allergen list (${cont
   outputType: AllergenGuardianOutputSchema
 });
 
-export const waiterAgent = Agent.create<AgentSessionContext>({
+export const waiterAgent = new Agent<AgentSessionContext, typeof WaiterOutputSchema>({
   name: 'ICUPA Waiter',
-  instructions: async (runContext) => {
+  instructions: async (runContext: RunContext<AgentSessionContext>) => {
     const context = runContext.context;
     const suggestionSummary = (context.suggestions ?? []).map((item, index) => {
       return `${index + 1}. ${item.name} – ${(item.price_cents / 100).toFixed(2)} ${item.currency} (${item.citations.join(', ')})`;
@@ -92,9 +96,9 @@ ${suggestionBulletList}`;
   outputType: WaiterOutputSchema
 });
 
-export const promoAgent = Agent.create<AgentSessionContext>({
+export const promoAgent = new Agent<AgentSessionContext, typeof PromoAgentOutputSchema>({
   name: 'ICUPA Promo Strategist',
-  instructions: async (runContext) => {
+  instructions: async (runContext: RunContext<AgentSessionContext>) => {
     const context = runContext.context;
     return `${buildLocaleInstruction(context)}
 Review current promotion performance and recommend safe adjustments. Never exceed campaign budget caps and respect fairness constraints. Provide clear rationale for every action.`;
@@ -105,9 +109,12 @@ Review current promotion performance and recommend safe adjustments. Never excee
   outputType: PromoAgentOutputSchema,
 });
 
-export const inventoryAgent = Agent.create<AgentSessionContext>({
+export const inventoryAgent = new Agent<
+  AgentSessionContext,
+  typeof InventoryAgentOutputSchema
+>({
   name: 'ICUPA Inventory Steward',
-  instructions: async (runContext) => {
+  instructions: async (runContext: RunContext<AgentSessionContext>) => {
     const context = runContext.context;
     return `${buildLocaleInstruction(context)}
 Detect low-stock items, recommend 86 decisions, and propose substitutions when needed. Only adjust inventory when absolutely necessary and justify each change.`;
@@ -118,7 +125,7 @@ Detect low-stock items, recommend 86 decisions, and propose substitutions when n
   outputType: InventoryAgentOutputSchema,
 });
 
-export const supportAgent = Agent.create<AgentSessionContext>({
+export const supportAgent = new Agent<AgentSessionContext, typeof SupportAgentOutputSchema>({
   name: 'ICUPA Support Concierge',
   instructions: async () =>
     'Capture diner or staff issues, assign an appropriate priority, and recommend the next communication step. Every ticket must include a concise summary.',
@@ -128,9 +135,12 @@ export const supportAgent = Agent.create<AgentSessionContext>({
   outputType: SupportAgentOutputSchema,
 });
 
-export const complianceAgent = Agent.create<AgentSessionContext>({
+export const complianceAgent = new Agent<
+  AgentSessionContext,
+  typeof ComplianceAgentOutputSchema
+>({
   name: 'ICUPA Compliance Guardian',
-  instructions: async (runContext) => {
+  instructions: async (runContext: RunContext<AgentSessionContext>) => {
     const context = runContext.context;
     return `${buildLocaleInstruction(context)}
 Review open compliance tasks and respond with status updates. Escalate only when blockers exist or deadlines are breached.`;

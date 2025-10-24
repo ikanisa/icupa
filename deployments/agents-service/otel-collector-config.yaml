@@ -1,0 +1,29 @@
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    send_batch_size: 512
+    timeout: 10s
+  memory_limiter:
+    check_interval: 5s
+    limit_mib: 256
+
+exporters:
+  otlphttp:
+    endpoint: ${env:OTLP_EXPORTER_ENDPOINT}
+    headers:
+      Authorization: ${env:OTLP_EXPORTER_HEADERS}
+
+service:
+  telemetry:
+    logs:
+      level: "info"
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlphttp]

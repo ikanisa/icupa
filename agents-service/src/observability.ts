@@ -8,6 +8,23 @@ import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions'
 
 let sdk: NodeSDK | undefined;
 
+function parseOtelHeaders(value?: string): Record<string, string> | undefined {
+  if (!value) return undefined;
+
+  const headers: Record<string, string> = {};
+  for (const segment of value.split(',')) {
+    const trimmed = segment.trim();
+    if (!trimmed) continue;
+    const [rawKey, ...rawValue] = trimmed.split('=');
+    const key = rawKey?.trim();
+    const val = rawValue.join('=').trim();
+    if (!key || !val) continue;
+    headers[key] = val;
+  }
+
+  return Object.keys(headers).length ? headers : undefined;
+}
+
 function startTelemetry() {
   const endpoint = env.OTEL_EXPORTER_OTLP_ENDPOINT;
   if (!endpoint) {
@@ -23,14 +40,16 @@ function startTelemetry() {
     }),
     traceExporter: new OTLPTraceExporter({
       url: `${endpoint.replace(/\/$/, '')}/v1/traces`,
-      headers: env.OTEL_EXPORTER_OTLP_HEADERS,
+      headers: parseOtelHeaders(env.OTEL_EXPORTER_OTLP_HEADERS),
     }),
     instrumentations: [getNodeAutoInstrumentations()],
   });
 
-  sdk.start().catch((error) => {
+  try {
+    sdk.start();
+  } catch (error) {
     console.error('Failed to start OpenTelemetry SDK', error);
-  });
+  }
 
   const shutdown = async () => {
     try {
