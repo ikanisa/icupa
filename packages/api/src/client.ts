@@ -22,9 +22,7 @@ export class EcoTripsFunctionClient {
   readonly loyalty: DomainClients["loyalty"];
   readonly privacy: DomainClients["privacy"];
   readonly dr: DomainClients["dr"];
-  readonly notify: DomainClients["notify"];
-  readonly support: DomainClients["support"];
-  readonly chat: DomainClients["chat"];
+  readonly user: DomainClients["user"];
 
   constructor(private readonly options: ClientOptions) {
     this.fetchImpl = options.fetch ?? fetch;
@@ -45,9 +43,7 @@ export class EcoTripsFunctionClient {
     this.loyalty = domains.loyalty;
     this.privacy = domains.privacy;
     this.dr = domains.dr;
-    this.notify = domains.notify;
-    this.support = domains.support;
-    this.chat = domains.chat;
+    this.user = domains.user;
   }
 
   async call<K extends DescriptorKey>(
@@ -95,10 +91,10 @@ export class EcoTripsFunctionClient {
       }
 
       const parsed = await safeJson(response);
-      const output = descriptor.output
-        ? (descriptor.output.parse(parsed) as InferOutput<FunctionMap[K]>)
-        : (parsed as InferOutput<FunctionMap[K]>);
-      return output;
+      if (descriptor.output) {
+        return descriptor.output.parse(parsed) as InferOutput<FunctionMap[K]>;
+      }
+      return parsed as InferOutput<FunctionMap[K]>;
     } finally {
       clearTimeout(timeout);
     }

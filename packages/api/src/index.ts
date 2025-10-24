@@ -1,4 +1,13 @@
 import {
+  AutonomyPreferencesResponse,
+  AutonomyPreferencesUpsertInput,
+  CheckoutInput,
+  ContributionCreate,
+  EscrowCreate,
+  InventorySearchInput,
+  PermitRequest,
+} from "@ecotrips/types";
+import {
   CheckoutInput,
   ContributionCreate,
   EscrowCreate,
@@ -377,12 +386,19 @@ const descriptors = {
         .optional(),
     }),
   },
-  "privacy.pii.scan": {
-    path: "/functions/v1/privacy-pii-scan",
+  "user.autonomy.get": {
+    path: "/functions/v1/user-autonomy-save",
+    method: "GET",
+    auth: "user",
+    input: z.object({}).optional(),
+    output: AutonomyPreferencesResponse,
+  },
+  "user.autonomy.save": {
+    path: "/functions/v1/user-autonomy-save",
     method: "POST",
     auth: "user",
-    input: PIIScanInput,
-    output: PIIScanResponse,
+    input: AutonomyPreferencesUpsertInput,
+    output: AutonomyPreferencesResponse,
   },
   "dr.snapshot": {
     path: "/functions/v1/dr-snapshot",
