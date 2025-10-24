@@ -1,4 +1,5 @@
 import { CardGlass, Stepper } from "@ecotrips/ui";
+import { SupplierSlaHeatmap } from "./supplier-sla-heatmap";
 
 import { createAdminServerClient } from "../../lib/supabaseServer";
 
@@ -152,6 +153,13 @@ export default async function DashboardPage() {
             </tbody>
           </table>
         )}
+      </CardGlass>
+      <CardGlass
+        className="md:col-span-2 xl:col-span-4"
+        title="Supplier SLA Heatmap"
+        subtitle="Nightly forecast of supplier promise health for ops triage"
+      >
+        <SupplierSlaHeatmap />
       </CardGlass>
     </div>
   );
