@@ -45,3 +45,60 @@ export const GroupsOpsPayoutNowInput = z.object({
 });
 
 export type GroupsOpsPayoutNowInput = z.infer<typeof GroupsOpsPayoutNowInput>;
+
+const SuggestionBadge = z.object({
+  label: z.string().min(1),
+  tone: z.enum(["neutral", "info", "success", "warning"]).default("info"),
+});
+
+export type GroupSuggestionBadge = z.infer<typeof SuggestionBadge>;
+
+const SuggestionAction = z.object({
+  label: z.string().min(1),
+  intent: z
+    .enum(["view_itinerary", "start_escrow", "connect_ops", "share", "rerun"])
+    .default("connect_ops"),
+  href: z.string().url().optional(),
+});
+
+export type GroupSuggestionAction = z.infer<typeof SuggestionAction>;
+
+export const GroupSuggestion = z.object({
+  id: z.string().min(1),
+  title: z.string().min(3),
+  summary: z.string().min(5),
+  badges: z.array(SuggestionBadge).default([]),
+  actions: z.array(SuggestionAction).default([]),
+});
+
+export type GroupSuggestion = z.infer<typeof GroupSuggestion>;
+
+export const GroupSuggestionInput = z
+  .object({
+    user_id: z.string().uuid().optional(),
+    session_id: z.string().uuid().optional(),
+    topic: z.string().min(2).max(140).optional(),
+    locale: z.enum(["en", "rw"]).optional(),
+    budget_hint: z.enum(["lean", "balanced", "premium"]).optional(),
+    group_size: z.number().int().positive().max(200).optional(),
+    travel_window: z
+      .object({
+        start: z.string().min(4).optional(),
+        end: z.string().min(4).optional(),
+      })
+      .partial()
+      .optional(),
+  })
+  .default({});
+
+export type GroupSuggestionInput = z.infer<typeof GroupSuggestionInput>;
+
+export const GroupSuggestionResponse = z.object({
+  ok: z.boolean(),
+  session_id: z.string().uuid().optional(),
+  suggestions: z.array(GroupSuggestion).default([]),
+  follow_up: z.string().optional(),
+  request_id: z.string().optional(),
+});
+
+export type GroupSuggestionResponse = z.infer<typeof GroupSuggestionResponse>;
