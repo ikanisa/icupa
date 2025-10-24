@@ -55,7 +55,7 @@ const handler = withObs(async (req) => {
     ? (queryUserId ?? (await extractBodyUserId(req, req.method))) ?? auth.userId
     : auth.userId;
 
-  if (!targetUserId) {
+  if (!targetUserId && !USE_FIXTURES) {
     return jsonResponse({ ok: false, error: "Authentication required" }, 401);
   }
 
