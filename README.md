@@ -82,6 +82,58 @@ supabase functions serve agent-orchestrator --env-file supabase/.env.local
 - Populate the `sec.user_roles` table with your email and the `ops` or `admin` role to unlock privileged dashboards in the admin console.
 - When rehearsing fixture-only flows, toggle `INVENTORY_OFFLINE=1` and `PAYMENT_MOCK=1` in `supabase/.env.local` so GroupBuilder can simulate escrows without hitting live processors.
 
+### Server writes + Intake form
+1. Add the privileged Supabase credentials to `app/.env.local` so the marketing API route can perform server-side inserts during local runs:
+
+   ```bash
+   cat >> app/.env.local <<'EOF'
+   SUPABASE_SERVICE_ROLE_KEY=your-local-service-role
+   SUPABASE_URL=http://127.0.0.1:54321
+   EOF
+   ```
+
+   The service role key bypasses RLS, so keep it confined to server runtimes (`app/.env.local`, Vercel project settings, Supabase Edge Functions) and never embed it in browser bundles or checked-in fixtures.
+2. Start the marketing dev server from the monorepo root:
+
+   ```bash
+   npm run dev --workspace app
+   ```
+
+   The command boots the `/api` routes and the dedicated intake surface at `http://localhost:3000/intake`, allowing you to validate server writes without navigating through the full marketing landing page.
+3. Submit the intake form or exercise the API directly. For API-only validation, mirror the intake payload with `curl` against the same route the form calls:
+
+   ```bash
+   curl -X POST http://localhost:3000/api/clients \
+     -H "Content-Type: application/json" \
+     -d '{
+       "name": "Scout Team",
+       "email": "team@example.com",
+       "travelMonth": "2025-09",
+       "groupType": "team",
+       "message": "We host 40-person climate innovation residencies and need local partners.",
+       "consent": true,
+       "captchaToken": "debug-ok"
+     }'
+   ```
+
+   > **Note:** The marketing intake handler currently lives at `/api/leads`. Use the updated example below when running local checks so inserts hit the live route:
+
+   ```bash
+   curl -X POST http://localhost:3000/api/leads \
+     -H "Content-Type: application/json" \
+     -d '{
+       "name": "Scout Team",
+       "email": "team@example.com",
+       "travelMonth": "2025-09",
+       "groupType": "team",
+       "message": "We host 40-person climate innovation residencies and need local partners.",
+       "consent": true,
+       "captchaToken": "debug-ok"
+     }'
+   ```
+
+   The `captchaToken` mirrors the debug bypass token used in local tests; swap in a production Turnstile token when rehearsing the real flow.
+
 ### Verify the stack before a PR
 - Smoke test both front-ends with `npm run build --workspace @ecotrips/<app>` before pushing to ensure the Vercel builds align with local expectations.
 - Capture Supabase function logs with `supabase logs functions --project-ref woyknezboamabahknmjr --follow` when validating new agent behaviors.
