@@ -81,7 +81,7 @@ export function useBackgroundSyncToast(options?: BackgroundSyncToastOptions): vo
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
+//     if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
       return;
     }
 
@@ -223,7 +223,7 @@ export function useBackgroundSyncToast(options?: BackgroundSyncToastOptions): vo
       });
     };
 
-    navigator.serviceWorker.addEventListener("message", handleMessage);
-    return () => navigator.serviceWorker.removeEventListener("message", handleMessage);
+//     navigator.serviceWorker.addEventListener("message", handleMessage);
+//     return () => navigator.serviceWorker.removeEventListener("message", handleMessage);
   }, []);
 }
