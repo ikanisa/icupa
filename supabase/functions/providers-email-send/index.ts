@@ -116,11 +116,31 @@ const handler = withObs(async (req) => {
     return jsonResponse({ ok: false, error: "contact not found" }, 404);
   }
 
-  let providerId = providerIdRaw || contact?.provider_id || null;
+  const contactProviderId = contact?.provider_id ?? null;
+  if (
+    contact?.id &&
+    providerIdRaw &&
+    contactProviderId &&
+    contactProviderId !== providerIdRaw
+  ) {
+    return jsonResponse({
+      ok: false,
+      error: "contact does not belong to provider",
+    }, 400);
+  }
+
+  let providerId = providerIdRaw || contactProviderId || null;
   if (!providerId) {
     return jsonResponse({ ok: false, error: "provider_id required" }, 400);
   }
   providerId = providerId.trim();
+
+  if (contact?.id && contactProviderId && contactProviderId !== providerId) {
+    return jsonResponse({
+      ok: false,
+      error: "contact does not belong to provider",
+    }, 400);
+  }
 
   const provider = await fetchProvider(providerId);
   if (!provider) {
@@ -130,6 +150,25 @@ const handler = withObs(async (req) => {
   const sentAt = new Date().toISOString();
   const channel = "email";
 
+  const existingThread = threadIdRaw ? await fetchThread(threadIdRaw) : null;
+  if (existingThread) {
+    if (existingThread.provider_id !== providerId) {
+      return jsonResponse({
+        ok: false,
+        error: "thread does not belong to provider",
+      }, 400);
+    }
+    const expectedContactId = contact?.id ?? null;
+    if (expectedContactId) {
+      if (!existingThread.contact_id || existingThread.contact_id !== expectedContactId) {
+        return jsonResponse({
+          ok: false,
+          error: "thread does not belong to contact",
+        }, 400);
+      }
+    }
+  }
+
   const thread = await ensureThread({
     threadId: threadIdRaw || null,
     providerId,
@@ -137,6 +176,7 @@ const handler = withObs(async (req) => {
     subject,
     promiseColumn,
     sentAt,
+    existingThread,
   });
 
   const attachmentsCount = Array.isArray(payload.attachments)
@@ -229,7 +269,11 @@ async function ensureThread(input: {
   subject: string;
   promiseColumn: string | null;
   sentAt: string;
+  existingThread?: ThreadRow | null;
 }): Promise<ThreadRow> {
+  if (input.existingThread) {
+    return input.existingThread;
+  }
   if (input.threadId) {
     const existing = await fetchThread(input.threadId);
     if (existing) {
