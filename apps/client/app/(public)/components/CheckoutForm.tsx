@@ -95,6 +95,14 @@ export function CheckoutForm({ itineraryId }: { itineraryId: string }) {
       setIntent(response.payment_intent_id ?? null);
       setToast({ id: "success", title: "Checkout ready", description: `Intent ${response.payment_intent_id ?? "fixture"}` });
       setEscalation(null);
+      const ledgerPaymentId = response.payment_id ?? null;
+      const stripeIntentId = response.payment_intent ?? null;
+      if (ledgerPaymentId || stripeIntentId) {
+        const normalizedIntent = ledgerPaymentId ?? stripeIntentId ?? response.payment_intent_id ?? null;
+        const normalizedIntentLabel = stripeIntentId ?? ledgerPaymentId ?? response.payment_intent_id ?? "fixture";
+        setIntent(normalizedIntent);
+        setToast({ id: "success", title: "Checkout ready", description: `Intent ${normalizedIntentLabel}` });
+      }
       return true;
     } catch (error) {
       console.error(error);
