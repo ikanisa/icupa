@@ -1,0 +1,51 @@
+{
+  "call_id": "call-fixture-ank-001",
+  "thread_id": "thread-ops-ank-001",
+  "generated_at": "2025-01-13T19:16:05.000Z",
+  "transcript": [
+    {
+      "speaker": "agent",
+      "timestamp": "2025-01-13T19:14:03.000Z",
+      "text": "Hi Anika, this is Claire from ecoTrips ops. Can we go over the trek pickup for tomorrow?"
+    },
+    {
+      "speaker": "traveler",
+      "timestamp": "2025-01-13T19:14:11.000Z",
+      "text": "Muraho Claire! Yes please. I just wanted to be sure the driver comes with enough time for the permit check."
+    },
+    {
+      "speaker": "agent",
+      "timestamp": "2025-01-13T19:14:32.000Z",
+      "text": "Absolutely. Aimable confirmed 05:30 pickup and will be in a white Toyota Prado, plate RAD 472Q."
+    },
+    {
+      "speaker": "traveler",
+      "timestamp": "2025-01-13T19:14:55.000Z",
+      "text": "Perfect. Could the hotel pack breakfast since we'll leave before service opens?"
+    },
+    {
+      "speaker": "agent",
+      "timestamp": "2025-01-13T19:15:08.000Z",
+      "text": "Already arranged—chef will have a breakfast box at reception by 04:45. I'll text the confirmation plus driver plate tonight."
+    },
+    {
+      "speaker": "traveler",
+      "timestamp": "2025-01-13T19:15:22.000Z",
+      "text": "That is great, thank you."
+    }
+  ],
+  "summary": {
+    "headline": "Confirmed dawn pickup with breakfast ready for gorilla trek",
+    "sentiment": "positive",
+    "highlights": [
+      "Driver Aimable reconfirmed for 05:30 Serena Hotel lobby pickup in plate RAD 472Q",
+      "Hotel preparing take-away breakfast box for 04:45 handoff"
+    ],
+    "next_steps": [
+      "Send WhatsApp follow-up with driver plate once roster publishes at 21:00",
+      "Set reminder to ping driver at 21:00 for status check"
+    ],
+    "duration_seconds": 312
+  },
+  "source": "voice-call-summarize fixture v1"
+}

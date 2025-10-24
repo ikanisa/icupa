@@ -4,6 +4,7 @@ import type { GroupSuggestion } from "@ecotrips/types";
 
 import { emitAgentEvent } from "../lib/agentTelemetry";
 import { requestGroupSuggestions } from "../lib/groupSuggestions";
+import { PlannerFeatureGate } from "../components/PlannerFeatureGate";
 
 export const dynamic = "force-dynamic";
 
@@ -28,22 +29,48 @@ export default async function GroupsPage() {
 
   return (
     <div className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 px-4 pb-24 pt-10">
-      <CardGlass
-        title="Group planning concierge"
-        subtitle="PlannerCoPilot curates offsites, retreats, and summits with carbon accounting built in."
+      <PlannerFeatureGate
+        debugLabel="groups.hero"
+        fallback={
+          <CardGlass
+            title="Group planning concierge"
+            subtitle="ConciergeGuide curates offsites, retreats, and summits with carbon accounting built in."
+          >
+            <p className="text-sm text-white/80">
+              Share a destination, travel window, or headcount and we will draft a split-pay escrow, carbon impact model, and
+              supplier roll-up within one business day. Suggestions below refresh from our edge network even when suppliers are
+              offline.
+            </p>
+          </CardGlass>
+        }
       >
-        <p className="text-sm text-white/80">
-          Share a destination, travel window, or headcount and we will draft a split-pay escrow, carbon impact model,
-          and supplier roll-up within one business day. Suggestions below refresh from our edge network even when
-          suppliers are offline.
-        </p>
-      </CardGlass>
+        <CardGlass
+          title="Group planning concierge"
+          subtitle="PlannerCoPilot curates offsites, retreats, and summits with carbon accounting built in."
+        >
+          <p className="text-sm text-white/80">
+            Share a destination, travel window, or headcount and we will draft a split-pay escrow, carbon impact model,
+            and supplier roll-up within one business day. Suggestions below refresh from our edge network even when
+            suppliers are offline.
+          </p>
+        </CardGlass>
+      </PlannerFeatureGate>
       {suggestions.length === 0 ? (
         <CardGlass title="Fixtures active" subtitle="Connect to Supabase to fetch live suggestions.">
-          <p className="text-sm text-white/70">
-            Offline fixtures keep the experience resilient. Once Supabase credentials are configured the page will
-            hydrate with fresh group recommendations from PlannerCoPilot.
-          </p>
+          <PlannerFeatureGate
+            debugLabel="groups.fixtures"
+            fallback={
+              <p className="text-sm text-white/70">
+                Offline fixtures keep the experience resilient. Once Supabase credentials are configured the page will hydrate
+                with fresh group recommendations from ConciergeGuide.
+              </p>
+            }
+          >
+            <p className="text-sm text-white/70">
+              Offline fixtures keep the experience resilient. Once Supabase credentials are configured the page will
+              hydrate with fresh group recommendations from PlannerCoPilot.
+            </p>
+          </PlannerFeatureGate>
         </CardGlass>
       ) : (
         suggestions.map((suggestion: GroupSuggestion) => (

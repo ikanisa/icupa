@@ -1,0 +1,26 @@
+[
+  {
+    "source_lang": "en",
+    "target_lang": "fr",
+    "source_text": "good morning",
+    "target_text": "bonjour",
+    "forward_hits": 12,
+    "reverse_hits": 3
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "sw",
+    "source_text": "thank you",
+    "target_text": "asante",
+    "forward_hits": 8,
+    "reverse_hits": 1
+  },
+  {
+    "source_lang": "fr",
+    "target_lang": "en",
+    "source_text": "au revoir",
+    "target_text": "goodbye",
+    "forward_hits": 5,
+    "reverse_hits": 4
+  }
+]

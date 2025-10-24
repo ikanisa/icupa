@@ -1,0 +1,29 @@
+[
+  {
+    "id": "sos-rwanda-duty",
+    "label": "Duty manager — Kigali",
+    "phone": "+250 788 000 111",
+    "channel": "voice",
+    "timezone": "Africa/Kigali",
+    "languages": ["rw", "en"],
+    "notes": "On-call overnight; escalation to GM after 3 rings."
+  },
+  {
+    "id": "sos-ranger",
+    "label": "Park ranger desk",
+    "phone": "+250 732 555 010",
+    "channel": "voice",
+    "timezone": "Africa/Kigali",
+    "languages": ["rw", "fr", "en"],
+    "notes": "Coordinates gorilla trek contingencies."
+  },
+  {
+    "id": "sos-whatsapp",
+    "label": "Concierge WhatsApp",
+    "phone": "+250 789 123 456",
+    "channel": "whatsapp",
+    "timezone": "Africa/Kigali",
+    "languages": ["en"],
+    "notes": "24/7 monitoring with auto-escalation for SOS keyword."
+  }
+]

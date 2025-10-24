@@ -1,5 +1,4 @@
 #!/usr/bin/env -S deno run -A
-import { readTextFile } from "https://deno.land/std@0.220.1/fs/read_file_str.ts";
 
 interface ScenarioStep {
   name: string;
@@ -27,7 +26,7 @@ function parseArgs() {
 }
 
 async function loadScenarios(): Promise<ScenarioMap> {
-  const raw = await readTextFile(new URL("./scenarios.json", import.meta.url));
+  const raw = await Deno.readTextFile(new URL("./scenarios.json", import.meta.url));
   return JSON.parse(raw) as ScenarioMap;
 }
 

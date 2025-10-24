@@ -9,12 +9,16 @@ export class EcoTripsFunctionClient {
   private readonly fetchImpl: typeof fetch;
   private readonly timeoutMs: number;
   readonly inventory: DomainClients["inventory"];
+  readonly growth: DomainClients["growth"];
   readonly checkout: DomainClients["checkout"];
+  readonly concierge: DomainClients["concierge"];
   readonly groups: DomainClients["groups"];
   readonly permits: DomainClients["permits"];
   readonly wallet: DomainClients["wallet"];
   readonly ops: DomainClients["ops"];
   readonly finance: DomainClients["finance"];
+  readonly pricing: DomainClients["pricing"];
+  readonly loyalty: DomainClients["loyalty"];
   readonly privacy: DomainClients["privacy"];
   readonly dr: DomainClients["dr"];
   readonly travel: DomainClients["travel"];
@@ -25,12 +29,16 @@ export class EcoTripsFunctionClient {
 
     const domains = createDomainClients(this);
     this.inventory = domains.inventory;
+    this.growth = domains.growth;
     this.checkout = domains.checkout;
+    this.concierge = domains.concierge;
     this.groups = domains.groups;
     this.permits = domains.permits;
     this.wallet = domains.wallet;
     this.ops = domains.ops;
     this.finance = domains.finance;
+    this.pricing = domains.pricing;
+    this.loyalty = domains.loyalty;
     this.privacy = domains.privacy;
     this.dr = domains.dr;
     this.travel = domains.travel;
@@ -81,8 +89,10 @@ export class EcoTripsFunctionClient {
       }
 
       const parsed = await safeJson(response);
-      // @ts-expect-error: Zod parsing guarantees the inferred output type matches the descriptor map entry.
-      return descriptor.output ? descriptor.output.parse(parsed) : (parsed as InferOutput<FunctionMap[K]>);
+      if (descriptor.output) {
+        return descriptor.output.parse(parsed) as InferOutput<FunctionMap[K]>;
+      }
+      return parsed as InferOutput<FunctionMap[K]>;
     } finally {
       clearTimeout(timeout);
     }

@@ -2,6 +2,7 @@ import "../../styles/globals.css";
 import "@ecotrips/ui/styles/tokens.css";
 
 import { CardGlass } from "@ecotrips/ui";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
@@ -11,6 +12,51 @@ import { createAdminServerClient } from "../../lib/supabaseServer";
 
 const allowedRoles = new Set(["ops", "admin"]);
 
+const defaultBypassHosts = Object.freeze(["localhost", "127.0.0.1"]);
+const configuredBypassHosts = (process.env.OPS_CONSOLE_BYPASS_HOSTS ?? "")
+  .split(",")
+  .map((entry) => entry.trim().toLowerCase())
+  .filter(Boolean);
+const allowedBypassHosts = new Set([
+  ...defaultBypassHosts,
+  ...configuredBypassHosts,
+]);
+
+const additionalLoopbackHosts = Object.freeze(["0.0.0.0", "[::1]"]);
+additionalLoopbackHosts.forEach((host) => allowedBypassHosts.add(host));
+
+const isDeployedRuntime = () => {
+  if (process.env.NEXT_RUNTIME === "edge") {
+    return true;
+  }
+
+  if (process.env.VERCEL === "1") {
+    return true;
+  }
+
+  if (process.env.VERCEL_ENV && process.env.VERCEL_ENV !== "development") {
+    return true;
+  }
+
+  if (process.env.CI === "true") {
+    return true;
+  }
+
+  return process.env.NODE_ENV === "production";
+};
+
+const resolveRequestHost = () => {
+  try {
+    const headerList = headers();
+    const forwardedHost = headerList.get("x-forwarded-host");
+    const directHost = headerList.get("host");
+    const host = forwardedHost ?? directHost ?? "";
+    return host.split(":")[0]?.toLowerCase?.() ?? "";
+  } catch (error) {
+    return "";
+  }
+};
+
 type LayoutProps = {
   children: ReactNode;
 };
@@ -18,9 +64,32 @@ type LayoutProps = {
 export default async function OpsLayout({ children }: LayoutProps) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  const bypassAuth = process.env.OPS_CONSOLE_BYPASS_AUTH === "1" && process.env.NODE_ENV !== "production";
+  const bypassRequested = process.env.OPS_CONSOLE_BYPASS_AUTH === "1";
+  const deployedRuntime = isDeployedRuntime();
+
+  if (bypassRequested && deployedRuntime) {
+    throw new Error("OPS_CONSOLE_BYPASS_AUTH is disabled for deployed environments.");
+  }
+
+  const requestHost = resolveRequestHost();
+  const hostIsAllowlisted = requestHost ? allowedBypassHosts.has(requestHost) : false;
+
+  if (bypassRequested && !hostIsAllowlisted) {
+    const allowedList = Array.from(allowedBypassHosts).join(", ");
+    throw new Error(
+      `OPS_CONSOLE_BYPASS_AUTH is enabled but request host "${requestHost || "(empty)"}" is not allowlisted. Allowed hosts: ${allowedList}.`,
+    );
+  }
+
+  const bypassAuth = bypassRequested && !deployedRuntime && hostIsAllowlisted;
 
   if (!supabaseUrl || !supabaseKey) {
+    if (deployedRuntime) {
+      throw new Error(
+        "NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY must be configured for admin deployments.",
+      );
+    }
+
     if (bypassAuth) {
       return (
         <div className="flex min-h-screen flex-col gap-10 px-8 py-8">

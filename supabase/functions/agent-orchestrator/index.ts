@@ -1,5 +1,17 @@
 import { getRequestId, healthResponse, withObs } from "../_obs/withObs.ts";
 import { ERROR_CODES } from "../_obs/constants.ts";
+import {
+  isAutonomyCategory,
+  isAutonomyLevel,
+  isComposerDial,
+  rankAutonomyLevel,
+  type AutonomyCategory,
+  type AutonomyLevel,
+  type ComposerDial,
+} from "../_shared/autonomy.ts";
+import autonomyFixtures from "../../../ops/fixtures/user_autonomy_prefs.json" assert {
+  type: "json",
+};
 
 interface ToolDefinition {
   key: string;
@@ -32,9 +44,84 @@ interface RequestPayload {
   messages?: ConversationMessage[];
 }
 
+type ModerationAction = "allow" | "refuse" | "escalate";
+
+interface ModerationCandidate {
+  index: number;
+  role: string;
+  content: string;
+  metadata?: Record<string, unknown>;
+  hints: string[];
+  flaggedReason?: string;
+}
+
+interface ModerationDecisionRecord {
+  message_index: number;
+  action: ModerationAction;
+  category: string;
+  reason?: string;
+  matched?: Record<string, unknown>;
+}
+
+interface ModerationSummary {
+  action: ModerationAction;
+  category: string;
+  decisions: ModerationDecisionRecord[];
+}
+
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE") ??
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+const AUTONOMY_PREFS_FIXTURES = Deno.env.get("AUTONOMY_PREFS_FIXTURES") === "1";
+const AUTONOMY_PREFS_CACHE_TTL_MS = Number(
+  Deno.env.get("AUTONOMY_PREFS_CACHE_MS") ?? "60000",
+);
+const AUTONOMY_DEFAULT_LEVEL: AutonomyLevel = "L1";
+const AUTONOMY_DEFAULT_COMPOSER: ComposerDial = "assist";
+const AUTONOMY_MIN_EXECUTION_LEVEL = 2;
+
+const HIGH_RISK_TOOLS = new Set<string>([
+  "checkout.intent",
+  "ops.refund",
+  "groups.contribute",
+  "groups.create_escrow",
+  "groups.payout_now",
+  "permits.ops_approve",
+  "permits.ops_reject",
+  "webhook.stripe",
+]);
+
+const AGENT_AUTONOMY_CATEGORY: Record<string, AutonomyCategory> = {
+  PlannerCoPilot: "planner",
+  ConciergeGuide: "concierge",
+  GroupBuilder: "planner",
+  SupportCopilot: "support",
+  SupplierOpsAgent: "ops",
+  FinOpsAgent: "ops",
+  ContentMarketingAgent: "marketing",
+};
+
+type StoredAutonomyPreference = {
+  level: AutonomyLevel;
+  composer: ComposerDial;
+  updatedAt?: string;
+  source: "db" | "fixtures";
+};
+
+type AutonomyGateResult = {
+  allowed: boolean;
+  category: AutonomyCategory;
+  level: AutonomyLevel;
+  composer: ComposerDial;
+  source: "db" | "fixtures" | "default";
+  requiredLevel: number;
+};
+
+const AUTONOMY_PREF_CACHE = new Map<
+  string,
+  { expiresAt: number; prefs: Map<AutonomyCategory, StoredAutonomyPreference> }
+>();
 
 const EMBEDDED_REGISTRY: ToolDefinition[] = [
   {
@@ -154,10 +241,18 @@ const EMBEDDED_REGISTRY: ToolDefinition[] = [
   {
     key: "notify.whatsapp_send",
     endpoint:
-      "https://{project_ref}.supabase.co/functions/v1/notify-whatsapp-send",
+      "https://{project_ref}.supabase.co/functions/v1/wa-send",
     method: "POST",
     auth: "service_role",
     requiredFields: ["to", "template"],
+  },
+  {
+    key: "notify.whatsapp",
+    endpoint:
+      "https://{project_ref}.supabase.co/functions/v1/notify-whatsapp",
+    method: "POST",
+    auth: "service_role",
+    requiredFields: ["to"],
   },
   {
     key: "agent.log_goal",
@@ -343,10 +438,10 @@ const CANONICAL_TOOL_DEFINITIONS: Record<string, ToolDefinition> = {
   },
   "notify.whatsapp": {
     key: "notify.whatsapp",
-    endpoint: "https://{project_ref}.supabase.co/functions/v1/wa-send",
+    endpoint: "https://{project_ref}.supabase.co/functions/v1/notify-whatsapp",
     method: "POST",
     auth: "service_role",
-    requiredFields: ["to", "template"],
+    requiredFields: ["to"],
   },
   "payout.now": {
     key: "payout.now",
@@ -398,6 +493,7 @@ const handler = withObs(async (req) => {
     typeof payload.agent === "string" && payload.agent.trim().length > 0
       ? payload.agent.trim()
       : "";
+  const autonomyCategory = resolveAutonomyCategory(agentKey);
   if (!agentKey) {
     validationErrors.push("agent is required");
   }
@@ -527,6 +623,7 @@ const handler = withObs(async (req) => {
 
   const dryRun = Boolean(payload.dry_run);
   let sessionId = payload.session_id ?? null;
+  let moderationSummary: ModerationSummary | null = null;
 
   try {
     if (sessionId) {
@@ -552,6 +649,59 @@ const handler = withObs(async (req) => {
       const mergedPlan = existingPlan
         ? deepMerge(existingPlan, payload.plan)
         : payload.plan;
+
+      const optimizerInput = extractOptimizerInput(mergedPlan);
+      if (optimizerInput) {
+        const optimizerArtifacts = await runPlannerOptimizers(
+          optimizerInput,
+          requestId,
+        );
+        if (optimizerArtifacts) {
+          const existingWhyRaw =
+            (mergedPlan as Record<string, unknown>)["why_these_changes"];
+          const existingWhy = Array.isArray(existingWhyRaw)
+            ? (existingWhyRaw as unknown[])
+              .filter((item) => typeof item === "string")
+              .map((item) => item as string)
+            : [];
+          const mergedWhy = dedupeStrings([
+            ...existingWhy,
+            ...optimizerArtifacts.why,
+          ]);
+          if (mergedWhy.length > 0) {
+            (mergedPlan as Record<string, unknown>)["why_these_changes"] =
+              mergedWhy;
+          }
+
+          const existingOptimizerRaw =
+            (mergedPlan as Record<string, unknown>)["optimizer"];
+          const existingOptimizer =
+            existingOptimizerRaw && typeof existingOptimizerRaw === "object" &&
+              !Array.isArray(existingOptimizerRaw)
+              ? (existingOptimizerRaw as Record<string, unknown>)
+              : {};
+
+          const optimizerPayload: Record<string, unknown> = {
+            ...existingOptimizer,
+            last_run_at: optimizerArtifacts.lastRunAt,
+            source: optimizerArtifacts.source,
+            conflicts: optimizerArtifacts.conflicts,
+            day_balance: optimizerArtifacts.dayBalance,
+            diff_summary: optimizerArtifacts.diffSummary,
+            rationales: optimizerArtifacts.rationales,
+          };
+
+          if (optimizerArtifacts.before) {
+            optimizerPayload.before = optimizerArtifacts.before;
+          }
+          if (optimizerArtifacts.after) {
+            optimizerPayload.after = optimizerArtifacts.after;
+          }
+
+          (mergedPlan as Record<string, unknown>)["optimizer"] = optimizerPayload;
+        }
+      }
+
       await upsertWorkingPlan(sessionId!, mergedPlan);
     } catch (error) {
       return jsonResponse({
@@ -572,6 +722,35 @@ const handler = withObs(async (req) => {
     }
   }
 
+  let autonomyGate: AutonomyGateResult | null = null;
+  if (toolDef) {
+    if (payload.user_id) {
+      autonomyGate = await evaluateAutonomyGate(
+        payload.user_id,
+        autonomyCategory,
+        toolDef.key,
+        requestId,
+      );
+    } else {
+      autonomyGate = buildDefaultAutonomyGate(autonomyCategory, toolDef.key);
+    }
+
+    if (!dryRun && payload.user_id && autonomyGate && !autonomyGate.allowed) {
+      return jsonResponse({
+        ok: false,
+        error: "autonomy_threshold",
+        autonomy: {
+          category: autonomyGate.category,
+          level: autonomyGate.level,
+          composer: autonomyGate.composer,
+          source: autonomyGate.source,
+          required_level: `L${autonomyGate.requiredLevel}`,
+          allowed: autonomyGate.allowed,
+        },
+      }, 403);
+    }
+  }
+
   const toolRequestId = crypto.randomUUID();
   let plannedTool: Record<string, unknown> | undefined;
   let toolResult: Record<string, unknown> | undefined;
@@ -588,6 +767,7 @@ const handler = withObs(async (req) => {
     };
 
     if (!dryRun) {
+      const spanStartMs = Date.now();
       try {
         toolResult = await executeTool(
           toolDef,
@@ -595,7 +775,54 @@ const handler = withObs(async (req) => {
           toolInput ?? {},
           toolRequestId,
         );
+        if (sessionId) {
+          const spanDurationMs = Math.max(0, Date.now() - spanStartMs);
+          const toolStatus = (toolResult as { status?: unknown }).status;
+          const toolBody = (toolResult as { body?: unknown }).body;
+          const spanStatus =
+            typeof toolStatus === "number"
+              ? toolStatus
+              : Number(toolStatus ?? NaN);
+          const spanOk = Number.isFinite(spanStatus)
+            ? spanStatus >= 200 && spanStatus < 400
+            : true;
+          await emitToolSpanEvent(
+            sessionId,
+            {
+              agentKey,
+              toolKey: toolDef.key,
+              requestId: toolRequestId,
+              startMs: spanStartMs,
+              durationMs: spanDurationMs,
+              ok: spanOk,
+              status: toolStatus,
+              requestPayload: toolInput ?? {},
+              responsePayload: toolBody,
+              ...(spanOk
+                ? {}
+                : {
+                    error: toolBody,
+                  }),
+            },
+          );
+        }
       } catch (error) {
+        const spanDurationMs = Math.max(0, Date.now() - spanStartMs);
+        if (sessionId) {
+          await emitToolSpanEvent(
+            sessionId,
+            {
+              agentKey,
+              toolKey: toolDef.key,
+              requestId: toolRequestId,
+              startMs: spanStartMs,
+              durationMs: spanDurationMs,
+              ok: false,
+              requestPayload: toolInput ?? {},
+              error,
+            },
+          );
+        }
         return jsonResponse({
           ok: false,
           error: `tool execution failed: ${(error as Error).message}`,
@@ -642,10 +869,37 @@ const handler = withObs(async (req) => {
     responsePayload.tool_result = toolResult;
   }
 
+  const autonomySnapshot = autonomyGate ??
+    buildDefaultAutonomyGate(autonomyCategory, toolDef?.key ?? null);
+  responsePayload.autonomy = {
+    category: autonomySnapshot.category,
+    level: autonomySnapshot.level,
+    composer: autonomySnapshot.composer,
+    source: autonomySnapshot.source,
+    required_level: `L${autonomySnapshot.requiredLevel}`,
+    allowed: autonomySnapshot.allowed,
+  };
+
   return jsonResponse(responsePayload, 200);
 }, { fn: "agent-orchestrator", defaultErrorCode: ERROR_CODES.UNKNOWN });
 
 Deno.serve(handler);
+
+async function emitToolSpanEvent(
+  sessionId: string,
+  options: AgentToolSpanTelemetryOptions,
+): Promise<void> {
+  try {
+    const payload = await buildAgentToolSpanPayload(options);
+    await insertEvent(sessionId, "INFO", "agent.tool_span", payload);
+  } catch (error) {
+    console.error("agent.tool_span", {
+      error,
+      sessionId,
+      tool: options.toolKey,
+    });
+  }
+}
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -905,6 +1159,332 @@ function hasValue(input: Record<string, unknown>, path: string): boolean {
   return current !== undefined && current !== null;
 }
 
+const RISK_FLAG_BOOLEAN_KEYS = new Set<string>([
+  "flagged",
+  "risk_flag",
+  "moderation_flag",
+  "unsafe",
+  "blocked",
+  "risky",
+]);
+
+const RISK_FLAG_STRING_VALUES = new Set<string>([
+  "block",
+  "blocked",
+  "escalate",
+  "refuse",
+  "unsafe",
+  "risky",
+  "deny",
+  "high",
+  "critical",
+]);
+
+const RISK_HINT_KEYS = new Set<string>([
+  "category",
+  "categories",
+  "subcategory",
+  "label",
+  "tag",
+  "type",
+  "policy",
+  "classification",
+  "threat",
+  "abuse",
+  "risk",
+  "topic",
+]);
+
+const RISK_HINT_VALUES = new Set<string>([
+  "threat",
+  "violence",
+  "harassment",
+  "hate",
+  "sexual",
+  "child",
+  "self-harm",
+  "crisis",
+  "illegal",
+  "dangerous",
+  "spam",
+  "fraud",
+  "misinformation",
+  "safety",
+]);
+
+const RISK_REASON_KEYS = new Set<string>([
+  "reason",
+  "note",
+  "explanation",
+  "comment",
+  "message",
+]);
+
+const RISK_SCORE_KEYS = new Set<string>([
+  "score",
+  "probability",
+  "confidence",
+  "likelihood",
+]);
+
+function extractRiskyModerationCandidates(
+  messages: ConversationMessage[],
+): ModerationCandidate[] {
+  const candidates: ModerationCandidate[] = [];
+  messages.forEach((message, index) => {
+    if (!message.metadata) {
+      return;
+    }
+
+    const signal = parseRiskMetadata(message.metadata);
+    if (!signal.flagged) {
+      return;
+    }
+
+    candidates.push({
+      index,
+      role: message.role,
+      content: message.content,
+      metadata: message.metadata,
+      hints: signal.hints,
+      flaggedReason: signal.reason,
+    });
+  });
+  return candidates;
+}
+
+function parseRiskMetadata(metadata: Record<string, unknown>): {
+  flagged: boolean;
+  hints: string[];
+  reason?: string;
+} {
+  const hints: string[] = [];
+  let flagged = false;
+  let reason: string | undefined;
+  const stack: Record<string, unknown>[] = [metadata];
+
+  while (stack.length > 0) {
+    const current = stack.pop()!;
+    for (const [key, value] of Object.entries(current)) {
+      const lowerKey = key.toLowerCase();
+      if (typeof value === "boolean") {
+        if (value && RISK_FLAG_BOOLEAN_KEYS.has(lowerKey)) {
+          flagged = true;
+        }
+      } else if (typeof value === "string") {
+        const trimmed = value.trim();
+        if (!trimmed) continue;
+        const lowerValue = trimmed.toLowerCase();
+        const numericValue = Number(trimmed);
+        if (!Number.isNaN(numericValue) && RISK_SCORE_KEYS.has(lowerKey)) {
+          if (numericValue >= 0.8) {
+            flagged = true;
+          }
+        }
+        if (RISK_FLAG_STRING_VALUES.has(lowerValue)) {
+          flagged = true;
+        }
+        if (RISK_HINT_KEYS.has(lowerKey) || RISK_HINT_VALUES.has(lowerValue)) {
+          hints.push(lowerValue);
+        }
+        if (!reason && RISK_REASON_KEYS.has(lowerKey)) {
+          reason = trimmed;
+        }
+      } else if (typeof value === "number") {
+        if (value >= 0.8 && RISK_SCORE_KEYS.has(lowerKey)) {
+          flagged = true;
+        }
+      } else if (Array.isArray(value)) {
+        for (const item of value) {
+          if (typeof item === "string" && item.trim()) {
+            hints.push(item.trim().toLowerCase());
+          } else if (
+            item &&
+            typeof item === "object" &&
+            !Array.isArray(item)
+          ) {
+            stack.push(item as Record<string, unknown>);
+          }
+        }
+      } else if (value && typeof value === "object") {
+        stack.push(value as Record<string, unknown>);
+      }
+    }
+  }
+
+  const uniqueHints = Array.from(new Set(
+    hints.filter((hint) => typeof hint === "string" && hint.length > 0),
+  ));
+  return { flagged, hints: uniqueHints, reason };
+}
+
+async function requestModerationDecision(
+  candidates: ModerationCandidate[],
+  agentKey: string,
+  requestId: string,
+): Promise<ModerationSummary> {
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/moderate`, {
+    method: "POST",
+    headers: {
+      ...serviceHeaders(),
+      "content-type": "application/json",
+      "x-request-id": requestId,
+      "x-agent-key": agentKey,
+    },
+    body: JSON.stringify({
+      agent: agentKey,
+      request_id: requestId,
+      messages: candidates.map((candidate) => ({
+        role: candidate.role,
+        content: candidate.content,
+        metadata: candidate.metadata ?? {},
+        hints: candidate.hints,
+        flagged: true,
+        flagged_reason: candidate.flaggedReason,
+      })),
+    }),
+  });
+
+  const text = await response.text();
+  if (!response.ok) {
+    const message = text || `moderate responded with ${response.status}`;
+    throw new Error(message);
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = text ? JSON.parse(text) : {};
+  } catch (_error) {
+    throw new Error("moderate returned invalid JSON");
+  }
+
+  return normalizeModerationResponse(parsed);
+}
+
+function normalizeModerationResponse(payload: unknown): ModerationSummary {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return { action: "escalate", category: "unknown", decisions: [] };
+  }
+
+  const record = payload as Record<string, unknown>;
+  const rawDecisions = Array.isArray(record.decisions)
+    ? record.decisions
+    : [];
+
+  const decisions: ModerationDecisionRecord[] = [];
+  for (const item of rawDecisions) {
+    const normalized = normalizeModerationDecision(item);
+    if (normalized) {
+      decisions.push(normalized);
+    }
+  }
+
+  return {
+    action: ensureModerationAction(record.action),
+    category: typeof record.category === "string" && record.category.trim()
+      ? record.category
+      : "unknown",
+    decisions,
+  };
+}
+
+function normalizeModerationDecision(
+  decision: unknown,
+): ModerationDecisionRecord | null {
+  if (!decision || typeof decision !== "object" || Array.isArray(decision)) {
+    return null;
+  }
+
+  const record = decision as Record<string, unknown>;
+  const indexCandidate = record.message_index ?? record.index ?? record.position;
+  const numericIndex = typeof indexCandidate === "number"
+    ? indexCandidate
+    : Number(indexCandidate);
+
+  if (!Number.isFinite(numericIndex)) {
+    return null;
+  }
+
+  const message_index = Math.max(0, Math.floor(Number(numericIndex)));
+  const category = typeof record.category === "string" && record.category.trim()
+    ? record.category
+    : "unknown";
+  const reason = typeof record.reason === "string" && record.reason.trim()
+    ? record.reason
+    : undefined;
+
+  let matched: Record<string, unknown> | undefined;
+  if (
+    record.matched &&
+    typeof record.matched === "object" &&
+    record.matched !== null &&
+    !Array.isArray(record.matched)
+  ) {
+    matched = record.matched as Record<string, unknown>;
+  }
+
+  return {
+    message_index,
+    action: ensureModerationAction(record.action),
+    category,
+    reason,
+    matched,
+  };
+}
+
+function ensureModerationAction(value: unknown): ModerationAction {
+  if (value === "allow" || value === "refuse" || value === "escalate") {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.toLowerCase();
+    if (normalized === "allow" || normalized === "refuse") {
+      return normalized as ModerationAction;
+    }
+    if (normalized === "escalate" || normalized === "review") {
+      return "escalate";
+    }
+    if (normalized === "block" || normalized === "deny") {
+      return "refuse";
+    }
+  }
+
+  return "escalate";
+}
+
+function createModerationAuditPayload(
+  agentKey: string,
+  candidates: ModerationCandidate[],
+  summary: ModerationSummary,
+): Record<string, unknown> {
+  return {
+    agent: agentKey,
+    source: "moderate",
+    action: summary.action,
+    category: summary.category,
+    decisions: summary.decisions.map((decision) => ({
+      message_index: decision.message_index,
+      action: decision.action,
+      category: decision.category,
+      reason: decision.reason,
+    })),
+    flagged_messages: candidates.map((candidate) => ({
+      message_index: candidate.index,
+      role: candidate.role,
+      hints: candidate.hints,
+      excerpt: truncateForAudit(candidate.content),
+    })),
+  };
+}
+
+function truncateForAudit(text: string, limit = 160): string {
+  if (text.length <= limit) {
+    return text;
+  }
+  return `${text.slice(0, limit)}…`;
+}
+
 async function executeTool(
   tool: ToolDefinition,
   endpoint: string,
@@ -967,6 +1547,162 @@ function serviceHeaders(): Record<string, string> {
     apikey: SERVICE_ROLE_KEY!,
     Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
   };
+}
+
+function resolveAutonomyCategory(agentKey: string): AutonomyCategory {
+  if (isAutonomyCategory(agentKey)) {
+    return agentKey;
+  }
+  return AGENT_AUTONOMY_CATEGORY[agentKey] ?? "planner";
+}
+
+function requiredLevelForTool(toolKey: string | null | undefined): number {
+  if (!toolKey) return AUTONOMY_MIN_EXECUTION_LEVEL;
+  return HIGH_RISK_TOOLS.has(toolKey)
+    ? 4
+    : AUTONOMY_MIN_EXECUTION_LEVEL;
+}
+
+function buildDefaultAutonomyGate(
+  category: AutonomyCategory,
+  toolKey: string | null,
+): AutonomyGateResult {
+  const requiredLevel = requiredLevelForTool(toolKey);
+  const level = AUTONOMY_DEFAULT_LEVEL;
+  const allowed = rankAutonomyLevel(level) >= requiredLevel;
+  return {
+    allowed,
+    category,
+    level,
+    composer: AUTONOMY_DEFAULT_COMPOSER,
+    source: "default",
+    requiredLevel,
+  };
+}
+
+async function evaluateAutonomyGate(
+  userId: string,
+  category: AutonomyCategory,
+  toolKey: string,
+  requestId: string,
+): Promise<AutonomyGateResult> {
+  const prefs = await getAutonomyPreferences(userId, requestId);
+  const pref = prefs.get(category);
+  const level = pref?.level ?? AUTONOMY_DEFAULT_LEVEL;
+  const composer = pref?.composer ?? AUTONOMY_DEFAULT_COMPOSER;
+  const source = pref?.source ?? "default";
+  const requiredLevel = requiredLevelForTool(toolKey);
+  const allowed = rankAutonomyLevel(level) >= requiredLevel;
+  return {
+    allowed,
+    category,
+    level,
+    composer,
+    source,
+    requiredLevel,
+  };
+}
+
+async function getAutonomyPreferences(
+  userId: string,
+  requestId: string,
+): Promise<Map<AutonomyCategory, StoredAutonomyPreference>> {
+  const cached = AUTONOMY_PREF_CACHE.get(userId);
+  const now = Date.now();
+  if (cached && cached.expiresAt > now) {
+    return cached.prefs;
+  }
+
+  if (AUTONOMY_PREFS_FIXTURES) {
+    const prefs = buildFixturePreferences();
+    AUTONOMY_PREF_CACHE.set(userId, {
+      prefs,
+      expiresAt: now + AUTONOMY_PREFS_CACHE_TTL_MS,
+    });
+    return prefs;
+  }
+
+  try {
+    const headers = { ...serviceHeaders(), "Accept-Profile": "app" };
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/app.user_autonomy_prefs?select=category,autonomy_level,composer_mode,updated_at&user_id=eq.${userId}`,
+      { headers },
+    );
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || response.statusText);
+    }
+
+    const rows = await response.json() as Array<Record<string, unknown>>;
+    const map = new Map<AutonomyCategory, StoredAutonomyPreference>();
+    for (const row of rows) {
+      const category = row.category;
+      const level = row.autonomy_level;
+      const composer = row.composer_mode;
+      if (
+        isAutonomyCategory(category) &&
+        isAutonomyLevel(level) &&
+        isComposerDial(composer)
+      ) {
+        map.set(category, {
+          level,
+          composer,
+          updatedAt: typeof row.updated_at === "string" ? row.updated_at : undefined,
+          source: "db",
+        });
+      }
+    }
+
+    AUTONOMY_PREF_CACHE.set(userId, {
+      prefs: map,
+      expiresAt: now + AUTONOMY_PREFS_CACHE_TTL_MS,
+    });
+    return map;
+  } catch (error) {
+    console.log(JSON.stringify({
+      level: "WARN",
+      event: "agent.autonomy.fetch_failed",
+      fn: "agent-orchestrator",
+      request_id: requestId,
+      message: (error as Error).message,
+    }));
+    const fallback = new Map<AutonomyCategory, StoredAutonomyPreference>();
+    AUTONOMY_PREF_CACHE.set(userId, {
+      prefs: fallback,
+      expiresAt: now + AUTONOMY_PREFS_CACHE_TTL_MS,
+    });
+    return fallback;
+  }
+}
+
+function buildFixturePreferences(): Map<AutonomyCategory, StoredAutonomyPreference> {
+  const map = new Map<AutonomyCategory, StoredAutonomyPreference>();
+  const items = Array.isArray((autonomyFixtures as { preferences?: unknown }).preferences)
+    ? (autonomyFixtures as { preferences: unknown[] }).preferences
+    : [];
+  const timestamp = new Date().toISOString();
+  for (const entry of items) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      continue;
+    }
+    const category = (entry as Record<string, unknown>).category;
+    const level = (entry as Record<string, unknown>).level;
+    const composer = (entry as Record<string, unknown>).composer;
+    if (
+      isAutonomyCategory(category) &&
+      isAutonomyLevel(level) &&
+      isComposerDial(composer)
+    ) {
+      map.set(category, {
+        level,
+        composer,
+        updatedAt: timestamp,
+        source: "fixtures",
+      });
+    }
+  }
+  return map;
 }
 
 function deepMerge(

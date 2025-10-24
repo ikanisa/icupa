@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import type { DescriptorMap } from "../types";
-import { InvoiceGenerateInput } from "@ecotrips/types";
+import { FxRateQuoteInput, FxRateQuoteResult, InvoiceGenerateInput } from "@ecotrips/types";
 
 export const financeDescriptors = {
   "fin.invoice.generate": {
@@ -16,5 +16,12 @@ export const financeDescriptors = {
       signed_url: z.string().optional(),
       reused: z.boolean().optional(),
     }),
+  },
+  "fin.fx.rateQuote": {
+    path: "/functions/v1/fx-rate-quote",
+    method: "POST",
+    auth: "user",
+    input: FxRateQuoteInput,
+    output: FxRateQuoteResult,
   },
 } satisfies DescriptorMap;
