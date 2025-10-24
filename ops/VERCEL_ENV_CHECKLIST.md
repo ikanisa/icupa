@@ -52,3 +52,10 @@ Set default values ("0" or "1") using Vercel Environment Variables or Supabase C
 - Confirm login magic links redirect to `/` (client) and `/dashboard` (admin).
 - Validate admin role gating by granting `sec.user_roles` → `ops` and checking `/login` redirects after sign-out.
 - Attach Supabase logs + Vercel request IDs to incident response docs in `ops/observability/`.
+
+## Credential Validation Notes
+- Cross-check `.env.local.example` with Vercel: ensure `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` reference the production Supabase project `woyknezboamabahknmjr` before promoting any environment. Update Vercel first, then refresh the local example file through secrets sync.
+- When `.env.local.example` is updated, propagate the canonical Supabase project URL (`https://woyknezboamabahknmjr.supabase.co`) and replace the anonymous key placeholder with the value pulled via `vercel env pull` to keep developers aligned with production defaults.
+- Confirm `OPENAI_API_KEY` is present in both Vercel projects and matches the organization-wide key registered for router + agents; document the key owner and rotation schedule in `ops/observability/KEY_ROTATIONS.md`.
+- Run `vercel env pull` prior to release readiness reviews and compare the pulled values against `.env.local.example` to catch drift or placeholder credentials.
+- For Supabase service role credentials, verify they are absent from `.env.local.example` but live in Vercel encrypted storage; only mirror to local `.env` during sanctioned incident rehearsals using temporary tokens.

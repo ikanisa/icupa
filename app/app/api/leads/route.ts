@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { type SupabaseClient } from "@supabase/supabase-js";
+import { getSupabaseAdminClient } from "@/lib/supabaseAdmin";
 import { enforceLeadRateLimit, type RateLimitOutcome } from "./rate-limit";
 
 type LeadPayload = {
@@ -207,12 +208,7 @@ export async function POST(request: Request) {
 
   const ip = getClientIp(request);
   const userAgent = request.headers.get("user-agent");
-  const client =
-    supabaseUrl && serviceRole
-      ? createClient(supabaseUrl, serviceRole, {
-          auth: { persistSession: false },
-        })
-      : null;
+  const client = supabaseUrl && serviceRole ? getSupabaseAdminClient() : null;
 
   let rateLimitHeaders: HeadersInit | undefined;
 
