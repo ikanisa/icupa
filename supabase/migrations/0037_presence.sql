@@ -218,3 +218,44 @@ alter policy p_group_live_slots_member_update on "group".live_slots
         and original.presence_online = "group".live_slots.presence_online
     )
   );
+
+create or replace function "group".enforce_live_slots_visibility_only()
+returns trigger as $$
+declare
+  request_role text := current_setting('request.jwt.claim.role', true);
+begin
+  if coalesce(request_role, 'service_role') in ('service_role', 'supabase_admin') then
+    return new;
+  end if;
+
+  if
+    new.group_id is distinct from old.group_id or
+    new.itinerary_id is distinct from old.itinerary_id or
+    new.total_slots is distinct from old.total_slots or
+    new.filled_slots is distinct from old.filled_slots or
+    new.available_slots is distinct from old.available_slots or
+    new.waitlist_slots is distinct from old.waitlist_slots or
+    new.presence_opt_in is distinct from old.presence_opt_in or
+    new.presence_visible is distinct from old.presence_visible or
+    new.presence_online is distinct from old.presence_online
+  then
+    raise exception 'Only live slot visibility may be updated by group members.';
+  end if;
+
+  return new;
+end;
+$$ language plpgsql;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_trigger
+    where tgname = 'trg_group_live_slots_visibility_only'
+      and tgrelid = '"group".live_slots'::regclass
+  ) then
+    create trigger trg_group_live_slots_visibility_only
+      before update on "group".live_slots
+      for each row execute function "group".enforce_live_slots_visibility_only();
+  end if;
+end;
+$$;
