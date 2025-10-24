@@ -27,7 +27,6 @@ import {
 } from './services/telemetry';
 import type { AgentSessionContext, UpsellSuggestion, WaiterOutput } from './agents/types';
 import {
-  CartItemSchema,
   WaiterOutputSchema,
   UpsellOutputSchema,
   AllergenGuardianOutputSchema,
@@ -42,8 +41,20 @@ import {
   extractAgentRunMetadata,
   buildResponseMetadata
 } from './utils/agent-metadata';
+import {
+  AgentFeedbackSchema,
+  ComplianceRequestSchema,
+  InventoryRequestSchema,
+  PromoRequestSchema,
+  SupportRequestSchema,
+  WaiterRequest,
+  WaiterRequestSchema,
+  ensureLocationOrSession,
+} from './routes/schemas';
+import { openAIModels } from './openai/client';
 
 const config = loadConfig();
+const { default: defaultModel, lowCost: lowCostModel } = openAIModels;
 
 const app = Fastify({
   logger: {
@@ -58,65 +69,6 @@ const app = Fastify({
         }
   }
 });
-
-const WaiterRequestSchema = z.object({
-  message: z.string().min(1, 'message is required'),
-  table_session_id: z.string().uuid().optional(),
-  tenant_id: z.string().uuid().optional(),
-  location_id: z.string().uuid().optional(),
-  user_id: z.string().uuid().optional(),
-  session_id: z.string().uuid().optional(),
-  language: z.string().optional(),
-  allergies: z.array(z.string()).optional(),
-  cart: z.array(CartItemSchema).optional(),
-  age_verified: z.boolean().optional()
-});
-
-type WaiterRequest = z.infer<typeof WaiterRequestSchema>;
-
-const PromoRequestSchema = z.object({
-  message: z.string().min(1, 'message is required'),
-  tenant_id: z.string().uuid(),
-  location_id: z.string().uuid(),
-  session_id: z.string().uuid().optional(),
-  language: z.string().optional(),
-});
-
-const InventoryRequestSchema = PromoRequestSchema;
-
-const SupportRequestSchema = z.object({
-  message: z.string().min(1, 'message is required'),
-  tenant_id: z.string().uuid().optional(),
-  location_id: z.string().uuid().optional(),
-  table_session_id: z.string().uuid().optional(),
-  priority: z.enum(['low', 'medium', 'high']).optional(),
-  session_id: z.string().uuid().optional(),
-  language: z.string().optional(),
-});
-
-const ComplianceRequestSchema = z.object({
-  message: z.string().min(1, 'message is required'),
-  tenant_id: z.string().uuid(),
-  location_id: z.string().uuid(),
-  session_id: z.string().uuid().optional(),
-  language: z.string().optional(),
-});
-
-const AgentFeedbackSchema = z.object({
-  session_id: z.string().uuid(),
-  agent_type: z.string().min(1, 'agent_type is required'),
-  rating: z.enum(['up', 'down']),
-  message_id: z.string().optional(),
-  tenant_id: z.string().uuid().optional(),
-  location_id: z.string().uuid().optional(),
-  table_session_id: z.string().uuid().optional(),
-});
-
-function ensureLocationOrSession(body: WaiterRequest) {
-  if (!body.location_id && !body.table_session_id) {
-    throw new Error('Either location_id or table_session_id must be provided.');
-  }
-}
 
 function extractUsage(result: any): { inputTokens: number; outputTokens: number } {
   const stateJson = result?.state?.toJSON?.();
@@ -268,6 +220,7 @@ async function executeManagedAgentRun<TOutput>(params: {
   sessionId?: string;
   timeoutMs?: number;
   fallbackSuggestedPrompts?: string[];
+  model?: string;
 }) {
   return tracer.startActiveSpan(`agent:${params.agentType}`, async (span) => {
     span.setAttribute('icupa.agent.type', params.agentType);
@@ -291,11 +244,12 @@ async function executeManagedAgentRun<TOutput>(params: {
 
       const usage = extractUsage(result);
       const parsedOutput = params.schema.parse(result?.finalOutput ?? {});
-      const costEstimate = estimateCostUsd(config.openai.defaultModel, usage);
+      const modelName = params.model ?? defaultModel;
+      const costEstimate = estimateCostUsd(modelName, usage);
 
       const runMetadata = extractAgentRunMetadata(params.agentType, result, {
         usage,
-        model: config.openai.defaultModel,
+        model: modelName,
         costUsd: costEstimate,
         toolsUsed: params.toolsUsed,
         fallbackSuggestedPrompts: params.fallbackSuggestedPrompts,
@@ -312,8 +266,13 @@ async function executeManagedAgentRun<TOutput>(params: {
         output: JSON.stringify(parsedOutput),
         toolsUsed: params.toolsUsed,
         startedAt,
-        model: config.openai.defaultModel,
+        model: modelName,
         usage,
+        payload: {
+          metadata: responseMetadata,
+          tool_traces: runMetadata.tool_traces,
+          suggested_prompts: runMetadata.suggested_prompts,
+        },
       });
 
       span.setAttribute('icupa.agent.cost_usd', costEstimate);
@@ -410,7 +369,7 @@ app.post('/agents/waiter', async (request, reply) => {
     const upsellOutput = UpsellOutputSchema.parse(upsellResult.finalOutput ?? { suggestions: [] });
     context.suggestions = upsellOutput.suggestions as UpsellSuggestion[];
 
-    const upsellCostEstimate = estimateCostUsd(config.openai.defaultModel, upsellUsage);
+    const upsellCostEstimate = estimateCostUsd(defaultModel, upsellUsage);
     await assertBudgetsAfterRun('upsell', context.tenantId, upsellRuntime, upsellCostEstimate);
 
     const upsellCostUsd = await logAgentEvent({
@@ -421,15 +380,19 @@ app.post('/agents/waiter', async (request, reply) => {
       output: summariseSuggestionsForTelemetry(context.suggestions),
       toolsUsed: ['get_menu', 'recommend_items', 'check_allergens', 'get_kitchen_load'],
       startedAt: upsellRunStarted,
-      model: config.openai.defaultModel,
-      usage: upsellUsage
+      model: defaultModel,
+      usage: upsellUsage,
+      payload: {
+        suggestions: context.suggestions,
+        summary: summariseSuggestionsForTelemetry(context.suggestions),
+      },
     });
 
     totalCostUsd += upsellCostUsd;
 
     metadataCollector.addRun('upsell', upsellResult, {
       usage: upsellUsage,
-      model: config.openai.defaultModel,
+      model: defaultModel,
       costUsd: upsellCostUsd,
       toolsUsed: ['get_menu', 'recommend_items', 'check_allergens', 'get_kitchen_load']
     });
@@ -448,11 +411,16 @@ app.post('/agents/waiter', async (request, reply) => {
       output: error instanceof Error ? error.message : 'Upsell agent unavailable.',
       toolsUsed: [],
       startedAt: upsellRunStarted,
-      model: config.openai.defaultModel
+      model: defaultModel,
+      outcome: 'error',
+      errorMessage: error instanceof Error ? error.message : String(error),
+      payload: {
+        suggestions: [],
+      },
     });
 
     metadataCollector.addRun('upsell', undefined, {
-      model: config.openai.defaultModel,
+      model: defaultModel,
       toolsUsed: ['get_menu', 'recommend_items', 'check_allergens', 'get_kitchen_load']
     });
   }
@@ -479,7 +447,7 @@ app.post('/agents/waiter', async (request, reply) => {
     }
     context.suggestions = filtered;
 
-    const guardianCostEstimate = estimateCostUsd(config.openai.defaultModel, guardianUsage);
+    const guardianCostEstimate = estimateCostUsd(defaultModel, guardianUsage);
     await assertBudgetsAfterRun('allergen_guardian', context.tenantId, guardianRuntime, guardianCostEstimate);
 
     const guardianCostUsd = await logAgentEvent({
@@ -490,15 +458,20 @@ app.post('/agents/waiter', async (request, reply) => {
       output: summariseBlockedSuggestions(guardianOutput.blocked ?? [], context),
       toolsUsed: ['check_allergens'],
       startedAt: guardianRunStarted,
-      model: config.openai.defaultModel,
-      usage: guardianUsage
+      model: defaultModel,
+      usage: guardianUsage,
+      payload: {
+        blocked: guardianOutput.blocked ?? [],
+        notes: guardianOutput.notes ?? [],
+        remaining_suggestions: context.suggestions,
+      },
     });
 
     totalCostUsd += guardianCostUsd;
 
     metadataCollector.addRun('allergen_guardian', guardianResult, {
       usage: guardianUsage,
-      model: config.openai.defaultModel,
+      model: defaultModel,
       costUsd: guardianCostUsd,
       toolsUsed: ['check_allergens']
     });
@@ -515,29 +488,15 @@ app.post('/agents/waiter', async (request, reply) => {
   }
   const parsedWaiterOutput = WaiterOutputSchema.parse(waiterOutput);
 
-  const waiterCostEstimate = estimateCostUsd(config.openai.defaultModel, waiterUsage);
+  const waiterCostEstimate = estimateCostUsd(defaultModel, waiterUsage);
   await assertBudgetsAfterRun('waiter', context.tenantId, waiterRuntime, waiterCostEstimate);
-
-  const waiterCostUsd = await logAgentEvent({
-    agentType: 'waiter',
-    context,
-    sessionId,
-    input: body.message,
-    output: parsedWaiterOutput.reply,
-    toolsUsed: ['get_menu', 'create_order', 'get_kitchen_load', 'check_allergens'],
-    startedAt: waiterRunStarted,
-    model: config.openai.defaultModel,
-    usage: waiterUsage
-  });
-
-  totalCostUsd += waiterCostUsd;
 
   const waiterSuggestedPrompts = buildWaiterSuggestedPrompts(context, parsedWaiterOutput);
 
   metadataCollector.addRun('waiter', waiterResult, {
     usage: waiterUsage,
-    model: config.openai.defaultModel,
-    costUsd: waiterCostUsd,
+    model: defaultModel,
+    costUsd: waiterCostEstimate,
     toolsUsed: ['get_menu', 'create_order', 'get_kitchen_load', 'check_allergens'],
     fallbackSuggestedPrompts: waiterSuggestedPrompts
   });
@@ -555,13 +514,35 @@ app.post('/agents/waiter', async (request, reply) => {
 
   const citations = sanitiseCitations(parsedWaiterOutput.citations, disclaimers);
 
+  const disclaimerList = Array.from(disclaimers);
   const responseMetadata = metadataCollector.build();
+
+  const waiterCostUsd = await logAgentEvent({
+    agentType: 'waiter',
+    context,
+    sessionId,
+    input: body.message,
+    output: parsedWaiterOutput.reply,
+    toolsUsed: ['get_menu', 'create_order', 'get_kitchen_load', 'check_allergens'],
+    startedAt: waiterRunStarted,
+    model: defaultModel,
+    usage: waiterUsage,
+    payload: {
+      disclaimers: disclaimerList,
+      citations,
+      metadata: responseMetadata,
+      suggested_prompts: waiterSuggestedPrompts,
+      upsell: safeContextSuggestions,
+    },
+  });
+
+  totalCostUsd += waiterCostUsd;
 
   return reply.send({
     session_id: sessionId,
     reply: parsedWaiterOutput.reply,
     upsell: safeContextSuggestions,
-    disclaimers: Array.from(disclaimers),
+    disclaimers: disclaimerList,
     citations,
     cost_usd: Number(totalCostUsd.toFixed(6)),
     metadata: responseMetadata
@@ -590,6 +571,7 @@ app.post('/agents/promo', async (request, reply) => {
     toolsUsed: ['list_promotions', 'update_promo_status'],
     schema: PromoAgentOutputSchema,
     sessionId: body.session_id ?? undefined,
+    model: defaultModel,
     fallbackSuggestedPrompts: [
       'Show current promotion performance',
       'Recommend a budget adjustment',
@@ -628,6 +610,7 @@ app.post('/agents/inventory', async (request, reply) => {
     toolsUsed: ['get_inventory_levels', 'adjust_inventory_level'],
     schema: InventoryAgentOutputSchema,
     sessionId: body.session_id ?? undefined,
+    model: lowCostModel,
     fallbackSuggestedPrompts: [
       'Show items at risk of 86',
       'Propose substitutions for low stock items',
@@ -677,6 +660,7 @@ app.post('/agents/support', async (request, reply) => {
     toolsUsed: ['log_support_ticket'],
     schema: SupportAgentOutputSchema,
     sessionId: body.session_id ?? undefined,
+    model: lowCostModel,
     fallbackSuggestedPrompts: [
       'Escalate this issue to a manager',
       'Schedule a follow-up with the guest',
@@ -716,6 +700,7 @@ app.post('/agents/compliance', async (request, reply) => {
     toolsUsed: ['resolve_compliance_task'],
     schema: ComplianceAgentOutputSchema,
     sessionId: body.session_id ?? undefined,
+    model: lowCostModel,
     fallbackSuggestedPrompts: [
       'List outstanding compliance tasks',
       'Prepare an escalation summary',

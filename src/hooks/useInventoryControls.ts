@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { MerchantLocation } from "@/hooks/useMerchantLocations";
+import { withSupabaseCaching } from "@/lib/query-client";
 
 export interface InventoryRecord {
   id: string;
@@ -63,8 +64,9 @@ async function fetchInventory(location?: MerchantLocation | null): Promise<Inven
 export function useInventoryControls(location?: MerchantLocation | null) {
   const queryClient = useQueryClient();
   const query = useQuery({
-    queryKey: ["merchant", "inventory", location?.id ?? "all"],
+    queryKey: ["supabase", "merchant", "inventory", location?.id ?? "all"],
     queryFn: () => fetchInventory(location),
+    ...withSupabaseCaching({ entity: "inventory" }),
   });
 
   useEffect(() => {
@@ -73,7 +75,10 @@ export function useInventoryControls(location?: MerchantLocation | null) {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "inventory_items" },
-        () => queryClient.invalidateQueries({ queryKey: ["merchant", "inventory", location?.id ?? "all"] })
+        () =>
+          queryClient.invalidateQueries({
+            queryKey: ["supabase", "merchant", "inventory", location?.id ?? "all"],
+          })
       )
       .subscribe();
 
@@ -105,7 +110,9 @@ export function useInventoryControls(location?: MerchantLocation | null) {
           auto_86_level: auto86Level,
         })
         .eq("id", id);
-      queryClient.invalidateQueries({ queryKey: ["merchant", "inventory", location?.id ?? "all"] });
+      queryClient.invalidateQueries({
+        queryKey: ["supabase", "merchant", "inventory", location?.id ?? "all"],
+      });
     },
   });
 

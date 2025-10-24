@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
-  "installCommand": "npm install",
+  "installCommand": "npm install --include-workspace-root --workspaces",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "headers": [
@@ -24,6 +24,10 @@
         {
           "key": "Cache-Control",
           "value": "public, max-age=0, must-revalidate"
+        },
+        {
+          "key": "Service-Worker-Allowed",
+          "value": "/"
         }
       ]
     },
@@ -62,7 +66,7 @@
         },
         {
           "key": "Permissions-Policy",
-          "value": "geolocation=(), microphone=(), camera=()"
+          "value": "geolocation=(), microphone=(), camera=(), notifications=(self), push=(self)"
         }
       ]
     }

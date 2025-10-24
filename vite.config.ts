@@ -19,6 +19,9 @@ export default defineConfig(({ mode }) => ({
       filename: "sw.ts",
       manifest: false,
       injectRegister: false,
+      injectManifest: {
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff2}"],
+      },
       includeAssets: ["favicon.ico", "placeholder.svg", "icons/icon-192.png", "icons/icon-512.png"],
       devOptions: {
         enabled: true,
@@ -37,11 +40,13 @@ export default defineConfig(({ mode }) => ({
     environment: "jsdom",
     setupFiles: [path.resolve(__dirname, "vitest.setup.ts")],
     css: true,
-    exclude: [
-      "tests/playwright/**",
-      "tests/k6/**",
-      "**/node_modules/**",
-    ],
+    pool: "threads",
+    maxConcurrency: 5,
+    sequence: {
+      shuffle: false,
+      seed: Number.parseInt(process.env.VITEST_SEED ?? "20250203", 10),
+    },
+    exclude: ["tests/playwright/**", "tests/k6/**", "**/node_modules/**"],
     include: [
       "src/**/*.{test,spec}.{ts,tsx}",
       "packages/**/*.{test,spec}.{ts,tsx}",

@@ -2,10 +2,41 @@ name: CI
 
 on:
   push:
-    branches: [ work, main ]
+    branches: [work, main]
   pull_request:
 
 jobs:
+  verify-full:
+    name: verify-full
+    needs:
+      - lint
+      - typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: npm ci
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+      - name: Configure Playwright base URL
+        if: ${{ secrets.PLAYWRIGHT_BASE_URL != '' }}
+        run: echo "PLAYWRIGHT_BASE_URL=${{ secrets.PLAYWRIGHT_BASE_URL }}" >> $GITHUB_ENV
+      - name: Run verify:full suite
+        env:
+          VITE_SUPABASE_URL: http://127.0.0.1:54321
+          VITE_SUPABASE_ANON_KEY: test-anon-key
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: test-anon-key
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: npm run verify:full
+
   lint:
     runs-on: ubuntu-latest
     steps:

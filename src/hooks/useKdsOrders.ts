@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { differenceInMinutes, differenceInSeconds } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import type { MerchantLocation } from "@/hooks/useMerchantLocations";
+import { withSupabaseCaching } from "@/lib/query-client";
 
 export type OrderStatus = "submitted" | "in_kitchen" | "ready" | "served" | "settled" | "voided";
 
@@ -91,9 +92,9 @@ export function useKdsOrders(location?: MerchantLocation | null) {
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["merchant", "kds", locationId ?? "all"],
+    queryKey: ["supabase", "merchant", "kds", locationId ?? "all"],
     queryFn: () => fetchOrders(locationId),
-    refetchOnWindowFocus: false,
+    ...withSupabaseCaching({ entity: "kds-orders", refetchInterval: 15_000 }),
   });
 
   useEffect(() => {
@@ -110,40 +111,49 @@ export function useKdsOrders(location?: MerchantLocation | null) {
             return;
           }
 
-          queryClient.setQueryData<KdsOrder[]>(["merchant", "kds", locationId ?? "all"], (existing) => {
-            const current = existing ?? [];
-            if (!next) {
-              return current.filter((item) => item.id !== previous?.id);
-            }
+          queryClient.setQueryData<KdsOrder[]>(
+            ["supabase", "merchant", "kds", locationId ?? "all"],
+            (existing) => {
+              const current = existing ?? [];
+              if (!next) {
+                return current.filter((item) => item.id !== previous?.id);
+              }
 
-            if (locationId && next && "location_id" in next && next.location_id !== locationId) {
-              return current;
-            }
+              if (locationId && next && "location_id" in next && next.location_id !== locationId) {
+                return current;
+              }
 
-            const parsed = {
-              id: next.id,
-              tableId: next.table_id ?? null,
-              tableCode: next.tables?.code ?? previous?.tables?.code ?? "--",
-              status: next.status,
-              createdAt: next.created_at ?? previous?.created_at ?? new Date().toISOString(),
-              totalCents: next.total_cents ?? previous?.total_cents ?? 0,
-              prepSeconds: Math.max(0, differenceInSeconds(new Date(), new Date(next.created_at ?? previous?.created_at ?? new Date().toISOString()))),
-              items: (next.order_items ?? previous?.order_items ?? []).map((item) => ({
-                id: item.id,
-                name: item.item?.name ?? "Unlabelled item",
-                quantity: item.quantity ?? 1,
-                allergens: item.item?.allergens ?? [],
-              })),
-            } satisfies KdsOrder;
+              const parsed = {
+                id: next.id,
+                tableId: next.table_id ?? null,
+                tableCode: next.tables?.code ?? previous?.tables?.code ?? "--",
+                status: next.status,
+                createdAt: next.created_at ?? previous?.created_at ?? new Date().toISOString(),
+                totalCents: next.total_cents ?? previous?.total_cents ?? 0,
+                prepSeconds: Math.max(
+                  0,
+                  differenceInSeconds(
+                    new Date(),
+                    new Date(next.created_at ?? previous?.created_at ?? new Date().toISOString())
+                  )
+                ),
+                items: (next.order_items ?? previous?.order_items ?? []).map((item) => ({
+                  id: item.id,
+                  name: item.item?.name ?? "Unlabelled item",
+                  quantity: item.quantity ?? 1,
+                  allergens: item.item?.allergens ?? [],
+                })),
+              } satisfies KdsOrder;
 
-            const existingIndex = current.findIndex((item) => item.id === parsed.id);
-            if (existingIndex >= 0) {
-              const copy = [...current];
-              copy[existingIndex] = parsed;
-              return copy;
+              const existingIndex = current.findIndex((item) => item.id === parsed.id);
+              if (existingIndex >= 0) {
+                const copy = [...current];
+                copy[existingIndex] = parsed;
+                return copy;
+              }
+              return [...current, parsed];
             }
-            return [...current, parsed];
-          });
+          );
         }
       )
       .subscribe();
@@ -180,7 +190,9 @@ export function useKdsOrders(location?: MerchantLocation | null) {
       });
     }
 
-    queryClient.invalidateQueries({ queryKey: ["merchant", "kds", locationId ?? "all"] });
+    queryClient.invalidateQueries({
+      queryKey: ["supabase", "merchant", "kds", locationId ?? "all"],
+    });
   };
 
   return {

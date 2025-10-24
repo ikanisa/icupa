@@ -25,6 +25,8 @@ if ! command -v supabase >/dev/null 2>&1; then
   exit 1
 fi
 
+node "$(dirname "$0")/validate-migrations.mjs"
+
 supabase db push --project-ref "$PROJECT_REF"
 echo "✅ Remote migrations applied to $PROJECT_REF"
 
