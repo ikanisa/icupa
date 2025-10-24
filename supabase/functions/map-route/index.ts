@@ -1,6 +1,10 @@
 import { ERROR_CODES } from "../_obs/constants.ts";
 import { getRequestId, healthResponse, withObs } from "../_obs/withObs.ts";
-import { buildWarnings as computeWarnings } from "./warnings.ts";
+import {
+  buildWarnings,
+  normalizeWarningOutputs,
+  type WarningDetail,
+} from "./warnings.ts";
 
 interface RouteRequestBody {
   origin?: string;
@@ -29,6 +33,10 @@ interface RoutePayload {
     total_minutes: number;
     distance_meters: number;
     warnings: string[];
+    // Structured warnings give richer daylight context today and can house
+    // additional market-specific metadata when the route service expands
+    // beyond Kigali.
+    warnings_details: WarningDetail[];
     legs: RouteLeg[];
     source: "stub";
   };
@@ -92,14 +100,14 @@ const handler = withObs(async (req) => {
   const legOneEnd = new Date(departureTime.getTime() + legOneMinutes * 60_000);
   const legTwoEnd = new Date(legOneEnd.getTime() + legTwoMinutes * 60_000);
 
-  const warnings = buildWarnings(departureTime, legTwoEnd);
-  logSafetyWarningCoverage({
-    requestId,
-    origin,
-    destination,
-    departureTime,
-    warnings,
-  });
+  // Kigali-specific daylight logic lives in buildWarnings; normalize output so
+  // legacy consumers receive string identifiers while new consumers get detail
+  // objects. The helper exposes the normalization so future non-Kigali
+  // implementations can plug in additional metadata (including the multi-day
+  // arrival insights surfaced in warnings_details).
+  const rawWarnings = buildWarnings(departureTime, legTwoEnd);
+  const { legacyTypes: warnings, details: warningDetails } =
+    normalizeWarningOutputs(rawWarnings);
 
   const legs: RouteLeg[] = [
     {
@@ -146,6 +154,7 @@ const handler = withObs(async (req) => {
       total_minutes: totalMinutes,
       distance_meters: distanceMeters,
       warnings,
+      warnings_details: warningDetails,
       legs,
       source: "stub",
     },
@@ -219,10 +228,3 @@ function estimateDistanceMeters(origin: string, destination: string): number {
   return 20_000 + accumulator;
 }
 
-function buildWarnings(start: Date, end: Date): string[] {
-  return computeWarnings(start, end);
-}
-
-export { handler };
-export { estimateDistanceMeters, buildWarnings };
-export type { SafetyWarningCoverage };
