@@ -14,7 +14,7 @@ const optionalEnvSchema = z.object({
 const shouldSkipValidation = process.env.SKIP_ENV_VALIDATION === "true";
 const isNodeProduction = process.env.NODE_ENV === "production";
 const isRunningOnVercel = process.env.VERCEL === "1";
-const vercelEnvironment = process.env.VERCEL_ENV;
+const vercelEnvironment = process.env.NODE_ENV ?? "development";
 const isVercelProduction = vercelEnvironment === "production";
 const isCiEnvironment =
   process.env.CI === "true" || process.env.CI === "1" || process.env.CONTINUOUS_INTEGRATION === "true";
