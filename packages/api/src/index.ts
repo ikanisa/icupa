@@ -1,4 +1,6 @@
 import {
+  AffiliateOutboundInput,
+  AffiliateOutboundResult,
   CheckoutInput,
   ContributionCreate,
   EscrowCreate,
@@ -246,6 +248,13 @@ const descriptors = {
       message: z.string().optional(),
     }),
   },
+  "affiliate.outbound": {
+    path: "/functions/v1/affiliate-outbound",
+    method: "POST",
+    auth: "user",
+    input: AffiliateOutboundInput,
+    output: AffiliateOutboundResult,
+  },
   "privacy.request": {
     path: "/functions/v1/privacy-request",
     method: "POST",
@@ -324,6 +333,14 @@ const descriptors = {
       bytes: z.number().optional(),
       sha256: z.string().optional(),
     }),
+  },
+  "search.places": {
+    path: "/functions/v1/search-places",
+    method: "POST",
+    auth: "anon",
+    input: SearchPlacesInput,
+    output: SearchPlacesResponse,
+    cacheTtlMs: 15_000,
   },
 } satisfies Record<string, FunctionDescriptor<z.ZodTypeAny, z.ZodTypeAny>>;
 
