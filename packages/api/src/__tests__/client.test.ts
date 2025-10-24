@@ -75,6 +75,27 @@ describe("EcoTripsFunctionClient", () => {
     expect(init?.body).toBeUndefined();
   });
 
+  it("exposes growth domain helpers with correct descriptor wiring", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ ok: true, provider: "mockair" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    const client = createEcoTripsFunctionClient({ supabaseUrl, anonKey, fetch: fetchMock });
+
+    const result = await client.growth.providersAirStatus({ provider: "mockair", flight: "EC202" });
+
+    expect(result).toMatchObject({ ok: true, provider: "mockair" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toContain("/functions/v1/providers-air-status?");
+    expect(url).toContain("provider=mockair");
+    expect(url).toContain("flight=EC202");
+    expect(init?.method).toBe("GET");
+  });
+
   it("uses user access token and idempotency headers when provided", async () => {
     const fetchMock = vi.fn().mockImplementation(() =>
       Promise.resolve(

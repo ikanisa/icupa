@@ -1,6 +1,7 @@
 import { BottomNavDock, CardGlass, buttonClassName } from "@ecotrips/ui";
 import type { BottomNavItem } from "@ecotrips/ui";
 import { availableLocales, createTranslator } from "@ecotrips/i18n";
+import { OptionCard } from "./components/OptionCard";
 
 const navItems = [
   { href: "/", label: "Home", icon: "🏡" },
@@ -59,6 +60,15 @@ export default function HomePage({ searchParams }: { searchParams: Record<string
         >
         <p>Share your dream route — Kigali sunsets, Akagera safari, Nyungwe canopy. We keep daylight transfers and safety nudges.</p>
       </CardGlass>
+      <OptionCard
+        title="Carbon-neutral & travel assurance"
+        subtitle="Bundle carbon offsets with medical cover from our phase-one partners."
+        actionLabel="Review coverage"
+        actionHref="/wallet?tab=protections"
+      >
+        <p>EcoCare pairs parametric weather coverage with the same payout ledgers you see in the admin console. Carbon sink receipts flow into your wallet ledger for transparency.</p>
+        <p className="text-xs text-white/60">Insurance and carbon toggles stream through reward-grant so balances stay in sync even when fixtures power the UI.</p>
+      </OptionCard>
       <CardGlass
         title="Split-pay escrows"
         subtitle="Create groups with WhatsApp invites, contributions, and payout audit trails."
@@ -69,6 +79,15 @@ export default function HomePage({ searchParams }: { searchParams: Record<string
           <li>• ConciergeGuide pushes daily briefs and safety alerts during the trip.</li>
         </ul>
       </CardGlass>
+      <OptionCard
+        title="Invite friends, earn travel credit"
+        subtitle="Share your concierge with your crew – rewards land in your wallet automatically."
+        actionLabel="Copy referral link"
+        actionHref="/wallet?tab=referrals"
+      >
+        <p>Referral invites issue via the new referral-link edge function. We confirm consent and reuse idempotency keys so your friends never get duplicate SMS or WhatsApp pings.</p>
+        <p className="text-xs text-white/60">PlannerCoPilot logs fixture fallbacks whenever growth services are offline so you always see a link.</p>
+      </OptionCard>
       <BottomNavDock items={navItems} />
     </div>
   );

@@ -9,6 +9,7 @@ export class EcoTripsFunctionClient {
   private readonly fetchImpl: typeof fetch;
   private readonly timeoutMs: number;
   readonly inventory: DomainClients["inventory"];
+  readonly growth: DomainClients["growth"];
   readonly checkout: DomainClients["checkout"];
   readonly groups: DomainClients["groups"];
   readonly permits: DomainClients["permits"];
@@ -24,6 +25,7 @@ export class EcoTripsFunctionClient {
 
     const domains = createDomainClients(this);
     this.inventory = domains.inventory;
+    this.growth = domains.growth;
     this.checkout = domains.checkout;
     this.groups = domains.groups;
     this.permits = domains.permits;

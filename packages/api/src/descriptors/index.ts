@@ -3,6 +3,7 @@ import { drDescriptors } from "./dr";
 import { financeDescriptors } from "./finance";
 import { groupsDescriptors } from "./groups";
 import { inventoryDescriptors } from "./inventory";
+import { growthDescriptors } from "./growth";
 import { opsDescriptors } from "./ops";
 import { permitsDescriptors } from "./permits";
 import { privacyDescriptors } from "./privacy";
@@ -11,6 +12,7 @@ import type { DescriptorMap } from "../types";
 
 export const descriptors = {
   ...inventoryDescriptors,
+  ...growthDescriptors,
   ...checkoutDescriptors,
   ...groupsDescriptors,
   ...permitsDescriptors,
