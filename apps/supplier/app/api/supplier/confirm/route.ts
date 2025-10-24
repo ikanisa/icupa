@@ -1,6 +1,12 @@
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createEcoTripsFunctionClient } from "@ecotrips/api";
+import {
+  createRouteHandlerSupabaseClient,
+  getSupabaseAccessToken,
+  resolveSupabaseConfig,
+} from "@ecotrips/supabase";
 
 const ConfirmationSchema = z.object({
   orderId: z.string().min(1),
@@ -9,16 +15,14 @@ const ConfirmationSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  const accessToken = process.env.SUPPLIER_PORTAL_ACCESS_TOKEN;
+  const config = resolveSupabaseConfig();
 
-  if (!supabaseUrl || !anonKey || !accessToken) {
+  if (!config) {
     return NextResponse.json(
       {
         ok: false,
         error: "supplier_portal_unconfigured",
-        message: "Set NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, and SUPPLIER_PORTAL_ACCESS_TOKEN to confirm orders.",
+        message: "Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to confirm orders.",
       },
       { status: 503 },
     );
@@ -42,9 +46,24 @@ export async function POST(request: Request) {
     );
   }
 
+  const cookieStore = cookies();
+  const supabase = createRouteHandlerSupabaseClient({ cookies: () => cookieStore }, { config });
+  const accessToken = await getSupabaseAccessToken(supabase);
+
+  if (!accessToken) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "unauthorized",
+        message: "Sign in to confirm supplier orders.",
+      },
+      { status: 401 },
+    );
+  }
+
   const client = createEcoTripsFunctionClient({
-    supabaseUrl,
-    anonKey,
+    supabaseUrl: config.supabaseUrl,
+    anonKey: config.supabaseKey,
     getAccessToken: async () => accessToken,
   });
 

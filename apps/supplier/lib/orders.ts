@@ -1,21 +1,26 @@
+import { cookies } from "next/headers";
+
 import { createEcoTripsFunctionClient } from "@ecotrips/api";
 import type { SupplierOrderRecord, SupplierOrdersResponse } from "@ecotrips/types";
+import {
+  createServerSupabaseClient,
+  getSupabaseAccessToken,
+  resolveSupabaseConfig,
+} from "@ecotrips/supabase";
 
 import { supplierOrderFixtures } from "./fixtures/orders";
 
 export type LoadedSupplierOrders = {
   ok: boolean;
-  source: "live" | "fixtures" | "offline";
+  source: "live" | "fixtures" | "offline" | "unauthorized";
   orders: SupplierOrderRecord[];
   requestId?: string;
 };
 
 export async function loadSupplierOrders(): Promise<LoadedSupplierOrders> {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  const accessToken = process.env.SUPPLIER_PORTAL_ACCESS_TOKEN;
+  const config = resolveSupabaseConfig();
 
-  if (!supabaseUrl || !anonKey || !accessToken) {
+  if (!config) {
     return {
       ok: true,
       source: "fixtures",
@@ -24,9 +29,21 @@ export async function loadSupplierOrders(): Promise<LoadedSupplierOrders> {
   }
 
   try {
+    const cookieStore = cookies();
+    const supabase = createServerSupabaseClient({ cookies: () => cookieStore }, { config });
+    const accessToken = await getSupabaseAccessToken(supabase);
+
+    if (!accessToken) {
+      return {
+        ok: false,
+        source: "unauthorized",
+        orders: [],
+      };
+    }
+
     const client = createEcoTripsFunctionClient({
-      supabaseUrl,
-      anonKey,
+      supabaseUrl: config.supabaseUrl,
+      anonKey: config.supabaseKey,
       getAccessToken: async () => accessToken,
     });
 
@@ -66,6 +83,6 @@ function normalizeFixture(record: (typeof supplierOrderFixtures)[number]): Suppl
     total_cents: record.totalCents,
     currency: record.currency,
     notes: record.notes,
-    badges: record.badges,
+    badges: record.badges?.map((badge) => ({ ...badge })),
   };
 }

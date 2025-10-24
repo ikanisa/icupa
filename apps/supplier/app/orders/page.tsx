@@ -34,25 +34,33 @@ export default async function OrdersPage() {
             ? "Live data fetched via supplier-orders edge function."
             : result.source === "fixtures"
               ? "Fixtures rendered — configure Supabase credentials for realtime orders."
-              : "Edge function offline — showing cached fixtures."
+              : result.source === "unauthorized"
+                ? "Sign in with your supplier account to access live orders."
+                : "Edge function offline — showing cached fixtures."
         }
         className="border-white/10 bg-slate-900/70"
       >
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] border-collapse text-left text-sm">
-            <thead>
-              <tr className="text-xs uppercase tracking-wide text-slate-300/70">
-                <th className="pb-3">Order</th>
-                <th className="pb-3">Itinerary</th>
-                <th className="pb-3">Start</th>
-                <th className="pb-3">Travelers</th>
-                <th className="pb-3">Badges</th>
-                <th className="pb-3">Status</th>
-                <th className="pb-3">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/10">
-              {result.orders.map((order) => {
+        {result.source === "unauthorized" ? (
+          <p className="rounded-xl border border-white/10 bg-slate-900/60 p-6 text-sm text-slate-200/80">
+            Access restricted. Sign in through the supplier portal landing page to review traveler orders and submit
+            confirmations.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] border-collapse text-left text-sm">
+              <thead>
+                <tr className="text-xs uppercase tracking-wide text-slate-300/70">
+                  <th className="pb-3">Order</th>
+                  <th className="pb-3">Itinerary</th>
+                  <th className="pb-3">Start</th>
+                  <th className="pb-3">Travelers</th>
+                  <th className="pb-3">Badges</th>
+                  <th className="pb-3">Status</th>
+                  <th className="pb-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/10">
+                {result.orders.map((order) => {
                 const status = statusLabels[order.status ?? ""] ?? {
                   label: order.status ?? "Unknown",
                   tone: "bg-slate-500/20 text-slate-200",
@@ -63,8 +71,8 @@ export default async function OrdersPage() {
                     maximumFractionDigits: 2,
                   })}`
                   : "—";
-                return (
-                  <tr key={order.id} className="align-top">
+                  return (
+                    <tr key={order.id} className="align-top">
                     <td className="py-4">
                       <div className="flex flex-col gap-1">
                         <span className="font-medium text-white/90">{order.id}</span>
@@ -106,12 +114,13 @@ export default async function OrdersPage() {
                         </Button>
                       </form>
                     </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
         {result.requestId && (
           <p className="text-xs text-slate-300/60">Request ID {result.requestId}</p>
         )}

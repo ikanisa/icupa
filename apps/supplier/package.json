@@ -23,6 +23,7 @@
     "@ecotrips/config": "file:../../packages/config",
     "@ecotrips/types": "file:../../packages/types",
     "@ecotrips/api": "file:../../packages/api",
+    "@ecotrips/supabase": "file:../../packages/supabase",
     "zod": "3.23.8"
   },
   "devDependencies": {
