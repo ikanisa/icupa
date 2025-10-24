@@ -22,6 +22,7 @@ export type DomainClients = {
   finance: FinanceClient;
   privacy: PrivacyClient;
   dr: DisasterRecoveryClient;
+  voice: VoiceClient;
 };
 
 export function createDomainClients(client: FunctionCaller<FunctionMap>): DomainClients {
@@ -36,6 +37,7 @@ export function createDomainClients(client: FunctionCaller<FunctionMap>): Domain
     finance: createFinanceClient(client),
     privacy: createPrivacyClient(client),
     dr: createDisasterRecoveryClient(client),
+    voice: createVoiceClient(client),
   };
 }
 

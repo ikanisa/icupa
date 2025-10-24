@@ -18,6 +18,7 @@ export class EcoTripsFunctionClient {
   readonly finance: DomainClients["finance"];
   readonly privacy: DomainClients["privacy"];
   readonly dr: DomainClients["dr"];
+  readonly voice: DomainClients["voice"];
 
   constructor(private readonly options: ClientOptions) {
     this.fetchImpl = options.fetch ?? fetch;
@@ -34,6 +35,7 @@ export class EcoTripsFunctionClient {
     this.finance = domains.finance;
     this.privacy = domains.privacy;
     this.dr = domains.dr;
+    this.voice = domains.voice;
   }
 
   async call<K extends DescriptorKey>(
@@ -81,6 +83,7 @@ export class EcoTripsFunctionClient {
       }
 
       const parsed = await safeJson(response);
+      // @ts-expect-error: Zod parsing guarantees the inferred output type matches the descriptor map entry.
       return descriptor.output ? descriptor.output.parse(parsed) : (parsed as InferOutput<FunctionMap[K]>);
     } finally {
       clearTimeout(timeout);

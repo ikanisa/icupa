@@ -10,6 +10,65 @@ export type AdminDatabase = {
       };
     };
   };
+  affiliate: {
+    Tables: {
+      partner: {
+        Row: {
+          id: string;
+          slug: string;
+          name: string;
+          contact_email: string | null;
+          signing_secret: string | null;
+          active: boolean;
+          metadata: unknown;
+          created_at: string;
+          updated_at: string;
+        };
+      };
+      events: {
+        Row: {
+          id: string;
+          partner_id: string | null;
+          partner_slug: string;
+          partner_name: string | null;
+          direction: string;
+          event_type: string;
+          request_id: string | null;
+          signature_status: string;
+          signature_error: string | null;
+          signature_version: string | null;
+          signature: string | null;
+          metadata: unknown;
+          headers: unknown;
+          payload: unknown;
+          raw_body: string | null;
+          created_at: string;
+        };
+      };
+    };
+    Views: {
+      events_view: {
+        Row: {
+          id: string;
+          created_at: string;
+          direction: string;
+          event_type: string;
+          request_id: string | null;
+          partner_id: string | null;
+          partner_slug: string;
+          partner_name: string | null;
+          signature_version: string | null;
+          signature: string | null;
+          signature_status: string;
+          signature_error: string | null;
+          metadata: unknown;
+          headers: unknown;
+          payload: unknown;
+          raw_body: string | null;
+        };
+      };
+    };
+  };
   ops: {
     Tables: {
       console_feature_flags: {
@@ -27,6 +86,38 @@ export type AdminDatabase = {
           updated_at: string;
         };
       };
+      v_supplier_onboarding_queue: {
+        Row: {
+          id: string;
+          supplier_name: string;
+          contact_email: string;
+          onboarding_stage: string;
+          status: string;
+          priority: number;
+          assigned_admin: string;
+          hours_open: number;
+        };
+      };
+      v_offline_coverage: {
+        Row: {
+          region: string;
+          country_code: string;
+          availability_percent: number;
+          offline_suppliers: number;
+          sample_size: number;
+          health_label: string;
+        };
+      };
+      v_analytics_event_counts: {
+        Row: {
+          event: string;
+          captured_hour: string;
+          total: number;
+          unique_sessions: number;
+          first_seen: string;
+          last_seen: string;
+        };
+      };
       v_dr_snapshots: {
         Row: {
           id: string;
@@ -37,6 +128,56 @@ export type AdminDatabase = {
           created_at: string | null;
           created_by: string | null;
           restore_checks: unknown;
+        };
+      };
+    };
+  };
+  b2b: {
+    Tables: {
+      api_keys: {
+        Row: {
+          id: string;
+          name: string;
+          description: string | null;
+          key_prefix: string;
+          key_hash: string;
+          status: string;
+          scopes: string[];
+          metadata: Record<string, unknown>;
+          created_by: string | null;
+          created_at: string;
+          revoked_at: string | null;
+          revoked_by: string | null;
+          revoked_reason: string | null;
+          last_used_at: string | null;
+          last_ip: string | null;
+          usage_count: number;
+        };
+      };
+    };
+  };
+  travel: {
+    Tables: {
+      intents: {
+        Row: {
+          id: string;
+          created_at: string;
+          updated_at: string;
+          api_key_id: string | null;
+          company_name: string;
+          contact_name: string | null;
+          email: string;
+          phone: string | null;
+          party_size: number | null;
+          start_date: string | null;
+          end_date: string | null;
+          destinations: string[];
+          budget_min_cents: number | null;
+          budget_max_cents: number | null;
+          notes: string | null;
+          idempotency_key: string;
+          raw_payload: Record<string, unknown>;
+          status: string;
         };
       };
     };

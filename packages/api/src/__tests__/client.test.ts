@@ -52,6 +52,63 @@ describe("EcoTripsFunctionClient", () => {
     expect(legacy).toEqual(responsePayload);
   });
 
+  it("invokes voice domain helpers for initiate and summarize", async () => {
+    const initiateResponse = {
+      ok: true,
+      request_id: "mock-req-1",
+      call: { call_id: "mock-call", thread_id: "thread-ops-ank-001", status: "connecting" },
+    };
+    const summarizeResponse = {
+      ok: true,
+      request_id: "mock-req-2",
+      summary: { call_id: "mock-call", headline: "Summary" },
+    };
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(initiateResponse), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(summarizeResponse), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+
+    const client = createEcoTripsFunctionClient({ supabaseUrl, anonKey, fetch: fetchMock });
+
+    const initiateInput = {
+      thread_id: "thread-ops-ank-001",
+      traveler_name: "Anika",
+      traveler_phone: "+250 788 123 456",
+      locale: "en",
+      entry_point: "ops_console",
+    } as const;
+
+    const initResult = await client.voice.initiateCall(initiateInput);
+    expect(initResult).toEqual(initiateResponse);
+
+    const summarizeInput = {
+      thread_id: "thread-ops-ank-001",
+      call_id: "mock-call",
+      transcript: [
+        { speaker: "agent" as const, text: "Hello" },
+        { speaker: "traveler" as const, text: "Hi" },
+      ],
+    } as const;
+
+    const summaryResult = await client.voice.summarizeCall(summarizeInput);
+    expect(summaryResult).toEqual(summarizeResponse);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(`${supabaseUrl}/functions/v1/voice-call-initiate`);
+    expect(fetchMock.mock.calls[1]?.[0]).toBe(`${supabaseUrl}/functions/v1/voice-call-summarize`);
+  });
+
   it("serializes query parameters for GET descriptors", async () => {
     const fetchMock = vi.fn().mockImplementation(() =>
       Promise.resolve(

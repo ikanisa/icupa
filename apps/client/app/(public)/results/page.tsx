@@ -4,6 +4,8 @@ import { OptionCard, CountdownChip } from "../components/OptionCard";
 import { InventorySearchInput } from "@ecotrips/types";
 import Link from "next/link";
 
+import { ExplainPrice } from "../components/ExplainPrice";
+
 function parseSearchParams(searchParams: Record<string, string | string[] | undefined>) {
   const destination = typeof searchParams.destination === "string" ? searchParams.destination : "Kigali";
   const startDate = typeof searchParams.startDate === "string" ? searchParams.startDate : new Date().toISOString().slice(0, 10);
@@ -79,9 +81,11 @@ export default async function ResultsPage({ searchParams }: { searchParams: Reco
                     <h3 className="text-lg font-semibold">{item.name ?? "Itinerary option"}</h3>
                     <p className="text-sm text-white/70">Supplier {item.supplier ?? "tbd"}</p>
                   </div>
-                  <p className="text-base font-semibold text-sky-200">
-                    {item.currency ?? "USD"} {Math.round(item.price_cents / 100).toLocaleString()}
-                  </p>
+                  <ExplainPrice
+                    amountCents={typeof item.price_cents === "number" ? item.price_cents : 0}
+                    currency={item.currency ?? "USD"}
+                    breakdown={(item as { explain_price?: string[] }).explain_price}
+                  />
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Link
