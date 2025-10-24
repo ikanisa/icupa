@@ -28,7 +28,7 @@ export function determineOpsDataMode(): OpsDataMode {
     return { mode: "live" };
   }
 
-  const environment = (process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "development").toLowerCase();
+  const environment = ((process.env.NODE_ENV ?? process.env.ENVIRONMENT ?? process.env.STAGE ?? "development")).toLowerCase();
   if (environment === "production") {
     return {
       mode: "blocked",
