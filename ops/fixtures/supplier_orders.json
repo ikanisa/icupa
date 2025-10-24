@@ -1,0 +1,38 @@
+[
+  {
+    "id": "ord-demo-1001",
+    "supplier_slug": "aurora-expeditions",
+    "itinerary": "Andean Stargazer",
+    "start_date": "2025-03-18",
+    "travelers": 8,
+    "status": "awaiting_confirmation",
+    "total_cents": 184500,
+    "currency": "USD",
+    "notes": "Confirm solar van transfer + bilingual guide assignment.",
+    "badge_codes": ["gstc", "offset"]
+  },
+  {
+    "id": "ord-demo-1002",
+    "supplier_slug": "aurora-expeditions",
+    "itinerary": "Volcanic Highlands",
+    "start_date": "2025-04-02",
+    "travelers": 12,
+    "status": "confirmed",
+    "total_cents": 265200,
+    "currency": "USD",
+    "notes": "Share ranger roster and nightly biodiversity tally template.",
+    "badge_codes": ["community"]
+  },
+  {
+    "id": "ord-demo-2001",
+    "supplier_slug": "rainforest-alliance",
+    "itinerary": "Rainforest Canopy Immersion",
+    "start_date": "2025-04-14",
+    "travelers": 6,
+    "status": "pending_docs",
+    "total_cents": 142000,
+    "currency": "USD",
+    "notes": "Awaiting updated insurance certificate.",
+    "badge_codes": ["safety", "offset"]
+  }
+]

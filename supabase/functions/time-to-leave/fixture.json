@@ -1,0 +1,44 @@
+{
+  "itinerary_id": "ITN-2025-001",
+  "timezone": "Africa/Kigali",
+  "departures": [
+    {
+      "id": "kinigi-briefing",
+      "label": "Permit check-in at Kinigi HQ",
+      "recommended_departure": "2025-10-02T05:15:00+02:00",
+      "window_minutes": 10,
+      "buffer_minutes": 20,
+      "pickup_point": "Sabyinyo Silverback Lodge lobby",
+      "status": "on_track",
+      "transport": {
+        "provider": "Volcanoes Fleet",
+        "vehicle": "Toyota Land Cruiser",
+        "driver": "Aline",
+        "contact_phone": "+250-788-555-222"
+      },
+      "notes": [
+        "Allow 45 minutes for Kinigi HQ briefing",
+        "Driver will stage ponchos in vehicle"
+      ]
+    },
+    {
+      "id": "kigali-transfer",
+      "label": "Transfer to Kigali Marriott",
+      "recommended_departure": "2025-10-02T15:00:00+02:00",
+      "window_minutes": 15,
+      "buffer_minutes": 25,
+      "pickup_point": "Virunga Cafe parking",
+      "status": "monitor",
+      "transport": {
+        "provider": "Volcanoes Fleet",
+        "vehicle": "Toyota Land Cruiser",
+        "driver": "Aline",
+        "contact_phone": "+250-788-555-222"
+      },
+      "notes": [
+        "Roadworks near Kagitumba require extra buffer",
+        "Concierge will confirm hotel ETA at 16:30"
+      ]
+    }
+  ]
+}

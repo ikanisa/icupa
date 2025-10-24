@@ -33,6 +33,10 @@ export default defineConfig({
         cwd: workspaceDir,
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,
-        env: { ...process.env, PORT: port },
+        env: {
+          ...process.env,
+          PORT: port,
+          SKIP_ENV_VALIDATION: process.env.SKIP_ENV_VALIDATION ?? "true",
+        },
       },
 });

@@ -9,12 +9,16 @@ export class EcoTripsFunctionClient {
   private readonly fetchImpl: typeof fetch;
   private readonly timeoutMs: number;
   readonly inventory: DomainClients["inventory"];
+  readonly growth: DomainClients["growth"];
   readonly checkout: DomainClients["checkout"];
+  readonly concierge: DomainClients["concierge"];
   readonly groups: DomainClients["groups"];
   readonly permits: DomainClients["permits"];
   readonly wallet: DomainClients["wallet"];
   readonly ops: DomainClients["ops"];
   readonly finance: DomainClients["finance"];
+  readonly pricing: DomainClients["pricing"];
+  readonly loyalty: DomainClients["loyalty"];
   readonly privacy: DomainClients["privacy"];
   readonly dr: DomainClients["dr"];
   readonly user: DomainClients["user"];
@@ -25,12 +29,16 @@ export class EcoTripsFunctionClient {
 
     const domains = createDomainClients(this);
     this.inventory = domains.inventory;
+    this.growth = domains.growth;
     this.checkout = domains.checkout;
+    this.concierge = domains.concierge;
     this.groups = domains.groups;
     this.permits = domains.permits;
     this.wallet = domains.wallet;
     this.ops = domains.ops;
     this.finance = domains.finance;
+    this.pricing = domains.pricing;
+    this.loyalty = domains.loyalty;
     this.privacy = domains.privacy;
     this.dr = domains.dr;
     this.user = domains.user;

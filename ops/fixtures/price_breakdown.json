@@ -1,0 +1,290 @@
+{
+  "breakdowns": [
+    {
+      "option_id": "HBX-001",
+      "currency": "USD",
+      "total_amount_cents": 248500,
+      "collected_amount_cents": 50000,
+      "updated_at": "2024-07-01T08:00:00.000Z",
+      "segments": [
+        {
+          "id": "stay",
+          "label": "Gorilla lodge stay",
+          "amount_cents": 182000,
+          "category": "base",
+          "description": "3 nights full board with conservation briefing",
+          "tone": "emerald"
+        },
+        {
+          "id": "tax",
+          "label": "Tourism levies",
+          "amount_cents": 18500,
+          "category": "tax",
+          "description": "RDB and VAT remittance",
+          "tone": "sky"
+        },
+        {
+          "id": "ops",
+          "label": "Ops concierge",
+          "amount_cents": 35000,
+          "category": "fee",
+          "description": "24/7 WhatsApp support and guide coordination",
+          "tone": "amber"
+        },
+        {
+          "id": "sustainability",
+          "label": "Carbon offsets",
+          "amount_cents": 4500,
+          "category": "sustainability",
+          "description": "Reforestation contribution for Volcanoes NP",
+          "tone": "lime"
+        },
+        {
+          "id": "insurance",
+          "label": "Evac insurance",
+          "amount_cents": 8700,
+          "category": "insurance",
+          "description": "Regional medical evacuation coverage",
+          "tone": "indigo"
+        }
+      ],
+      "badges": [
+        {
+          "id": "carbon-neutral",
+          "label": "Carbon neutral",
+          "tone": "success",
+          "description": "Offset partner audited quarterly"
+        },
+        {
+          "id": "guide-verified",
+          "label": "Guide verified",
+          "tone": "info"
+        }
+      ],
+      "notes": [
+        "Deposit collected to confirm gorilla permits.",
+        "Ops concierge covers airport transfers and daily briefings."
+      ]
+    },
+    {
+      "option_id": "HBX-002",
+      "currency": "USD",
+      "total_amount_cents": 198000,
+      "segments": [
+        {
+          "id": "stay",
+          "label": "Boutique guesthouse",
+          "amount_cents": 138000,
+          "category": "base",
+          "tone": "emerald"
+        },
+        {
+          "id": "fees",
+          "label": "Platform fee",
+          "amount_cents": 12000,
+          "category": "fee",
+          "description": "Secures 48h hold while supplier confirms",
+          "tone": "amber"
+        },
+        {
+          "id": "tax",
+          "label": "City occupancy",
+          "amount_cents": 8500,
+          "category": "tax",
+          "tone": "sky"
+        },
+        {
+          "id": "sustainability",
+          "label": "Community fund",
+          "amount_cents": 6000,
+          "category": "sustainability",
+          "tone": "lime"
+        },
+        {
+          "id": "discount",
+          "label": "Eco partner credit",
+          "amount_cents": 3400,
+          "category": "discount",
+          "description": "Applied when guests reuse refillable amenities",
+          "tone": "rose"
+        }
+      ],
+      "badges": [
+        {
+          "id": "community-led",
+          "label": "Community led",
+          "tone": "success"
+        }
+      ],
+      "notes": [
+        "Discount honored at check-out upon proof of participation."
+      ]
+    },
+    {
+      "option_id": "support-whatsapp",
+      "currency": "USD",
+      "total_amount_cents": 4500,
+      "segments": [
+        {
+          "id": "coverage",
+          "label": "Always-on agent coverage",
+          "amount_cents": 2500,
+          "category": "fee",
+          "tone": "emerald"
+        },
+        {
+          "id": "alerts",
+          "label": "Proactive alerts",
+          "amount_cents": 900,
+          "category": "fee",
+          "tone": "indigo"
+        },
+        {
+          "id": "telemetry",
+          "label": "Telemetry monitoring",
+          "amount_cents": 1100,
+          "category": "other",
+          "tone": "sky"
+        }
+      ],
+      "badges": [
+        {
+          "id": "sla-15",
+          "label": "15 min SLA",
+          "tone": "info"
+        }
+      ],
+      "notes": [
+        "Includes message archive in wallet offline pack."
+      ]
+    },
+    {
+      "option_id": "support-refund",
+      "currency": "USD",
+      "total_amount_cents": 2500,
+      "segments": [
+        {
+          "id": "triage",
+          "label": "HITL triage",
+          "amount_cents": 1200,
+          "category": "fee",
+          "tone": "amber"
+        },
+        {
+          "id": "ledger",
+          "label": "Ledger updates",
+          "amount_cents": 700,
+          "category": "other",
+          "tone": "indigo"
+        },
+        {
+          "id": "notifications",
+          "label": "Notifications",
+          "amount_cents": 600,
+          "category": "fee",
+          "tone": "sky"
+        }
+      ],
+      "badges": [
+        {
+          "id": "audit-log",
+          "label": "Audit logged",
+          "tone": "info"
+        }
+      ],
+      "notes": [
+        "Ops retains approvals for 18 months."
+      ]
+    },
+    {
+      "option_id": "ledger-ref-104",
+      "currency": "USD",
+      "total_amount_cents": 86000,
+      "segments": [
+        {
+          "id": "principal",
+          "label": "Guest refund",
+          "amount_cents": 80000,
+          "category": "base",
+          "tone": "emerald"
+        },
+        {
+          "id": "fees",
+          "label": "Payment processor",
+          "amount_cents": 3000,
+          "category": "fee",
+          "tone": "amber"
+        },
+        {
+          "id": "tax",
+          "label": "Tax adjustments",
+          "amount_cents": 2000,
+          "category": "tax",
+          "tone": "sky"
+        },
+        {
+          "id": "observability",
+          "label": "Observability",
+          "amount_cents": 1000,
+          "category": "other",
+          "tone": "indigo"
+        }
+      ],
+      "badges": [
+        {
+          "id": "dual-control",
+          "label": "Dual control",
+          "tone": "warning"
+        }
+      ],
+      "notes": [
+        "Finance review required before disbursement."
+      ]
+    },
+    {
+      "option_id": "default",
+      "currency": "USD",
+      "total_amount_cents": 150000,
+      "segments": [
+        {
+          "id": "base",
+          "label": "Travel services",
+          "amount_cents": 110000,
+          "category": "base",
+          "tone": "emerald"
+        },
+        {
+          "id": "fees",
+          "label": "Ops coordination",
+          "amount_cents": 25000,
+          "category": "fee",
+          "tone": "amber"
+        },
+        {
+          "id": "tax",
+          "label": "Taxes",
+          "amount_cents": 10000,
+          "category": "tax",
+          "tone": "sky"
+        },
+        {
+          "id": "sustainability",
+          "label": "Sustainability",
+          "amount_cents": 5000,
+          "category": "sustainability",
+          "tone": "lime"
+        }
+      ],
+      "badges": [
+        {
+          "id": "fixture",
+          "label": "Fixture data",
+          "tone": "neutral"
+        }
+      ],
+      "notes": [
+        "Fallback breakdown when option id is not recognized."
+      ]
+    }
+  ]
+}

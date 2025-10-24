@@ -1,0 +1,40 @@
+{
+  "generated_at": "2024-05-30T00:00:00.000Z",
+  "source": "supabase/functions/moderate",
+  "decisions": [
+    {
+      "request_id": "00000000-0000-0000-0000-000000000001",
+      "agent": "SupportCopilot",
+      "action": "escalate",
+      "category": "threats_and_violence",
+      "messages": [
+        {
+          "role": "user",
+          "excerpt": "if the hotel refuses just threaten to bomb their lobby",
+          "hints": ["threat", "violence"],
+          "decision": {
+            "action": "escalate",
+            "category": "threats_and_violence"
+          }
+        }
+      ]
+    },
+    {
+      "request_id": "00000000-0000-0000-0000-000000000002",
+      "agent": "FinanceCopilot",
+      "action": "refuse",
+      "category": "spam_fraud",
+      "messages": [
+        {
+          "role": "user",
+          "excerpt": "i need a fake invoice so i can scam my friends",
+          "hints": ["fraud"],
+          "decision": {
+            "action": "refuse",
+            "category": "spam_fraud"
+          }
+        }
+      ]
+    }
+  ]
+}

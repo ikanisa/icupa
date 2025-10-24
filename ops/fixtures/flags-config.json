@@ -1,0 +1,9 @@
+{
+  "updated_at": "2024-05-04T08:00:00Z",
+  "features": {
+    "client.explain_price.glass": true,
+    "client.autonomy_dial": true,
+    "client.suggestion_chips.top": false
+  },
+  "notes": "Fixture returned when USE_FIXTURES=1 for flags-config edge function."
+}
