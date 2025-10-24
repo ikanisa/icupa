@@ -15,6 +15,7 @@ const tabs = [
   { href: "/exceptions", label: "Exceptions" },
   { href: "/affiliate/logs", label: "Affiliate" },
   { href: "/whatsapp", label: "WhatsApp" },
+  { href: "/translations", label: "Translations" },
   { href: "/privacy", label: "Privacy/GDPR" },
   { href: "/dr", label: "DR & Backups" },
   { href: "/performance", label: "Performance" },
