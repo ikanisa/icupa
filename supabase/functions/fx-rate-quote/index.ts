@@ -1,6 +1,6 @@
 import { ERROR_CODES } from "../_obs/constants.ts";
 import { getRequestId, healthResponse, withObs } from "../_obs/withObs.ts";
-import { assertAuthenticated, resolveUserContext } from "../_shared/auth.ts";
+import { assertAuthenticated, assertOpsAccess, resolveUserContext } from "../_shared/auth.ts";
 import { getSupabaseServiceConfig } from "../_shared/env.ts";
 
 const { url: SUPABASE_URL, serviceRoleKey: SERVICE_ROLE_KEY } =
@@ -98,6 +98,7 @@ const handler = withObs(async (req) => {
 
   let snapshotId: string | undefined;
   if (parsed.invoiceId) {
+    assertOpsAccess(user);
     const snapshot = await insertSnapshot({
       invoiceId: parsed.invoiceId,
       baseCurrency: parsed.baseCurrency,

@@ -66,7 +66,7 @@ export function PromoPricingFooter({ itineraryId, baseTotalCents, currency }: Pr
     }
     setLoading(true);
     try {
-      const response = await client.pricing.apply({
+      const response = await client.call("pricing.apply", {
         itinerary_id: itineraryId,
         promo_code: code,
         base_total_cents: baseTotalCents,

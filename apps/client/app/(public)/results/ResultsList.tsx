@@ -96,7 +96,7 @@ export function ResultsList({ title, subtitle, items, defaultCurrency }: Results
         .filter((source) => source !== normalizedCurrency)
         .map(async (source) => {
           try {
-            const result = await client.finance.quoteFx({
+            const result = await client.call("fin.fx.rateQuote", {
               base_currency: source,
               quote_currency: normalizedCurrency,
               amount_cents: 10_000,
