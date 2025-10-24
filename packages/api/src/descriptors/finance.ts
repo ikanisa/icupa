@@ -1,11 +1,7 @@
 import { z } from "zod";
 
 import type { DescriptorMap } from "../types";
-import {
-  InvoiceGenerateInput,
-  RefundPolicySummarizeInput,
-  RefundPolicySummarizeResponse,
-} from "@ecotrips/types";
+import { FxRateQuoteInput, FxRateQuoteResult, InvoiceGenerateInput } from "@ecotrips/types";
 
 export const financeDescriptors = {
   "fin.invoice.generate": {
@@ -21,11 +17,11 @@ export const financeDescriptors = {
       reused: z.boolean().optional(),
     }),
   },
-  "fin.refund.policySummarize": {
-    path: "/functions/v1/refund-policy-summarize",
+  "fin.fx.rateQuote": {
+    path: "/functions/v1/fx-rate-quote",
     method: "POST",
     auth: "user",
-    input: RefundPolicySummarizeInput,
-    output: RefundPolicySummarizeResponse,
+    input: FxRateQuoteInput,
+    output: FxRateQuoteResult,
   },
 } satisfies DescriptorMap;

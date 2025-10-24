@@ -1,11 +1,43 @@
-import { CardGlass, buttonClassName } from "@ecotrips/ui";
-import Link from "next/link";
+import { CardGlass } from "@ecotrips/ui";
+import { createEcoTripsFunctionClient } from "@ecotrips/api";
+import { InventorySearchInput } from "@ecotrips/types";
 
-import { createPageMetadata } from "../../../lib/seo/metadata";
-import { loadInventorySearch, parseSearchParams } from "../../../lib/loaders/search";
-import type { RawSearchParams } from "../../../lib/loaders/search";
-import { PublicPage } from "../components/PublicPage";
-import { ResultsHydrator } from "./ResultsHydrator";
+import { ResultsList } from "./ResultsList";
+
+function parseSearchParams(searchParams: Record<string, string | string[] | undefined>) {
+  const destination = typeof searchParams.destination === "string" ? searchParams.destination : "Kigali";
+  const startDate = typeof searchParams.startDate === "string" ? searchParams.startDate : new Date().toISOString().slice(0, 10);
+  const endDate = typeof searchParams.endDate === "string"
+    ? searchParams.endDate
+    : new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const adults = Number(Array.isArray(searchParams.adults) ? searchParams.adults[0] : searchParams.adults ?? 2);
+  const children = Number(Array.isArray(searchParams.children) ? searchParams.children[0] : searchParams.children ?? 0);
+
+  const parsed = InventorySearchInput.safeParse({
+    destination,
+    startDate,
+    endDate,
+    party: { adults: Number.isFinite(adults) ? adults : 2, children: Number.isFinite(children) ? children : 0 },
+  });
+
+  return parsed.success
+    ? parsed.data
+    : {
+        destination,
+        startDate,
+        endDate,
+        party: { adults: 2, children: 0 },
+        budgetHint: "balanced" as const,
+        locale: "en" as const,
+      };
+}
+
+async function loadResults(searchParams: Record<string, string | string[] | undefined>) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !anonKey) {
+    return { items: [], ok: false, cacheHit: true };
+  }
 
 export async function generateMetadata({ searchParams }: { searchParams: RawSearchParams }) {
   const input = parseSearchParams(searchParams);
@@ -21,66 +53,16 @@ export default async function ResultsPage({ searchParams }: { searchParams: RawS
   const results = await loadInventorySearch(searchParams);
 
   const isOffline = !results.ok || results.cacheHit;
+  const defaultCurrency = (results.items[0]?.currency ?? "USD").toUpperCase();
 
   return (
-    <PublicPage>
-      <ResultsHydrator input={input} results={results} />
-      <CardGlass
+    <div className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 px-4 pb-24 pt-10">
+      <ResultsList
         title={`Top picks for ${input.destination}`}
         subtitle={`Dates ${input.startDate} → ${input.endDate} · party of ${input.party.adults}${input.party.children ? ` + ${input.party.children} children` : ""}`}
-      >
-        {results.items.length === 0 ? (
-          <PlannerFeatureGate
-            debugLabel="results.empty"
-            fallback={
-              <p className="text-sm text-white/80">
-                No live inventory yet. Offline cache fixtures keep the experience responsive while ConciergeGuide monitors supplier
-                updates.
-              </p>
-            }
-          >
-            <p className="text-sm text-white/80">
-              No live inventory yet. Offline cache fixtures keep the experience responsive; PlannerCoPilot will notify once
-              suppliers respond.
-            </p>
-          </PlannerFeatureGate>
-        ) : (
-          <ul className="space-y-4">
-            {results.items.map((item) => (
-              <li key={item.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <h3 className="text-lg font-semibold">{item.name ?? "Itinerary option"}</h3>
-                    <p className="text-sm text-white/70">Supplier {item.supplier ?? "tbd"}</p>
-                  </div>
-                  <ExplainPrice
-                    amountCents={typeof item.price_cents === "number" ? item.price_cents : 0}
-                    currency={item.currency ?? "USD"}
-                    breakdown={(item as { explain_price?: string[] }).explain_price}
-                  />
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <Link
-                    href={`/itinerary/${item.id ?? "draft"}`}
-                    className={buttonClassName("glass")}
-                  >
-                    View itinerary
-                  </Link>
-                  <Link
-                    href={`/itinerary/${item.id ?? "draft"}?action=quote`}
-                    className={buttonClassName("secondary")}
-                  >
-                    Request quote
-                  </Link>
-                </div>
-                <div className="mt-4">
-                  <PriceLockOption item={item as unknown as Record<string, unknown>} />
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </CardGlass>
+        items={results.items as Array<{ id?: string; name?: string; supplier?: string; price_cents: number; currency?: string }>}
+        defaultCurrency={defaultCurrency}
+      />
       {isOffline && (
         <CardGlass title="Offline fallback" subtitle="Fixtures served within 3 seconds to maintain experience.">
           <p className="text-sm text-white/80">

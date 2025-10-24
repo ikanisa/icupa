@@ -8,34 +8,24 @@ export const InvoiceGenerateInput = z.object({
 
 export type InvoiceGenerateInput = z.infer<typeof InvoiceGenerateInput>;
 
-export const RefundPolicyRiskLevel = z.enum(["low", "medium", "high"]);
-
-export const RefundPolicyHighlight = z.object({
-  text: z.string(),
-  risk: RefundPolicyRiskLevel.optional(),
+export const FxRateQuoteInput = z.object({
+  base_currency: z.string().length(3).transform((value) => value.toUpperCase()),
+  quote_currency: z.string().length(3).transform((value) => value.toUpperCase()),
+  amount_cents: z.number().int().positive(),
+  invoice_id: z.string().uuid().optional(),
+  request_key: z.string().min(6).max(128).optional(),
 });
 
-export const RefundPolicySummary = z.object({
-  title: z.string().default("Refund policy assessment"),
-  risk_grade: RefundPolicyRiskLevel,
-  context: z.string().optional(),
-  highlights: z.array(RefundPolicyHighlight).default([]),
-  actions: z.array(z.string()).default([]),
-  generated_at: z.string(),
-});
-
-export const RefundPolicySummarizeInput = z.object({
-  itinerary_id: z.string().uuid(),
-  policy_text: z.string().min(1).max(4000).optional(),
-});
-
-export const RefundPolicySummarizeResponse = z.object({
+export const FxRateQuoteResult = z.object({
   ok: z.boolean(),
+  rate: z.number().positive().optional(),
+  provider: z.string().optional(),
+  converted_cents: z.number().int().nonnegative().optional(),
+  base_currency: z.string().optional(),
+  quote_currency: z.string().optional(),
   request_id: z.string().optional(),
-  summary: RefundPolicySummary.optional(),
+  snapshot_id: z.string().uuid().optional(),
 });
 
-export type RefundPolicySummary = z.infer<typeof RefundPolicySummary>;
-export type RefundPolicyHighlight = z.infer<typeof RefundPolicyHighlight>;
-export type RefundPolicySummarizeInput = z.infer<typeof RefundPolicySummarizeInput>;
-export type RefundPolicySummarizeResponse = z.infer<typeof RefundPolicySummarizeResponse>;
+export type FxRateQuoteInput = z.infer<typeof FxRateQuoteInput>;
+export type FxRateQuoteResult = z.infer<typeof FxRateQuoteResult>;

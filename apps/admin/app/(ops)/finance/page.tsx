@@ -1,9 +1,13 @@
-import { CardGlass } from "@ecotrips/ui";
-import { InvoiceGenerateInput, RefundPolicySummarizeInput } from "@ecotrips/types";
+import { CardGlass, Badge } from "@ecotrips/ui";
+import { InvoiceGenerateInput } from "@ecotrips/types";
 import { z } from "zod";
 
 import { getOpsFunctionClient } from "../../../lib/functionClient";
 import { logAdminAction } from "../../../lib/logging";
+
+import pricingRuleFixtures from "../../../../../ops/fixtures/pricing_rules.json" assert { type: "json" };
+import loyaltyDashboardFixture from "../../../../../ops/fixtures/loyalty_dashboard.json" assert { type: "json" };
+import invoiceFxSnapshots from "../../../../../ops/fixtures/invoice_fx_snapshots.json" assert { type: "json" };
 
 import { InvoiceGenerateForm, type InvoiceFormState } from "./InvoiceGenerateForm";
 import { RefundForm, type RefundFormState } from "./RefundForm";
@@ -185,6 +189,20 @@ async function summarizeRefundPolicyAction(
 }
 
 export default function FinancePage() {
+  logAdminAction("finance.dashboard.render", {
+    promos: Array.isArray(pricingRuleFixtures) ? pricingRuleFixtures.length : 0,
+    loyaltyTiers: Array.isArray(loyaltyDashboardFixture.tiers) ? loyaltyDashboardFixture.tiers.length : 0,
+  });
+
+  const pricingRules = Array.isArray(pricingRuleFixtures) ? pricingRuleFixtures : [];
+  const loyaltyTiers = Array.isArray(loyaltyDashboardFixture.tiers)
+    ? loyaltyDashboardFixture.tiers
+    : [];
+  const loyaltyGrants = Array.isArray(loyaltyDashboardFixture.recent_grants)
+    ? loyaltyDashboardFixture.recent_grants
+    : [];
+  const fxSnapshotsList = Array.isArray(invoiceFxSnapshots) ? invoiceFxSnapshots : [];
+
   return (
     <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
       <div className="space-y-6">
@@ -220,8 +238,56 @@ export default function FinancePage() {
           <div className="mt-4">
             <RefundPolicySummaryPanel action={summarizeRefundPolicyAction} />
           </div>
-        </CardGlass>
-      </div>
+          <p className="mt-3 text-xs text-white/60">Ledger entry append ensures audit trail and dual control.</p>
+        </div>
+        <div className="mt-6 space-y-3">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-white/60">Promo fixtures</h3>
+          <ul className="space-y-2 text-sm text-white/80">
+            {pricingRules.map((rule) => {
+              const active = Boolean((rule as Record<string, unknown>).active);
+              const record = rule as Record<string, unknown>;
+              return (
+                <li key={String(record.code)} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+                <div>
+                  <p className="font-medium text-white">{String(record.code)}</p>
+                  <p className="text-xs text-white/60">{String(record.kind)} · {String(record.currency)}</p>
+                </div>
+                <div className="text-right text-xs">
+                  <p>{Number(record.value ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+                  <p className="mt-1 flex items-center justify-end gap-2">
+                    <Badge variant={active ? "default" : "secondary"}>{active ? "Active" : "Paused"}</Badge>
+                    <span>{Number(record.redemptions ?? 0).toLocaleString()} uses</span>
+                  </p>
+                </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+        <div className="mt-6 space-y-3">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-white/60">Invoice FX snapshots</h3>
+          <ul className="space-y-2 text-sm text-white/80">
+            {fxSnapshotsList.map((snapshot) => {
+              const record = snapshot as Record<string, unknown>;
+              return (
+                <li key={String(record.invoice)} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="font-medium text-white">{String(record.invoice)}</p>
+                    <p className="text-xs text-white/60">{String(record.captured_at)}</p>
+                  </div>
+                  <div className="text-right text-xs text-white/70">
+                    <p>{String(record.base_currency)} → {String(record.quote_currency)}</p>
+                    <p>Rate {Number(record.rate ?? 0).toLocaleString(undefined, { maximumFractionDigits: 4 })}</p>
+                    <p>Converted {Number(record.converted_total ?? 0).toLocaleString()}</p>
+                  </div>
+                </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      </CardGlass>
       <div className="space-y-6">
         <CardGlass title="Guardrails" subtitle="FinOps approvals require dual control and observability.">
           <ul className="space-y-2 text-sm text-white/80">
@@ -229,6 +295,33 @@ export default function FinancePage() {
             <li>• fin-ledger-append enforces allowed entry types and idempotency.</li>
             <li>• fin-invoice-generate writes signed URLs to Storage invoices/ bucket.</li>
           </ul>
+        </CardGlass>
+        <CardGlass title="Loyalty dashboard" subtitle="Grant telemetry mirrored into loyalty.accounts and ledger.">
+          <ul className="space-y-2 text-sm text-white/80">
+            {loyaltyTiers.map((tier) => {
+              const record = tier as Record<string, unknown>;
+              return (
+                <li key={String(record.tier)} className="flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <Badge variant="secondary">{String(record.tier)}</Badge>
+                  {Number(record.members ?? 0).toLocaleString()} members
+                </span>
+                <span>{Number(record.points ?? 0).toLocaleString()} pts</span>
+              </li>
+              );
+            })}
+          </ul>
+          <div className="mt-4 space-y-1 text-xs text-white/60">
+            <p className="font-semibold text-white/70">Recent grants</p>
+            {loyaltyGrants.map((grant) => {
+              const record = grant as Record<string, unknown>;
+              return (
+                <p key={String(record.request_id)}>
+                  {String(record.profile)} → {Number(record.points ?? 0).toLocaleString()} pts · {String(record.reason)}
+                </p>
+              );
+            })}
+          </div>
         </CardGlass>
       </div>
     </div>

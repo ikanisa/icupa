@@ -1,4 +1,16 @@
-import { CheckoutInput, ContributionCreate, EscrowCreate, InventorySearchInput, PermitRequest, SupplierOrdersRequest, SupplierOrdersResponse, SupplierConfirmInput, SupplierConfirmResponse, FlagsConfigResponse, SynthGenerateInput, SynthGenerateResponse } from "@ecotrips/types";
+import {
+  CheckoutInput,
+  ContributionCreate,
+  EscrowCreate,
+  FxRateQuoteInput,
+  FxRateQuoteResult,
+  InventorySearchInput,
+  LoyaltyGrantInput,
+  LoyaltyGrantResult,
+  PermitRequest,
+  PricingApplyInput,
+  PricingApplyResult,
+} from "@ecotrips/types";
 import {
   DrSnapshotInput,
   GroupsOpsPayoutNowInput,
@@ -136,6 +148,13 @@ const descriptors = {
     input: z.object({ itineraryId: z.string().uuid(), locale: z.enum(["en", "rw"]).default("en") }),
     output: z.object({ ok: z.boolean(), download_url: z.string().url().optional() }),
   },
+  "pricing.apply": {
+    path: "/functions/v1/pricing-apply",
+    method: "POST",
+    auth: "user",
+    input: PricingApplyInput,
+    output: PricingApplyResult,
+  },
   "ops.bookings": {
     path: "/functions/v1/ops-bookings",
     method: "GET",
@@ -165,6 +184,13 @@ const descriptors = {
       .partial()
       .default({}),
     output: paginatedResponse,
+  },
+  "loyalty.grant": {
+    path: "/functions/v1/loyalty-grant",
+    method: "POST",
+    auth: "user",
+    input: LoyaltyGrantInput,
+    output: LoyaltyGrantResult,
   },
   "groups.payouts.report": {
     path: "/functions/v1/groups-payouts-report",
@@ -230,12 +256,12 @@ const descriptors = {
       reused: z.boolean().optional(),
     }),
   },
-  "fin.refund.policySummarize": {
-    path: "/functions/v1/refund-policy-summarize",
+  "fin.fx.rateQuote": {
+    path: "/functions/v1/fx-rate-quote",
     method: "POST",
     auth: "user",
-    input: RefundPolicySummarizeInput,
-    output: RefundPolicySummarizeResponse,
+    input: FxRateQuoteInput,
+    output: FxRateQuoteResult,
   },
   "ops.refund": {
     path: "/functions/v1/ops-refund",
