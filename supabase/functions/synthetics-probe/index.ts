@@ -22,9 +22,17 @@ const TARGETS = [
   { fn: "inventory-hold", category: "inventory" },
   { fn: "agent-orchestrator", category: "agents" },
   { fn: "groups-create-escrow", category: "groups", critical: true },
+  { fn: "groups-join", category: "groups" },
+  { fn: "groups-contribute", category: "groups" },
+  { fn: "map-route", category: "maps" },
+  { fn: "map-nearby", category: "maps" },
+  { fn: "ops-bookings", category: "ops", critical: true },
+  { fn: "ops-exceptions", category: "ops" },
+  { fn: "ops-refund", category: "ops", critical: true },
   { fn: "wa-send", category: "messaging" },
   { fn: "metrics-incr", category: "observability" },
   { fn: "privacy-request", category: "privacy" },
+  { fn: "permits-request", category: "permits" },
   { fn: "stripe-webhook", category: "payments", critical: true },
 ] as const;
 
