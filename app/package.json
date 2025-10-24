@@ -8,7 +8,7 @@
   "scripts": {
     "prebuild": "node ./scripts/check-env.mjs",
     "dev": "next dev --turbopack",
-    "build": "next build --turbopack",
+    "build": "node ./scripts/run-next-build.mjs",
     "start": "next start",
     "pretest": "npx playwright install --with-deps chromium firefox",
     "lint": "node ./scripts/run-next-lint.mjs",
