@@ -1,5 +1,7 @@
 import { CardGlass, buttonClassName } from "@ecotrips/ui";
 
+import { SupportChat } from "../components/SupportChat";
+
 export default function SupportPage() {
   return (
     <div className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 px-4 pb-24 pt-10">
@@ -15,6 +17,9 @@ export default function SupportPage() {
           <a href="/support?refund=1" className={buttonClassName("secondary")}>
             Request refund
           </a>
+        </div>
+        <div className="mt-6">
+          <SupportChat />
         </div>
       </CardGlass>
       <CardGlass title="Safety" subtitle="SafetyAgent monitors night travel and weather advisories.">
