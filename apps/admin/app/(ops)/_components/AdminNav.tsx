@@ -13,6 +13,7 @@ const tabs = [
   { href: "/permits", label: "Permits" },
   { href: "/finance", label: "Finance" },
   { href: "/exceptions", label: "Exceptions" },
+  { href: "/affiliate/logs", label: "Affiliate" },
   { href: "/whatsapp", label: "WhatsApp" },
   { href: "/engagement", label: "Engagement" },
   { href: "/privacy", label: "Privacy/GDPR" },

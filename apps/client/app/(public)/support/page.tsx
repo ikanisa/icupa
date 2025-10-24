@@ -1,14 +1,23 @@
 import { CardGlass, buttonClassName } from "@ecotrips/ui";
+import { OptionCard } from "../components/OptionCard";
+
+import { createPageMetadata } from "../../../lib/seo/metadata";
+import { PublicPage } from "../components/PublicPage";
+
+export const metadata = createPageMetadata({
+  title: "Support",
+  description: "Reach SupportCopilot, escalate refunds, and review safety briefings in one place.",
+  path: "/support",
+});
 
 import { SosCard } from "./SosCard";
 
 export default function SupportPage() {
   return (
-    <div className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 px-4 pb-24 pt-10">
+    <PublicPage>
       <CardGlass title="Support" subtitle="SupportCopilot triages with human-in-the-loop controls.">
         <p className="text-sm text-white/80">
-          Chat with ConciergeGuide for travel nudges or escalate to ops. Refunds, credit notes, and payouts always require HITL
-          approval.
+          Chat with ConciergeGuide for travel nudges or escalate to ops. Refunds, credit notes, and payouts always require HITL approval.
         </p>
         <div className="mt-4 flex flex-wrap gap-3">
           <a href="https://wa.me/250789123456" className={buttonClassName("glass")}>
@@ -28,6 +37,6 @@ export default function SupportPage() {
           <li>• Daily brief push to wallet and WhatsApp.</li>
         </ul>
       </CardGlass>
-    </div>
+    </PublicPage>
   );
 }

@@ -1,5 +1,30 @@
 import { expect, test } from "@playwright/test";
 
+const deployedBaseHosts = new Set([
+  "localhost",
+  "127.0.0.1",
+  "0.0.0.0",
+  "[::1]",
+]);
+
+const isDeployedTarget = (() => {
+  if (process.env.PLAYWRIGHT_FORCE_DEPLOYED === "1") {
+    return true;
+  }
+
+  const baseUrl = process.env.PLAYWRIGHT_BASE_URL;
+  if (!baseUrl) {
+    return false;
+  }
+
+  try {
+    const { hostname } = new URL(baseUrl);
+    return !deployedBaseHosts.has(hostname.toLowerCase());
+  } catch (error) {
+    return false;
+  }
+})();
+
 test.describe("ops console integrations", () => {
   test("renders bookings from ops-bookings", async ({ page }) => {
     await page.route("**/functions/v1/ops-bookings**", async (route) => {
@@ -73,5 +98,21 @@ test.describe("ops console integrations", () => {
     await page.getByRole("button", { name: "Submit refund" }).click();
     await expect(page.getByText("Refund queued")).toBeVisible();
     await expect(page.getByText("refund-req")).toBeVisible();
+  });
+});
+
+test.describe("ops console deployed runtime", () => {
+  test.skip(!isDeployedTarget, "Deployed runtime checks only run when targeting staging/production URLs.");
+
+  test("redirects unauthenticated visitors to login", async ({ page }) => {
+    const response = await page.goto("/bookings", { waitUntil: "networkidle" });
+    expect(response?.status()).toBeGreaterThanOrEqual(300);
+    await expect(page).toHaveURL(/\/login/);
+  });
+
+  test("never exposes bypass mode affordances", async ({ page }) => {
+    await page.goto("/login", { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "Bypass mode" })).toHaveCount(0);
+    await expect(page.getByText("OPS_CONSOLE_BYPASS_AUTH", { exact: false })).toHaveCount(0);
   });
 });

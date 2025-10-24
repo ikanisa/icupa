@@ -8,7 +8,10 @@
   },
   "node": {
     "preferredVersion": "18.20.4",
-    "source": [".nvmrc", "package.json#engines"]
+    "source": [
+      ".nvmrc",
+      "package.json#engines"
+    ]
   },
   "apps": [
     {
@@ -22,8 +25,19 @@
         "lint": "next lint"
       },
       "output": ".next",
-      "dependsOn": ["@ecotrips/ui", "@ecotrips/api", "@ecotrips/types", "@ecotrips/i18n"],
-      "env": ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY"]
+      "dependsOn": [
+        "@ecotrips/ui",
+        "@ecotrips/api",
+        "@ecotrips/types",
+        "@ecotrips/i18n"
+      ],
+      "env": [
+        "NEXT_PUBLIC_SUPABASE_URL",
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY"
+      ],
+      "optionalEnv": [
+        "NEXT_PUBLIC_CHECKOUT_ALLOW_ANON"
+      ]
     },
     {
       "name": "@ecotrips/admin",
@@ -36,8 +50,16 @@
         "lint": "next lint"
       },
       "output": ".next",
-      "dependsOn": ["@ecotrips/ui", "@ecotrips/api", "@ecotrips/types", "@ecotrips/i18n"],
-      "env": ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY"]
+      "dependsOn": [
+        "@ecotrips/ui",
+        "@ecotrips/api",
+        "@ecotrips/types",
+        "@ecotrips/i18n"
+      ],
+      "env": [
+        "NEXT_PUBLIC_SUPABASE_URL",
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY"
+      ]
     },
     {
       "name": "marketing-site",
@@ -51,18 +73,44 @@
         "test": "playwright test"
       },
       "output": ".next",
-      "env": ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"],
-      "toolingEnv": ["PLAYWRIGHT_BASE_URL"]
+      "env": [
+        "SUPABASE_URL",
+        "SUPABASE_SERVICE_ROLE_KEY"
+      ],
+      "toolingEnv": [
+        "PLAYWRIGHT_BASE_URL"
+      ]
     }
   ],
   "packages": [
-    { "name": "@ecotrips/ui", "path": "packages/ui", "type": "React component library" },
-    { "name": "@ecotrips/api", "path": "packages/api", "type": "API client helpers" },
-    { "name": "@ecotrips/types", "path": "packages/types", "type": "Shared TypeScript types" },
-    { "name": "@ecotrips/i18n", "path": "packages/i18n", "type": "Localization resources" }
+    {
+      "name": "@ecotrips/ui",
+      "path": "packages/ui",
+      "type": "React component library"
+    },
+    {
+      "name": "@ecotrips/api",
+      "path": "packages/api",
+      "type": "API client helpers"
+    },
+    {
+      "name": "@ecotrips/types",
+      "path": "packages/types",
+      "type": "Shared TypeScript types"
+    },
+    {
+      "name": "@ecotrips/i18n",
+      "path": "packages/i18n",
+      "type": "Localization resources"
+    }
   ],
   "tooling": {
-    "scripts": ["npm run test:contracts", "npm run test:observability", "npm run guard:live", "npm run perf:smoke"],
+    "scripts": [
+      "npm run test:contracts",
+      "npm run test:observability",
+      "npm run guard:live",
+      "npm run perf:smoke"
+    ],
     "supabaseRef": "woyknezboamabahknmjr"
   }
 }

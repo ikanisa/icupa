@@ -1,0 +1,57 @@
+[
+  {
+    "id": "tilepack-kigali-202502",
+    "slug": "kigali-city-core",
+    "region": "kigali",
+    "title": "Kigali City Core",
+    "description": "Downtown Kigali, Remera, and Nyamirambo walking tiles with transit overlays and emergency services.",
+    "updated_at": "2025-02-12T07:00:00Z",
+    "tiles": 1843,
+    "bundle_bytes": 734003200,
+    "offline_zip_bytes": 262144000,
+    "storage_path": "maps_tiles/kigali-city-core/20250212/tiles.mbtiles",
+    "manifest_path": "maps_tiles/kigali-city-core/20250212/manifest.json",
+    "preview_url": "https://cdn.ecotrips.africa/maps/kigali-city-core.png",
+    "checksum_sha256": "af82c7c8d9d1d1752ae0f6d2dbb556f7729753dc3a8de72f0f44f68407afc6c2",
+    "languages": ["en", "rw", "fr"],
+    "coverage": {
+      "center": { "lat": -1.9537, "lng": 30.0902 },
+      "radius_km": 12,
+      "bounding_box": { "north": -1.885, "south": -2.05, "east": 30.17, "west": 29.97 }
+    },
+    "offline_layers": [
+      { "id": "streets", "kind": "vector", "size_bytes": 524288000 },
+      { "id": "transit", "kind": "vector", "size_bytes": 104857600 },
+      { "id": "safety", "kind": "geojson", "size_bytes": 104857600 }
+    ],
+    "notes": "Includes GoR approved evacuation corridors and UNHCR muster points.",
+    "recommended_app_version": "1.12.0"
+  },
+  {
+    "id": "tilepack-akagera-202501",
+    "slug": "akagera-east-ridge",
+    "region": "akagera",
+    "title": "Akagera East Ridge",
+    "description": "Lakeside safari loops with ranger posts, viewpoints, and offline photos for Akagera National Park.",
+    "updated_at": "2025-01-28T05:30:00Z",
+    "tiles": 1210,
+    "bundle_bytes": 576716800,
+    "offline_zip_bytes": 209715200,
+    "storage_path": "maps_tiles/akagera-east-ridge/20250128/tiles.mbtiles",
+    "manifest_path": "maps_tiles/akagera-east-ridge/20250128/manifest.json",
+    "preview_url": "https://cdn.ecotrips.africa/maps/akagera-east-ridge.png",
+    "checksum_sha256": "b61c9f6c9c5fa899cda48ff4fa00b54bf09f6c4460a81542b9f0a89a3ecbd2cd",
+    "languages": ["en", "rw"],
+    "coverage": {
+      "center": { "lat": -1.719, "lng": 30.728 },
+      "radius_km": 28,
+      "bounding_box": { "north": -1.55, "south": -1.92, "east": 30.91, "west": 30.45 }
+    },
+    "offline_layers": [
+      { "id": "topography", "kind": "raster", "size_bytes": 419430400 },
+      { "id": "wildlife", "kind": "geojson", "size_bytes": 52428800 }
+    ],
+    "notes": "Wildlife layer syncs weekly from ranger sightings; caches sunrise/sunset schedules.",
+    "recommended_app_version": "1.10.5"
+  }
+]

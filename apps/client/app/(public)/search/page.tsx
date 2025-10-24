@@ -1,11 +1,13 @@
 import { CardGlass } from "@ecotrips/ui";
 
+import { createPageMetadata } from "../../../lib/seo/metadata";
+import { PublicPage } from "../components/PublicPage";
 import { SearchForm } from "../components/SearchForm";
 import { PushNotificationBanner } from "../components/PushNotificationBanner";
 
 export default function SearchPage() {
   return (
-    <div className="mx-auto flex min-h-screen max-w-3xl flex-col gap-8 px-4 pb-24 pt-10">
+    <PublicPage gapClass="gap-8">
       <CardGlass title="Search inventory" subtitle="Realtime inventory with offline fixtures when suppliers are offline.">
         <SearchForm />
       </CardGlass>
@@ -16,6 +18,6 @@ export default function SearchPage() {
           itineraries. All actions log to withObs for structured telemetry.
         </p>
       </CardGlass>
-    </div>
+    </PublicPage>
   );
 }

@@ -18,9 +18,9 @@ export function Stepper({ steps }: StepperProps) {
           key={step.id}
           className={clsx(
             "rounded-2xl border p-4 text-sm transition-colors",
-            step.status === "complete" && "border-emerald-400/60 bg-emerald-500/10 text-emerald-100",
-            step.status === "current" && "border-sky-400/60 bg-sky-500/10 text-sky-100",
-            step.status === "pending" && "border-white/10 bg-white/5 text-white/80",
+            step.status === "complete" && "border-positive/60 bg-positive/10 text-positive/90",
+            step.status === "current" && "border-brand/60 bg-brand/10 text-brand/90",
+            step.status === "pending" && "border-glass-border bg-glass text-muted",
           )}
         >
           <div className="flex items-center gap-2 text-xs uppercase tracking-wide opacity-80">

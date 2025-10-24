@@ -1,0 +1,140 @@
+{
+  "before": {
+    "days": [
+      { "id": "day-3", "label": "Akagera safari" },
+      { "id": "day-4", "label": "Lake Kivu and canopy" }
+    ],
+    "anchors": [
+      {
+        "id": "akagera-safari",
+        "day_id": "day-3",
+        "label": "Akagera sunrise drive",
+        "start_minute": 360,
+        "end_minute": 600,
+        "window_id": "day-3-window",
+        "locked": true
+      },
+      {
+        "id": "lake-kivu-transfer",
+        "day_id": "day-3",
+        "label": "Transfer to Lake Kivu",
+        "start_minute": 660,
+        "end_minute": 930,
+        "window_id": "day-3-window"
+      },
+      {
+        "id": "lake-kivu-kayak",
+        "day_id": "day-3",
+        "label": "Lake Kivu sunset paddle",
+        "start_minute": 1020,
+        "end_minute": 1140,
+        "window_id": "day-3-window"
+      },
+      {
+        "id": "nyungwe-canopy",
+        "day_id": "day-4",
+        "label": "Nyungwe canopy walk",
+        "start_minute": 540,
+        "end_minute": 720,
+        "window_id": "day-4-window"
+      }
+    ],
+    "windows": [
+      {
+        "id": "day-3-window",
+        "day_id": "day-3",
+        "start_minute": 360,
+        "end_minute": 1110,
+        "label": "Daylight"
+      },
+      {
+        "id": "day-4-window",
+        "day_id": "day-4",
+        "start_minute": 420,
+        "end_minute": 1110,
+        "label": "Daylight"
+      }
+    ],
+    "max_drive_minutes": 180,
+    "pace": "balanced"
+  },
+  "after": {
+    "days": [
+      { "id": "day-3", "label": "Akagera safari" },
+      { "id": "day-4", "label": "Lake Kivu and canopy" }
+    ],
+    "anchors": [
+      {
+        "id": "akagera-safari",
+        "day_id": "day-3",
+        "label": "Akagera sunrise drive",
+        "start_minute": 360,
+        "end_minute": 600,
+        "window_id": "day-3-window",
+        "locked": true
+      },
+      {
+        "id": "lake-kivu-transfer",
+        "day_id": "day-3",
+        "label": "Transfer to Lake Kivu",
+        "start_minute": 630,
+        "end_minute": 870,
+        "window_id": "day-3-window"
+      },
+      {
+        "id": "lake-kivu-kayak",
+        "day_id": "day-4",
+        "label": "Lake Kivu dawn paddle",
+        "start_minute": 480,
+        "end_minute": 600,
+        "window_id": "day-4-window"
+      },
+      {
+        "id": "nyungwe-canopy",
+        "day_id": "day-4",
+        "label": "Nyungwe canopy walk",
+        "start_minute": 630,
+        "end_minute": 780,
+        "window_id": "day-4-window"
+      }
+    ],
+    "windows": [
+      {
+        "id": "day-3-window",
+        "day_id": "day-3",
+        "start_minute": 360,
+        "end_minute": 1080,
+        "label": "Daylight"
+      },
+      {
+        "id": "day-4-window",
+        "day_id": "day-4",
+        "start_minute": 420,
+        "end_minute": 1140,
+        "label": "Daylight"
+      }
+    ],
+    "max_drive_minutes": 180,
+    "pace": "balanced"
+  },
+  "rationales": [
+    "Shifted Lake Kivu paddle to dawn on day 4 to avoid night transfers and unlock sunrise photography window.",
+    "Pulled forward transfer departure by 30 minutes to respect the 180-minute drive guardrail.",
+    "Extended day 4 daylight window to absorb canopy walk buffer after the dawn paddle."
+  ],
+  "diff_summary": [
+    {
+      "type": "move",
+      "anchor_id": "lake-kivu-kayak",
+      "from_day": "day-3",
+      "to_day": "day-4",
+      "note": "Moved paddle to next morning to prevent fatigue."
+    },
+    {
+      "type": "adjust",
+      "anchor_id": "lake-kivu-transfer",
+      "delta_minutes": -30,
+      "note": "Leave Akagera earlier to reach Gisenyi before dusk."
+    }
+  ]
+}
