@@ -40,5 +40,26 @@ export type AdminDatabase = {
         };
       };
     };
+    Views: {
+      v_finance_payouts_ext: {
+        Row: {
+          id: string;
+          external_ref: string;
+          provider: string | null;
+          amount_cents: number | null;
+          currency: string | null;
+          recorded_at: string | null;
+          reconciled: boolean | null;
+          payout_id: string | null;
+          internal_ref: string | null;
+          internal_amount_cents: number | null;
+          matched_at: string | null;
+          metadata: unknown;
+          notes: string | null;
+          created_at: string | null;
+          updated_at: string | null;
+        };
+      };
+    };
   };
 };
