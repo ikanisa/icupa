@@ -48,7 +48,7 @@ SUPABASE_FUNCTIONS_URL,Server (release checklist),Runtime,no,,Optional override 
 CHECKLIST_ALLOW_SKIP,Server (release checklist),Runtime,no,true,Controls if optional checklist steps can be skipped.
 VERCEL_REGION,Server (build scripts),Runtime,no,,Used to warn when Vercel deployment region mismatches config.
 VERCEL_AUTOMATION_BYPASS_SECRET,Server (CI/CD),Runtime,conditional,,Required when Deployment Protection is active.
-PLAYWRIGHT_BASE_URL,Server (tests),Runtime,no,,Base URL for Playwright e2e tests.
+PLAYWRIGHT_BASE_URL,Server (tests),Runtime,no,https://staging.icupa.dev,Base URL for Playwright e2e tests (fallback to local server when unset).
 AGENTS_TENANT_ID,Server (tests),Runtime,conditional,,Tenant identifier for agents smoke tests.
 AGENTS_LOCATION_ID,Server (tests),Runtime,conditional,,Location identifier for agents smoke tests.
 DISABLE_AUTOPREFIXER,Build (postcss),Build-time,no,,Set to "true" to skip autoprefixer in PostCSS.

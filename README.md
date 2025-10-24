@@ -29,7 +29,7 @@ ICUPA is a three-surface, multi-tenant Progressive Web Application that powers d
 ## Getting started
 
 1. **Install prerequisites**
-   - Node.js 20+
+   - Node.js 20.11.1
    - npm 10+ (or pnpm/yarn if preferred)
 
 2. **Bootstrap environment variables**
@@ -52,8 +52,7 @@ ICUPA is a three-surface, multi-tenant Progressive Web Application that powers d
 5. **Start Supabase locally**
    ```bash
    supabase start
-   supabase db reset
-   supabase db execute --file supabase/seed/seed.sql
+   supabase db reset --yes
    ```
    These commands provision the Dockerised Supabase stack, apply the Phase 0 + Phase 1 migrations, and seed demo data covering
    tenants, locations, menus, table sessions, orders, and agent telemetry. The Phase 1 migration introduces pgvector-powered
@@ -161,8 +160,7 @@ With the Supabase CLI installed, ensure the local instance passes the new RLS an
 
 ```bash
 supabase start
-supabase db reset
-supabase db execute --file supabase/seed/seed.sql
+supabase db reset --yes
 supabase db test
 ```
 

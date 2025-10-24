@@ -13,3 +13,4 @@ export * from "@/components/ui/textarea";
 export * from "@/components/ui/scroll-area";
 export * from "@/components/ui/use-toast";
 export { themeTokens, classNames } from "@/styles/theme";
+export { NotFoundPage } from "./not-found";

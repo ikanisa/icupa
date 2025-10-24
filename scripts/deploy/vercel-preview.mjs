@@ -127,6 +127,8 @@ const envRequirements = [
   ['NEXT_PUBLIC_SUPABASE_ANON_KEY', 'Supabase anon key (public)'],
   ['VITE_SUPABASE_URL', 'Supabase project URL for Vite build'],
   ['VITE_SUPABASE_ANON_KEY', 'Supabase anon key for Vite build'],
+  ['NEXT_PUBLIC_AGENTS_URL', 'Agents-service base URL exposed to Next.js apps'],
+  ['VITE_AGENTS_URL', 'Agents-service base URL exposed to Vite apps'],
   ['VERCEL_TOKEN', 'Vercel access token (create at https://vercel.com/account/tokens)'],
 ];
 

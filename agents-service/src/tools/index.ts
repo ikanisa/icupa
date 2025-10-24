@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import { tool } from '@openai/agents';
+import { RunContext, tool } from '@openai/agents';
 import { z } from 'zod';
 import type { AnySupabaseClient } from '../supabase';
 import type { AgentSessionContext, UpsellSuggestion } from '../agents/types';
@@ -13,9 +13,9 @@ import {
   KitchenLoadInputSchema,
 } from './schemas';
 
-type ToolRunContext = { context?: AgentSessionContext };
-
-function assertContext(runContext: ToolRunContext): AgentSessionContext {
+function assertContext(
+  runContext?: RunContext<AgentSessionContext>
+): AgentSessionContext {
   if (!runContext?.context) {
     throw new Error('Agent context is missing');
   }
@@ -118,11 +118,11 @@ export function createAgentTools(deps: { supabase: AnySupabaseClient }) {
     return data?.id as string;
   }
 
-  const getMenu = tool({
+  const getMenu = tool<typeof GetMenuInputSchema, AgentSessionContext>({
     name: 'get_menu',
     description: 'List available menu items for the active location including allergens and pricing.',
     parameters: GetMenuInputSchema,
-    async execute(input, runContext) {
+    async execute(input, runContext?: RunContext<AgentSessionContext>) {
       const context = assertContext(runContext);
       const limit = input.limit ?? 40;
 
@@ -142,11 +142,14 @@ export function createAgentTools(deps: { supabase: AnySupabaseClient }) {
     },
   });
 
-  const checkAllergens = tool({
+  const checkAllergens = tool<typeof CheckAllergensInputSchema, AgentSessionContext>({
     name: 'check_allergens',
     description: 'Verify whether the provided items conflict with the declared allergen list.',
     parameters: CheckAllergensInputSchema,
-    async execute(input, runContext) {
+    async execute(
+      input,
+      runContext?: RunContext<AgentSessionContext>
+    ) {
       const context = assertContext(runContext);
       const allergens = new Set(
         (input.explicit_allergens ?? context.allergies).map((value) => value.toLowerCase())
@@ -171,12 +174,18 @@ export function createAgentTools(deps: { supabase: AnySupabaseClient }) {
     },
   });
 
-  const recommendItems = tool({
+  const recommendItems = tool<
+    typeof RecommendItemsInputSchema,
+    AgentSessionContext
+  >({
     name: 'recommend_items',
     description:
       'Return 2-3 upsell suggestions that fit the guests context. Avoid allergens and age-restricted items when disallowed.',
     parameters: RecommendItemsInputSchema,
-    async execute(input, runContext) {
+    async execute(
+      input,
+      runContext?: RunContext<AgentSessionContext>
+    ) {
       const context = assertContext(runContext);
       const goals = input.goals ?? ['upsell'];
       const limit = input.limit ?? 3;
@@ -190,12 +199,15 @@ export function createAgentTools(deps: { supabase: AnySupabaseClient }) {
     },
   });
 
-  const createOrder = tool({
+  const createOrder = tool<typeof CreateOrderInputSchema, AgentSessionContext>({
     name: 'create_order',
     description:
       'Record a draft order proposal for staff review. This does not charge the guest and is used for one-tap approvals.',
     parameters: CreateOrderInputSchema,
-    async execute(input, runContext) {
+    async execute(
+      input,
+      runContext?: RunContext<AgentSessionContext>
+    ) {
       const context = assertContext(runContext);
       if (!context.locationId || !context.tenantId) {
         throw new Error('Cannot create order proposal without tenant and location identifiers.');
@@ -229,11 +241,17 @@ export function createAgentTools(deps: { supabase: AnySupabaseClient }) {
     },
   });
 
-  const getKitchenLoad = tool({
+  const getKitchenLoad = tool<
+    typeof KitchenLoadInputSchema,
+    AgentSessionContext
+  >({
     name: 'get_kitchen_load',
     description: 'Return a lightweight snapshot of kitchen backlog based on open orders for the active location.',
     parameters: KitchenLoadInputSchema,
-    async execute(_, runContext) {
+    async execute(
+      _input,
+      runContext?: RunContext<AgentSessionContext>
+    ) {
       const context = assertContext(runContext);
       if (!context.locationId) {
         return { backlog_minutes: 0, open_orders: 0 };
@@ -279,7 +297,10 @@ export function createAgentTools(deps: { supabase: AnySupabaseClient }) {
         .enum(['draft', 'pending_review', 'approved', 'active', 'paused', 'archived'])
         .optional(),
     }),
-    async execute(input, runContext) {
+    async execute(
+      input,
+      runContext?: RunContext<AgentSessionContext>
+    ) {
       const context = assertContext(runContext);
       if (!context.tenantId) {
         throw new Error('Tenant context required to list promotions.');
@@ -314,7 +335,10 @@ export function createAgentTools(deps: { supabase: AnySupabaseClient }) {
       budget_delta_cents: z.number().int().optional(),
       rationale: z.string().optional(),
     }),
-    async execute(input, runContext) {
+    async execute(
+      input,
+      runContext?: RunContext<AgentSessionContext>
+    ) {
       const context = assertContext(runContext);
       if (!context.tenantId) {
         throw new Error('Tenant context required to adjust promotions.');
@@ -339,11 +363,17 @@ export function createAgentTools(deps: { supabase: AnySupabaseClient }) {
   const getInventoryLevels = tool({
     name: 'get_inventory_levels',
     description: 'Fetch the lowest-stock inventory items for the current location.',
-    parameters: z.object({
-      limit: z.number().int().min(1).max(50).optional().default(25),
-    }),
-    async execute(input, runContext) {
+    parameters: z
+      .object({
+        limit: z.number().int().min(1).max(50).optional(),
+      })
+      .strict(),
+    async execute(
+      input,
+      runContext?: RunContext<AgentSessionContext>
+    ) {
       const context = assertContext(runContext);
+      const limit = input.limit ?? 25;
       if (!context.locationId) {
         throw new Error('Location context required to fetch inventory.');
       }
@@ -353,7 +383,7 @@ export function createAgentTools(deps: { supabase: AnySupabaseClient }) {
         .select('id, display_name, quantity, par_level, auto_86, auto_86_level')
         .eq('location_id', context.locationId)
         .order('quantity', { ascending: true })
-        .limit(input.limit ?? 25);
+        .limit(limit);
 
       if (error) {
         throw new Error(`Unable to read inventory: ${error.message}`);
@@ -372,7 +402,10 @@ export function createAgentTools(deps: { supabase: AnySupabaseClient }) {
       auto_86: z.boolean().optional(),
       auto_86_level: z.string().optional(),
     }),
-    async execute(input, runContext) {
+    async execute(
+      input,
+      runContext?: RunContext<AgentSessionContext>
+    ) {
       const context = assertContext(runContext);
       if (!context.locationId) {
         throw new Error('Location context required to adjust inventory.');
@@ -402,7 +435,10 @@ export function createAgentTools(deps: { supabase: AnySupabaseClient }) {
       summary: z.string(),
       details: z.string().optional(),
     }),
-    async execute(input, runContext) {
+    async execute(
+      input,
+      runContext?: RunContext<AgentSessionContext>
+    ) {
       const context = assertContext(runContext);
       const ticketId = randomUUID();
 
@@ -435,7 +471,10 @@ export function createAgentTools(deps: { supabase: AnySupabaseClient }) {
       status: z.enum(['pending', 'in_progress', 'blocked', 'resolved']),
       notes: z.string().optional(),
     }),
-    async execute(input, runContext) {
+    async execute(
+      input,
+      runContext?: RunContext<AgentSessionContext>
+    ) {
       const context = assertContext(runContext);
       if (!context.tenantId) {
         throw new Error('Tenant context required to update compliance tasks.');
