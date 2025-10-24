@@ -12,6 +12,15 @@ function hasSupabaseCli(): boolean {
   }
 }
 
+function supabaseStackOnline(): boolean {
+  try {
+    execSync('supabase status', { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 const rlsTests = readdirSync(path.resolve('supabase/tests'))
   .filter((file) => file.startsWith('rls_') && file.endsWith('.sql'))
   .sort();
@@ -24,10 +33,18 @@ describe('Supabase RLS regressions', () => {
     return;
   }
 
+  if (!supabaseStackOnline()) {
+    it.skip('requires the local Supabase stack to be running (supabase start)', () => {
+      expect(true).toBe(true);
+    });
+    return;
+  }
+
   for (const sqlTest of rlsTests) {
     it(`passes ${sqlTest}`, () => {
       const cwd = path.resolve('.');
-      execSync(`supabase db test --file supabase/tests/${sqlTest}`, {
+      const target = path.posix.join('supabase/tests', sqlTest);
+      execSync(`supabase db test ${target}`, {
         cwd,
         stdio: 'pipe',
       });
