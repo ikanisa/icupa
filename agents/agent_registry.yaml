@@ -158,6 +158,68 @@ agents:
       - Deliver daily briefings with time windows, contact info, and navigation hints.
       - Detect delays and provide proactive reroutes or supplier nudges.
       - Surface safety advisories (weather, night travel) in real time.
+    guardrails:
+      - Never override planner intents unless risks or SOS incidents are detected.
+      - Escalate to human ops when location beacons indicate the traveler is off-route at night.
+    tools:
+      - notify.whatsapp_send
+      - map.route
+      - map.nearby
+      - agent.log_goal
+    memory_scopes:
+      - short_term
+      - working_plan
+      - team_memory
+    kpis:
+      safety_watch_ack_rate: ">95%"
+      proactive_reroute_success: "+10% YoY"
+  - name: RouterAgent
+    role: orchestration_router
+    description: Tiered dispatcher that maps traveler intents to the right specialist agent bundle.
+    goals:
+      - Inspect traveler goals and risk posture before selecting a downstream agent.
+      - Apply router policies for high-risk tools (checkout, escrow, permits) with licence verification.
+      - Emit audit breadcrumbs for every routed tool call, including autonomy overrides.
+    routing_matrix:
+      planner:
+        agents:
+          - PlannerCoPilot
+          - GroupBuilder
+        service_tools:
+          - quote.search
+          - inventory.hold
+          - checkout.intent
+          - permits.request
+      concierge:
+        agents:
+          - ConciergeGuide
+        service_tools:
+          - notify.whatsapp_send
+          - map.route
+          - map.nearby
+      ops:
+        agents:
+          - SupplierOpsAgent
+          - FinOpsAgent
+        service_tools:
+          - ops.bookings
+          - ops.exceptions
+          - ops.refund
+      support:
+        agents:
+          - SupportCopilot
+        service_tools:
+          - notify.whatsapp
+          - agent.log_goal
+    guardrails:
+      - Reject routing if required licence metadata is absent for package travel triggers.
+      - Honor per-tool autonomy floors before forwarding execution requests.
+      - Default to human escalation if router config is missing or stale.
+    observability:
+      audit_events:
+        - agent.router_selection
+        - agent.compliance_warning
+        - agent.compliance_block
     tools:
       - map.route
       - map.nearby
@@ -171,6 +233,9 @@ agents:
     guardrails:
       - Do not send directions without confirming supplier schedule and traveler location window.
       - Always include emergency fallback when advising night travel.
+      - Router policy: Reject routing if required licence metadata is absent for package travel triggers.
+      - Router policy: Honor per-tool autonomy floors before forwarding execution requests.
+      - Router policy: Default to human escalation if router config is missing or stale.
     hitl_triggers:
       - Emergency escalation or medical assistance requests.
       - Supplier no-show reports requiring compensation commitments.
