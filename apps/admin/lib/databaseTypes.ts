@@ -10,6 +10,65 @@ export type AdminDatabase = {
       };
     };
   };
+  affiliate: {
+    Tables: {
+      partner: {
+        Row: {
+          id: string;
+          slug: string;
+          name: string;
+          contact_email: string | null;
+          signing_secret: string | null;
+          active: boolean;
+          metadata: unknown;
+          created_at: string;
+          updated_at: string;
+        };
+      };
+      events: {
+        Row: {
+          id: string;
+          partner_id: string | null;
+          partner_slug: string;
+          partner_name: string | null;
+          direction: string;
+          event_type: string;
+          request_id: string | null;
+          signature_status: string;
+          signature_error: string | null;
+          signature_version: string | null;
+          signature: string | null;
+          metadata: unknown;
+          headers: unknown;
+          payload: unknown;
+          raw_body: string | null;
+          created_at: string;
+        };
+      };
+    };
+    Views: {
+      events_view: {
+        Row: {
+          id: string;
+          created_at: string;
+          direction: string;
+          event_type: string;
+          request_id: string | null;
+          partner_id: string | null;
+          partner_slug: string;
+          partner_name: string | null;
+          signature_version: string | null;
+          signature: string | null;
+          signature_status: string;
+          signature_error: string | null;
+          metadata: unknown;
+          headers: unknown;
+          payload: unknown;
+          raw_body: string | null;
+        };
+      };
+    };
+  };
   ops: {
     Tables: {
       console_feature_flags: {

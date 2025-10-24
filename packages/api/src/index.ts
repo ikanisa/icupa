@@ -1,4 +1,6 @@
 import {
+  AffiliateOutboundInput,
+  AffiliateOutboundResult,
   CheckoutInput,
   ContributionCreate,
   EscrowCreate,
@@ -236,6 +238,13 @@ const descriptors = {
       status: z.string().optional(),
       message: z.string().optional(),
     }),
+  },
+  "affiliate.outbound": {
+    path: "/functions/v1/affiliate-outbound",
+    method: "POST",
+    auth: "user",
+    input: AffiliateOutboundInput,
+    output: AffiliateOutboundResult,
   },
   "privacy.request": {
     path: "/functions/v1/privacy-request",
