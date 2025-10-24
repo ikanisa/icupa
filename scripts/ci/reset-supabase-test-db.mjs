@@ -10,10 +10,10 @@ const candidateConfigs = [
   resolve(repoRoot, 'supabase/config.toml'),
 ];
 const configPath = candidateConfigs.find((path) => existsSync(path));
-const seedFile = resolve(repoRoot, 'supabase/seed/seed.sql');
+const SUPABASE_CLI = 'supabase';
 
 function hasSupabaseCli() {
-  const result = spawnSync('supabase', ['--version'], {
+  const result = spawnSync(SUPABASE_CLI, ['--version'], {
     cwd: repoRoot,
     stdio: 'ignore',
   });
@@ -44,11 +44,11 @@ if (!hasSupabaseCli()) {
 }
 
 try {
-  run('supabase', ['db', 'reset', '--config', configPath, '--no-confirm']);
-  if (existsSync(seedFile)) {
-    run('supabase', ['db', 'execute', '--file', seedFile, '--config', configPath]);
-  }
-  console.info('[supabase] Local database reset and seeded.');
+  const projectRoot = resolve(dirname(configPath), '..');
+  const cliArgs = ['--workdir', projectRoot, '--yes'];
+
+  run(SUPABASE_CLI, [...cliArgs, 'db', 'reset']);
+  console.info('[supabase] Local database reset (seeds run via config.sql_paths when enabled).');
 } catch (error) {
   if (process.env.CI) {
     console.error('[supabase] Failed to reset local database:', error);

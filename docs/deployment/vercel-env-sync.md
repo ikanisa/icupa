@@ -19,7 +19,7 @@ Track and audit the environment variables synced into the Vercel Preview and Pro
 ## Preview-only Variables
 | Key | Purpose | Status | Notes |
 | --- | --- | --- | --- |
-| `PLAYWRIGHT_BASE_URL` | CI smoke tests | ⚠️ Pending | Populate with the preview deployment URL to skip dev-server boot during `verify-full`. |
+| `PLAYWRIGHT_BASE_URL` | CI smoke tests | ✅ (`https://staging.icupa.dev`) | Points Playwright at the evergreen staging deployment so `verify-full` skips the local dev server. |
 | `SUPABASE_ACCESS_TOKEN` | Supabase CLI auth | ✅ | Enables CLI migrations in GitHub Actions and local automation. |
 
 ## Production-only Variables
