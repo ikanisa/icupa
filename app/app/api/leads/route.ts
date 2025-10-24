@@ -14,6 +14,40 @@ function invalid(message: string, status = 400) {
   return NextResponse.json({ ok: false, message }, { status });
 }
 
+type MissingCredentialAlert = {
+  missingSecrets: string[];
+  leadEmailDomain: string;
+};
+
+const missingSupabaseAlertWebhookUrl =
+  process.env.SUPABASE_MISSING_CREDENTIALS_ALERT_WEBHOOK_URL;
+
+async function alertMissingSupabaseCredentials(
+  payload: MissingCredentialAlert,
+) {
+  if (!missingSupabaseAlertWebhookUrl) return;
+
+  try {
+    await fetch(missingSupabaseAlertWebhookUrl, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        level: "FATAL",
+        event: "marketing.lead.supabase_credentials_missing",
+        ...payload,
+      }),
+    });
+  } catch (error) {
+    console.error(
+      JSON.stringify({
+        level: "ERROR",
+        event: "marketing.lead.alert_dispatch_failed",
+        message: error instanceof Error ? error.message : String(error),
+      }),
+    );
+  }
+}
+
 export async function POST(request: Request) {
   const supabaseUrl = process.env.SUPABASE_URL;
   const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -51,9 +85,36 @@ export async function POST(request: Request) {
         leadEmailDomain: emailDomain,
       }),
     );
-    return NextResponse.json(
-      { ok: true, leadName: name, fallback: "env_missing" },
-      { status: 202 },
+    const missingSecrets = [
+      supabaseUrl ? undefined : "SUPABASE_URL",
+      serviceRole ? undefined : "SUPABASE_SERVICE_ROLE_KEY",
+    ].filter((value): value is string => Boolean(value));
+
+    console.error(
+      JSON.stringify({
+        level: "ERROR",
+        event: "marketing.lead.supabase_credentials_missing",
+        message: "Supabase credentials missing; failing request.",
+        missingSecrets,
+        leadEmailDomain: emailDomain,
+      }),
+    );
+
+    await alertMissingSupabaseCredentials({
+      leadEmailDomain: emailDomain,
+      missingSecrets,
+    });
+
+    if (process.env.__LEGACY_SUPABASE_FALLBACK === "true") {
+      return NextResponse.json(
+        { ok: true, leadName: name, fallback: "env_missing" },
+        { status: 202 },
+      );
+    }
+
+    return invalid(
+      "We're experiencing configuration issues. Please try again in a few minutes.",
+      503,
     );
   }
 
