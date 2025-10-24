@@ -1,5 +1,5 @@
 import { CardGlass } from "@ecotrips/ui";
-import { InvoiceGenerateInput } from "@ecotrips/types";
+import { InvoiceGenerateInput, RefundPolicySummarizeInput } from "@ecotrips/types";
 import { z } from "zod";
 
 import { getOpsFunctionClient } from "../../../lib/functionClient";
@@ -7,6 +7,7 @@ import { logAdminAction } from "../../../lib/logging";
 
 import { InvoiceGenerateForm, type InvoiceFormState } from "./InvoiceGenerateForm";
 import { RefundForm, type RefundFormState } from "./RefundForm";
+import { RefundPolicySummaryPanel, type RefundPolicySummaryState } from "./RefundPolicySummaryPanel";
 
 async function generateInvoiceAction(_: InvoiceFormState, formData: FormData): Promise<InvoiceFormState> {
   "use server";
@@ -121,40 +122,115 @@ async function submitRefundAction(_: RefundFormState, formData: FormData): Promi
   }
 }
 
+async function summarizeRefundPolicyAction(
+  _: RefundPolicySummaryState,
+  formData: FormData,
+): Promise<RefundPolicySummaryState> {
+  "use server";
+
+  const parsed = RefundPolicySummarizeInput.safeParse({
+    itinerary_id: String(formData.get("itineraryId") ?? "").trim(),
+    policy_text: (() => {
+      const value = String(formData.get("policyText") ?? "").trim();
+      return value.length > 0 ? value : undefined;
+    })(),
+  });
+
+  if (!parsed.success) {
+    logAdminAction("finance.refund.policySummarize", { status: "validation_failed" });
+    return { status: "error", message: "Provide a valid itinerary id." };
+  }
+
+  const client = await getOpsFunctionClient();
+  if (!client) {
+    logAdminAction("finance.refund.policySummarize", { status: "offline" });
+    return { status: "offline", message: "Supabase session missing. Sign in again." };
+  }
+
+  const idempotencyKey = crypto.randomUUID();
+
+  try {
+    const response = await client.call("fin.refund.policySummarize", parsed.data, { idempotencyKey });
+    if (!response.ok || !response.summary) {
+      logAdminAction("finance.refund.policySummarize", {
+        status: "error",
+        requestId: response.request_id ?? idempotencyKey,
+      });
+      return { status: "error", message: "Policy summary unavailable." };
+    }
+
+    logAdminAction("finance.refund.policySummarize", {
+      status: "success",
+      requestId: response.request_id ?? idempotencyKey,
+      risk: response.summary.risk_grade,
+      highlights: response.summary.highlights.length,
+    });
+
+    return {
+      status: "success",
+      summary: response.summary,
+      requestId: response.request_id ?? idempotencyKey,
+      detail:
+        response.summary.context ??
+        `Highlights generated: ${response.summary.highlights.length}`,
+    };
+  } catch (error) {
+    console.error("fin.refund.policySummarize", error);
+    logAdminAction("finance.refund.policySummarize", {
+      status: "error",
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return { status: "error", message: "Check withObs logs for policy telemetry." };
+  }
+}
+
 export default function FinancePage() {
   return (
     <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-      <CardGlass title="Finance ledger" subtitle="Invoices, refunds, and payouts recorded with HITL guardrails.">
-        <p className="text-sm text-white/80">
-          Generate invoices directly from ledger payments. Signed URLs are short-lived; store them in secure channels and audit
-          every action using structured logs.
-        </p>
-        <InvoiceGenerateForm action={generateInvoiceAction} />
-        <div className="mt-6">
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white/60">Submit refund</h3>
-          <RefundForm action={submitRefundAction} />
-        </div>
-        <div className="rounded-2xl border border-white/10 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-            <div>
-              <p className="text-xs uppercase tracking-wide text-white/60">REF-104</p>
-              <p className="text-white/80">Stripe refund request</p>
-            </div>
-            <div className="text-right text-xs text-white/60">
-              <p>USD 860.00</p>
-              <p>Pending HITL approval</p>
-            </div>
+      <div className="space-y-6">
+        <CardGlass title="Finance ledger" subtitle="Invoices, refunds, and payouts recorded with HITL guardrails.">
+          <p className="text-sm text-white/80">
+            Generate invoices directly from ledger payments. Signed URLs are short-lived; store them in secure channels and audit
+            every action using structured logs.
+          </p>
+          <InvoiceGenerateForm action={generateInvoiceAction} />
+          <div className="mt-6">
+            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white/60">Submit refund</h3>
+            <RefundForm action={submitRefundAction} />
           </div>
-          <p className="mt-3 text-xs text-white/60">Ledger entry append ensures audit trail and dual control.</p>
-        </div>
-      </CardGlass>
-      <CardGlass title="Guardrails" subtitle="FinOps approvals require dual control and observability.">
-        <ul className="space-y-2 text-sm text-white/80">
-          <li>• payments-refund edge function logs structured telemetry with request IDs.</li>
-          <li>• fin-ledger-append enforces allowed entry types and idempotency.</li>
-          <li>• fin-invoice-generate writes signed URLs to Storage invoices/ bucket.</li>
-        </ul>
-      </CardGlass>
+          <div className="rounded-2xl border border-white/10 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-white/60">REF-104</p>
+                <p className="text-white/80">Stripe refund request</p>
+              </div>
+              <div className="text-right text-xs text-white/60">
+                <p>USD 860.00</p>
+                <p>Pending HITL approval</p>
+              </div>
+            </div>
+            <p className="mt-3 text-xs text-white/60">Ledger entry append ensures audit trail and dual control.</p>
+          </div>
+        </CardGlass>
+        <CardGlass title="Refund policy insights" subtitle="Summaries from refund-policy-summarize keep operators aligned.">
+          <p className="text-sm text-white/80">
+            Request a stubbed policy breakdown before approving manual refunds. Highlights are safe to share in runbooks while we
+            wire real NLP into the workflow.
+          </p>
+          <div className="mt-4">
+            <RefundPolicySummaryPanel action={summarizeRefundPolicyAction} />
+          </div>
+        </CardGlass>
+      </div>
+      <div className="space-y-6">
+        <CardGlass title="Guardrails" subtitle="FinOps approvals require dual control and observability.">
+          <ul className="space-y-2 text-sm text-white/80">
+            <li>• payments-refund edge function logs structured telemetry with request IDs.</li>
+            <li>• fin-ledger-append enforces allowed entry types and idempotency.</li>
+            <li>• fin-invoice-generate writes signed URLs to Storage invoices/ bucket.</li>
+          </ul>
+        </CardGlass>
+      </div>
     </div>
   );
 }

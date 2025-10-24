@@ -18,3 +18,4 @@ SUPABASE_TEST_ANON_KEY,no,test,server,tools/tests/contracts.mjs,Falls back to se
 OPS_BYPASS_ALERT_WEBHOOK_URL,no,runtime,server,ops/console/lib/bypass-alert.ts,Optional webhook for bypass alerts
 VERCEL_ENV,no,build,server,ops/console/lib/env.ts,Provided by Vercel; used to categorize environment
 NODE_ENV,no,build,server,ops/console/lib/env.ts,Standard Node environment variable referenced by env util
+NEXT_PUBLIC_CHECKOUT_ALLOW_ANON,no,runtime,client,apps/client,Set to "1" to allow checkout without Supabase session in previews.

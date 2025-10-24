@@ -12,3 +12,4 @@ export * from "./domains/supplier";
 export * from "./domains/flags";
 export * from "./domains/admin";
 export * from "./supabase";
+export * from "./optimizer";

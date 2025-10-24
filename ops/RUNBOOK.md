@@ -88,6 +88,22 @@ curl -s \
 - Live view access requires the caller to have `core.profiles.persona = 'ops'` (see `ops/ACCESS.md`).
 - After toggling, the next request automatically switches source; redeploy only if code changes.
 
+## Catalog search index
+```sh
+curl -s -X POST "https://woyknezboamabahknmjr.supabase.co/functions/v1/search-index-populate" \
+  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Content-Type: application/json"
+```
+- Seeds `catalog.search_index` with curated fixtures. `seeded` reflects upserts; `fallback=true` means Supabase service role env is missing.
+```sh
+curl -s -X POST "https://woyknezboamabahknmjr.supabase.co/functions/v1/search-places" \
+  -H "apikey: $SUPABASE_ANON_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"kigali","limit":5}'
+```
+- Returns ranked suggestions with `matches` for highlighting. Offline mode sets `source="fixtures"` and `fallback=true` so the client can show cached autosuggest data.
+
 ## Inventory triage
 - **Circuit breaker state**: `AUDIT inventory.search` / `AUDIT inventory.quote` logs include `circuit`=`closed|open|half-open`. If stuck `open`, the cooldown is 60s; cached responses (`source="cache-stale"`) continue serving.
 - **Rate limit pressure**: When HBX returns `429`, the functions retry up to 3 times with exponential backoff (250ms, 500ms, 1000ms). Persistent rate limits escalate `ERROR_CODES.RATE_LIMITED`; wait at least 60s before reattempting bulk calls.

@@ -4,11 +4,15 @@ import {
   GroupsOpsPayoutNowInput,
   GroupsPayoutReportQuery,
   InvoiceGenerateInput,
+  RefundPolicySummarizeInput,
+  RefundPolicySummarizeResponse,
   PrivacyErasureExecuteInput,
   PrivacyErasurePlanInput,
   PrivacyExportInput,
   PrivacyRequestInput,
   PrivacyReviewInput,
+  PIIScanInput,
+  PIIScanResponse,
 } from "@ecotrips/types";
 import { z } from "zod";
 
@@ -40,6 +44,13 @@ type RequestOptions = {
 
 type FunctionMap = {
   [K in keyof typeof descriptors]: (typeof descriptors)[K];
+};
+
+type MapsClient = {
+  tilesList(
+    input?: z.infer<typeof MapsTilesListInput>,
+    options?: RequestOptions,
+  ): Promise<z.infer<typeof MapsTilesListResponse>>;
 };
 
 const paginatedResponse = z.object({
@@ -75,6 +86,13 @@ const descriptors = {
     input: CheckoutInput,
     output: z.object({ ok: z.boolean(), payment_intent_id: z.string().optional(), client_secret: z.string().optional(), ledger_entry_id: z.string().optional() }),
   },
+  "checkout.escalate": {
+    path: "/functions/v1/payment-escalate",
+    method: "POST",
+    auth: "user",
+    input: PaymentEscalationInput,
+    output: PaymentEscalationResponse,
+  },
   "groups.create": {
     path: "/functions/v1/groups-create-escrow",
     method: "POST",
@@ -95,6 +113,14 @@ const descriptors = {
     auth: "user",
     input: ContributionCreate,
     output: z.object({ ok: z.boolean(), contribution_id: z.string().uuid().optional() }),
+  },
+  "groups.suggest": {
+    path: "/functions/v1/groups-suggest",
+    method: "POST",
+    auth: "anon",
+    input: GroupSuggestionInput,
+    output: GroupSuggestionResponse,
+    cacheTtlMs: 30_000,
   },
   "permits.request": {
     path: "/functions/v1/permits-request",
@@ -204,6 +230,13 @@ const descriptors = {
       reused: z.boolean().optional(),
     }),
   },
+  "fin.refund.policySummarize": {
+    path: "/functions/v1/refund-policy-summarize",
+    method: "POST",
+    auth: "user",
+    input: RefundPolicySummarizeInput,
+    output: RefundPolicySummarizeResponse,
+  },
   "ops.refund": {
     path: "/functions/v1/ops-refund",
     method: "POST",
@@ -220,6 +253,13 @@ const descriptors = {
       status: z.string().optional(),
       message: z.string().optional(),
     }),
+  },
+  "affiliate.outbound": {
+    path: "/functions/v1/affiliate-outbound",
+    method: "POST",
+    auth: "user",
+    input: AffiliateOutboundInput,
+    output: AffiliateOutboundResult,
   },
   "privacy.request": {
     path: "/functions/v1/privacy-request",
@@ -287,6 +327,13 @@ const descriptors = {
         .optional(),
     }),
   },
+  "privacy.pii.scan": {
+    path: "/functions/v1/privacy-pii-scan",
+    method: "POST",
+    auth: "user",
+    input: PIIScanInput,
+    output: PIIScanResponse,
+  },
   "dr.snapshot": {
     path: "/functions/v1/dr-snapshot",
     method: "POST",
@@ -335,10 +382,19 @@ export type DescriptorKey = keyof FunctionMap;
 export class EcoTripsFunctionClient {
   private readonly fetchImpl: typeof fetch;
   private readonly timeoutMs: number;
+  readonly maps: MapsClient;
 
   constructor(private readonly options: ClientOptions) {
     this.fetchImpl = options.fetch ?? fetch;
     this.timeoutMs = options.defaultTimeoutMs ?? DEFAULT_TIMEOUT_MS;
+    this.maps = {
+      tilesList: (input, options) =>
+        this.call(
+          "maps.tiles.list",
+          (input ?? {}) as z.infer<FunctionMap["maps.tiles.list"]["input"]>,
+          options,
+        ),
+    };
   }
 
   async call<K extends DescriptorKey>(
@@ -437,6 +493,8 @@ export function createEcoTripsFunctionClient(options: ClientOptions) {
 }
 
 export const functionDescriptors = descriptors;
+
+export * from "./mapRoute";
 
 function buildQueryString(input: unknown): string {
   if (!input || typeof input !== "object") {
