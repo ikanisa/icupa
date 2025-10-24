@@ -1,0 +1,106 @@
+[
+  {
+    "id": "eco-lodge-001",
+    "name": "Volcano Trails Eco Lodge",
+    "headline": "Solar-powered pods with private gorilla trek permits",
+    "city": "Musanze",
+    "country": "Rwanda",
+    "region": "Volcanoes National Park",
+    "tags": ["gorilla", "solar", "all-inclusive"],
+    "min_nights": 3,
+    "max_nights": 7,
+    "sleeps": { "adults": 4, "children": 1 },
+    "from_price_cents": 118000,
+    "currency": "USD",
+    "availability": {
+      "lead_days_min": 30,
+      "season": "June-September",
+      "guaranteed_departures_per_week": 2
+    },
+    "amenities": ["private chef", "porter team", "carbon offsets"],
+    "experiences": [
+      "Gorilla trekking with Silverback trackers",
+      "Nyakagezi community coffee workshop",
+      "Night sky astrophotography"
+    ],
+    "updated_at": "2024-04-28T00:00:00Z"
+  },
+  {
+    "id": "lake-retreat-104",
+    "name": "Lake Kivu Sunrise Retreat",
+    "headline": "Floating villas with restorative spa and permaculture kitchen",
+    "city": "Rubavu",
+    "country": "Rwanda",
+    "region": "Lake Kivu",
+    "tags": ["wellness", "watersport", "community"],
+    "min_nights": 2,
+    "max_nights": 10,
+    "sleeps": { "adults": 2, "children": 2 },
+    "from_price_cents": 62000,
+    "currency": "USD",
+    "availability": {
+      "lead_days_min": 14,
+      "season": "Year-round",
+      "blackout_dates": ["2024-12-20", "2024-12-31"]
+    },
+    "amenities": ["floating sauna", "kayaks", "chef's tasting menu"],
+    "experiences": [
+      "Sunrise paddle boarding",
+      "Women's fishing cooperative visit",
+      "Night glow bioluminescence cruise"
+    ],
+    "updated_at": "2024-04-12T00:00:00Z"
+  },
+  {
+    "id": "savanna-mobile-207",
+    "name": "Akagera Mobile Safari Camp",
+    "headline": "Low-impact mobile camp with conservation rangers",
+    "city": "Akagera",
+    "country": "Rwanda",
+    "region": "Akagera National Park",
+    "tags": ["big five", "mobile", "conservation"],
+    "min_nights": 3,
+    "max_nights": 6,
+    "sleeps": { "adults": 6, "children": 2 },
+    "from_price_cents": 134500,
+    "currency": "USD",
+    "availability": {
+      "lead_days_min": 45,
+      "season": "July-October",
+      "guaranteed_departures_per_week": 1
+    },
+    "amenities": ["field kitchen", "night vision safaris", "ranger briefings"],
+    "experiences": [
+      "Conservation drive with telemetry",
+      "Boat safari on Lake Ihema",
+      "Night sky ranger storytelling"
+    ],
+    "updated_at": "2024-03-30T00:00:00Z"
+  },
+  {
+    "id": "culture-atelier-305",
+    "name": "Kigali Culture Atelier",
+    "headline": "Design-forward boutique with art residencies and culinary labs",
+    "city": "Kigali",
+    "country": "Rwanda",
+    "region": "Kigali City",
+    "tags": ["art", "culinary", "nightlife"],
+    "min_nights": 1,
+    "max_nights": 5,
+    "sleeps": { "adults": 2, "children": 0 },
+    "from_price_cents": 28500,
+    "currency": "USD",
+    "availability": {
+      "lead_days_min": 5,
+      "season": "Year-round",
+      "blackout_dates": []
+    },
+    "amenities": ["rooftop gallery", "chef incubator", "mixology lab"],
+    "experiences": [
+      "Night market culinary crawl",
+      "Studio visit with resident artist",
+      "Sunrise yoga on art terrace"
+    ],
+    "updated_at": "2024-05-02T00:00:00Z"
+  }
+]

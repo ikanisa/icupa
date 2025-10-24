@@ -1,0 +1,19 @@
+<svg width="1200" height="700" viewBox="0 0 1200 700" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Nordic Regeneration illustration</title>
+  <desc id="desc">Stylized aurora over fjords with net-zero cabins.</desc>
+  <defs>
+    <linearGradient id="aurora" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="50%" stop-color="#1d4ed8" />
+      <stop offset="100%" stop-color="#14b8a6" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="700" fill="#020617" />
+  <path d="M0 120 Q300 40 600 180 T1200 160 V0 H0 Z" fill="url(#aurora)" opacity="0.75" />
+  <path d="M0 520 L120 460 L260 520 L420 460 L600 520 L820 450 L980 520 L1100 480 L1200 520 L1200 700 H0 Z" fill="#1f2937" />
+  <g fill="#38bdf8">
+    <rect x="210" y="470" width="80" height="40" rx="6" />
+    <rect x="520" y="470" width="90" height="40" rx="6" />
+    <rect x="880" y="470" width="90" height="40" rx="6" />
+  </g>
+</svg>

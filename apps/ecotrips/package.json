@@ -1,0 +1,38 @@
+{
+  "name": "ecotrips",
+  "private": true,
+  "packageManager": "npm@10.8.2",
+  "engines": {
+    "node": ">=18.17.0 <19"
+  },
+  "workspaces": [
+    "app",
+    "apps/*",
+    "packages/*",
+    "ops/*",
+    "tools"
+  ],
+  "scripts": {
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:map-route": "deno test supabase/functions/map-route",
+    "db:migrate": "supabase migration up",
+    "db:new": "supabase migration new",
+    "format": "deno fmt supabase/functions/**/index.ts",
+    "test:contracts": "node ./tools/tests/contracts.mjs",
+    "test:observability": "node ./tools/tests/observability.mjs",
+    "test:rehearsal": "node ./tools/tests/rehearsals.mjs",
+    "test:ci": "npm run lint && npm run typecheck && npm run test && npm run test:contracts && npm run test:observability && npm run test:map-route",
+    "drill:rollback": "node ./scripts/drills/run-rollback-drill.mjs",
+    "guard:live": "node ./scripts/audit/ensure-live-mode.mjs",
+    "check:binaries": "node ./scripts/audit/ensure-no-binaries.mjs",
+    "perf:smoke": "deno run -A ops/perf/perf_runner.ts --scenario smoke",
+    "build:client": "npm run build --workspace @ecotrips/client",
+    "build:admin": "npm run build --workspace @ecotrips/admin",
+    "build:supplier": "npm run build --workspace @ecotrips/supplier"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.8"
+  }
+}

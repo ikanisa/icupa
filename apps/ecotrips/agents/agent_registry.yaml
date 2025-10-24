@@ -1,0 +1,476 @@
+project_ref: woyknezboamabahknmjr
+channels:
+  primary:
+    - whatsapp
+  voice:
+    status: planned
+    provider: openai_realtime
+memory_store:
+  type: pgvector
+  long_term_disabled: false
+  retention:
+    short_term_turns: 40
+    working_plan_ttl_hours: 48
+observability:
+  traces: otel
+  events:
+    - AUDIT
+    - INFO
+    - WARN
+    - ERROR
+defaults:
+  risk_apetite: balanced
+  ai_usage: heavy
+  tool_timeout_ms: 15000
+memory_scopes:
+  short_term:
+    description: Rolling conversation buffer covering the last 40 user+agent turns.
+    retention: 40_turns
+  working_plan:
+    description: Structured JSON itinerary under construction (days, holds, budget, unresolved tasks).
+    schema_hint: itinerary_plan_v1
+  long_term:
+    description: Embeddings stored in pgvector keyed by user_id with tags (places_liked, pace, diet, language, issues).
+    refresh: nightly
+  team_memory:
+    description: Shared learnings for ops/finops (supplier scores, refund causes, policy updates).
+    governance: ops_review
+agents:
+  - name: PlannerCoPilot
+    role: trip_planner
+    goals:
+      - Convert fuzzy traveler intent into 7-14 day itineraries across budget tiers.
+      - Maintain price integrity, daylight transfers, and target decision time under 20 minutes.
+      - Capture traveler preferences into long-term memory for future reuse.
+    tools:
+      - quote.search
+      - inventory.hold
+      - air.price.watch
+      - checkout.intent
+      - webhook.stripe
+      - permits.request
+      - map.route
+      - b2b.inventory
+      - b2b.lead_intent
+      - notify.whatsapp_send
+      - notify.whatsapp
+      - agent.log_goal
+      - itinerary.assemble
+      - supplier.match
+      - reservation.handle
+    tool_bundles:
+      quote.search:
+        summary: Resolve search and quote steps with caching + fixtures fallback.
+        actions:
+          - key: inventory.search
+            breakdown:
+              endpoint: inventory-search
+              telemetry:
+                - otel.trace
+                - AUDIT inventory.search
+              cache:
+                strategy: cache-first
+                ttl_seconds: 600
+              offline_fixture: ops/fixtures/inventory_search_kigali.json
+          - key: inventory.quote
+            breakdown:
+              endpoint: inventory-quote
+              telemetry:
+                - otel.trace
+                - AUDIT inventory.quote
+              cache:
+                strategy: cache-first
+                ttl_seconds: 120
+              offline_fixture: ops/fixtures/inventory_quote.json
+      inventory.hold:
+        summary: Secure 15-minute room hold with idempotent retries.
+        actions:
+          - key: inventory.hold
+            breakdown:
+              endpoint: inventory-hold
+              idempotency: payload.idempotency_key + Idempotency-Key header
+              expiry_minutes: 15
+              offline_source: fixtures (INVENTORY_OFFLINE=1)
+      itinerary.assemble:
+        summary: Compose itinerary shells and persist line items through booking RPC.
+        actions:
+          - key: itinerary.assemble
+            breakdown:
+              endpoint: itinerary-assemble
+              telemetry:
+                - otel.trace
+                - AUDIT itinerary.assemble
+              storage: booking.itineraries + booking.items
+              compliance:
+                license: ecoTrips.internal.itineraries
+                retention: 30_days
+      supplier.match:
+        summary: Score suppliers and traveler cohorts with pgvector similarity.
+        actions:
+          - key: supplier.match
+            breakdown:
+              endpoint: supplier-match
+              telemetry:
+                - otel.trace
+                - AUDIT supplier.match
+              storage: matching.traveler_embeddings + matching.supplier_embeddings
+              compliance:
+                license: ecoTrips.intent_embeddings
+                retention: 90_days
+      reservation.handle:
+        summary: Maintain reservation ledger entries with supplier confirmations.
+        actions:
+          - key: reservation.handle
+            breakdown:
+              endpoint: reservation-handle
+              telemetry:
+                - otel.trace
+                - AUDIT reservation.handle
+              storage: booking.reservations
+              compliance:
+                license: ecoTrips.supplier_terms
+                retention: 365_days
+      checkout.intent:
+        summary: Bootstrap checkout session with Stripe orchestration.
+        actions:
+          - key: checkout.intent
+            breakdown:
+              endpoint: bff-checkout
+              dependencies:
+                - stripe
+                - ledger
+              telemetry:
+                - otel.trace
+                - AUDIT checkout.intent
+      permits.request:
+        summary: Request park permits with SLA tracking + audit trails.
+        actions:
+          - key: permits.request
+            breakdown:
+              endpoint: permits-request
+              storage: agents.events (AUDIT) + permits tables
+              telemetry:
+                - otel.trace
+      notify.whatsapp_send:
+        summary: Push traveler updates via wa-send with audit logging.
+        actions:
+          - key: notify.whatsapp_send
+            breakdown:
+              endpoint: wa-send
+              channel: whatsapp
+              telemetry:
+                - AUDIT wa.send
+      notify.whatsapp:
+        summary: Compose WhatsApp advisories with route warnings and compliance tags.
+        actions:
+          - key: notify.whatsapp
+            breakdown:
+              endpoint: notify-whatsapp
+              channel: whatsapp
+              telemetry:
+                - AUDIT notify.whatsapp
+              compliance:
+                license: ecoTrips.messaging
+                retention: 90_days
+      chat.voice_call_initiate:
+        summary: Spin up concierge voice call bridges with consent logging.
+        actions:
+          - key: chat.voice_call_initiate
+            breakdown:
+              endpoint: voice-call-initiate
+              telemetry:
+                - AUDIT voice.call.initiate
+              channel: voice
+              compliance:
+                license: ecoTrips.voice.bridge
+                retention: 30_days
+      chat.voice_call_summarize:
+        summary: Summarize and archive concierge voice conversations for compliance.
+        actions:
+          - key: chat.voice_call_summarize
+            breakdown:
+              endpoint: voice-call-summarize
+              telemetry:
+                - AUDIT voice.call.summarize
+              storage: supplier_crm.threads
+              compliance:
+                license: ecoTrips.voice.bridge
+                retention: 30_days
+      air.price.watch:
+        summary: Register fare watches with traveler contact metadata and audit trails.
+        actions:
+          - key: air.price.watch
+            breakdown:
+              endpoint: air-price-watch
+              telemetry:
+                - otel.trace
+                - AUDIT air.price.watch
+              storage: agents.events (AUDIT)
+              retention: 30_days
+      agent.log_goal:
+        summary: Persist traveler goals for orchestration alignment.
+        actions:
+          - key: agent.log_goal
+            breakdown:
+              endpoint: agent-log-goal
+              storage: agents.events (AUDIT)
+              telemetry:
+                - otel.trace
+    memory_scopes:
+      - short_term
+      - working_plan
+      - long_term
+    guardrails:
+      - No checkout or payment intent without explicit traveler confirmation and idempotency key.
+      - Flag itinerary segments that violate daylight/safety heuristics before presenting.
+      - Surface structured route warnings in chat cards before sharing itineraries.
+    hitl_triggers:
+      - Manual override of permit feasibility outcomes.
+      - High-value booking (> $10k) before confirming payment.
+    kpis:
+      itinerary_to_checkout_conversion: "+5% MoM"
+      average_time_to_decision_minutes: "<= 20"
+  - name: ConciergeGuide
+    role: in_trip_companion
+    goals:
+      - Deliver daily briefings with time windows, contact info, and navigation hints.
+      - Detect delays and provide proactive reroutes or supplier nudges.
+      - Surface safety advisories (weather, night travel) in real time.
+    guardrails:
+      - Never override planner intents unless risks or SOS incidents are detected.
+      - Escalate to human ops when location beacons indicate the traveler is off-route at night.
+    tools:
+      - notify.whatsapp_send
+      - map.route
+      - map.nearby
+      - agent.log_goal
+    memory_scopes:
+      - short_term
+      - working_plan
+      - team_memory
+    kpis:
+      safety_watch_ack_rate: ">95%"
+      proactive_reroute_success: "+10% YoY"
+  - name: RouterAgent
+    role: orchestration_router
+    description: Tiered dispatcher that maps traveler intents to the right specialist agent bundle.
+    goals:
+      - Inspect traveler goals and risk posture before selecting a downstream agent.
+      - Apply router policies for high-risk tools (checkout, escrow, permits) with licence verification.
+      - Emit audit breadcrumbs for every routed tool call, including autonomy overrides.
+    routing_matrix:
+      planner:
+        agents:
+          - PlannerCoPilot
+          - GroupBuilder
+        service_tools:
+          - quote.search
+          - inventory.hold
+          - checkout.intent
+          - permits.request
+      concierge:
+        agents:
+          - ConciergeGuide
+        service_tools:
+          - notify.whatsapp_send
+          - map.route
+          - map.nearby
+      ops:
+        agents:
+          - SupplierOpsAgent
+          - FinOpsAgent
+        service_tools:
+          - ops.bookings
+          - ops.exceptions
+          - ops.refund
+      support:
+        agents:
+          - SupportCopilot
+        service_tools:
+          - notify.whatsapp
+          - agent.log_goal
+    guardrails:
+      - Reject routing if required licence metadata is absent for package travel triggers.
+      - Honor per-tool autonomy floors before forwarding execution requests.
+      - Default to human escalation if router config is missing or stale.
+    observability:
+      audit_events:
+        - agent.router_selection
+        - agent.compliance_warning
+        - agent.compliance_block
+    tools:
+      - map.route
+      - map.nearby
+      - notify.whatsapp_send
+      - notify.whatsapp
+      - ops.bookings
+      - chat.voice_call_initiate
+      - chat.voice_call_summarize
+    memory_scopes:
+      - short_term
+      - working_plan
+      - long_term
+    guardrails:
+      - Do not send directions without confirming supplier schedule and traveler location window.
+      - Always include emergency fallback when advising night travel.
+      - Router policy: Reject routing if required licence metadata is absent for package travel triggers.
+      - Router policy: Honor per-tool autonomy floors before forwarding execution requests.
+      - Router policy: Default to human escalation if router config is missing or stale.
+    hitl_triggers:
+      - Emergency escalation or medical assistance requests.
+      - Supplier no-show reports requiring compensation commitments.
+    kpis:
+      on_time_arrival_rate: ">= 90%"
+      first_message_resolution_rate: ">= 80%"
+  - name: GroupBuilder
+    role: social_savings_orchestrator
+    goals:
+      - Help travelers spin up savings escrows and recruit members until thresholds met.
+      - Track contribution progress and send reminders before deadlines.
+      - Ensure fairness in split-pay allocations and transparency on payout outcomes.
+    tools:
+      - groups.create_escrow
+      - groups.join
+      - groups.contribute
+      - groups.payout_now
+      - groups.payouts_report
+      - notify.whatsapp_send
+    memory_scopes:
+      - short_term
+      - working_plan
+      - long_term
+    guardrails:
+      - Never auto-contribute on behalf of a user; require explicit confirmation per payment.
+      - Highlight currency, target, and refund rules in every escrow summary.
+    hitl_triggers:
+      - Manual payout retries or adjustments outside automated flow.
+      - Escrows flagged for fraud or dispute signals.
+    kpis:
+      escrows_met_rate: ">= 65%"
+      avg_contributors_per_escrow: ">= 3"
+  - name: SupportCopilot
+    role: post_booking_support
+    goals:
+      - Triage inbound issues, retrieve bookings, and gather context fast.
+      - Recommend safe remediation (refund, rebook) while logging audit trails.
+      - Escalate to ops with structured summaries when automation confidence is low.
+    tools:
+      - ops.bookings
+      - ops.exceptions
+      - ops.refund
+      - groups.payout_now
+      - reservation.handle
+      - checkout.intent
+      - notify.whatsapp_send
+      - chat.voice_call_initiate
+      - chat.voice_call_summarize
+    memory_scopes:
+      - short_term
+      - team_memory
+    guardrails:
+      - No refunds, credits, or rebooks without HITL approval and idempotent tokens.
+      - Redact payment identifiers in user-facing messages.
+    hitl_triggers:
+      - Refund or credit issuance.
+      - Rebookings that incur surcharges or supplier penalties.
+    kpis:
+      average_time_to_resolution_minutes: "<= 30"
+      reopen_rate: "< 10%"
+  - name: SupplierOpsAgent
+    role: supplier_operations
+    goals:
+      - Monitor confirmations and SLA compliance across suppliers.
+      - Chase pending exceptions and auto-initiate retries where safe.
+      - Surface supplier performance insights to team memory.
+    tools:
+      - ops.bookings
+      - ops.exceptions
+      - ops.refund
+      - webhook.stripe
+      - groups.payout_now
+      - supplier.match
+      - reservation.handle
+    memory_scopes:
+      - team_memory
+      - long_term
+    guardrails:
+      - Do not auto-cancel supplier bookings; require ops approval.
+      - Respect supplier contact windows and rate limits.
+    hitl_triggers:
+      - Supplier substitution that changes price or category.
+      - Any manual payout adjustment beyond automated rules.
+    kpis:
+      confirmation_sla_met_rate: ">= 95%"
+      exception_backlog_count: "<= 10"
+  - name: FinOpsAgent
+    role: finance_operations
+    goals:
+      - Reconcile payment intents, payouts, and ledger balances daily.
+      - Detect anomalies (duplicate charges, provider mismatch) and escalate.
+      - Produce daily close snapshot for accounting handoff.
+    tools:
+      - checkout.intent
+      - webhook.stripe
+      - groups.payouts_report
+      - ops.refund
+      - groups.payout_now
+    memory_scopes:
+      - team_memory
+      - long_term
+    guardrails:
+      - Never trigger refunds or payouts without dual control confirmation.
+      - Mask financial identifiers in logs except secure sinks.
+    hitl_triggers:
+      - Chargeback response or manual payout overrides.
+      - Ledger adjustments that impact revenue recognition.
+    kpis:
+      approval_ratio: ">= 98%"
+      d_plus_one_reconciliation_match: ">= 99%"
+  - name: ContentMarketingAgent
+    role: marketing_storyteller
+    goals:
+      - Generate itinerary cards, SEO snippets, and post-trip highlights that match brand voice.
+      - Experiment with subject lines and creatives while logging performance.
+      - Coordinate with Planner to ensure content reflects accurate availability.
+    tools:
+      - content.generate_card
+      - map.route
+      - notify.whatsapp_send
+      - quote.search
+    memory_scopes:
+      - long_term
+      - team_memory
+    guardrails:
+      - Do not fabricate availability or prices; cite data sources.
+      - Avoid collecting PII in generated assets.
+    hitl_triggers:
+      - Campaigns featuring new suppliers without QA review.
+      - Any external publication mentioning safety incidents.
+    kpis:
+      creative_ctr: ">= 8%"
+      itinerary_card_accuracy_rate: ">= 99%"
+  - name: SafetyAgent
+    role: safety_monitor
+    goals:
+      - Monitor itineraries for late-night travel, risky routes, or weather alerts.
+      - Provide nearest help locations and emergency contacts instantly.
+      - Coordinate with Concierge and Support for escalations.
+      - Push proactive WhatsApp alerts when hazards require traveler action.
+    tools:
+      - map.route
+      - map.nearby
+      - notify.whatsapp_send
+      - ops.bookings
+    memory_scopes:
+      - short_term
+      - long_term
+      - team_memory
+    guardrails:
+      - Always disclose uncertainty; avoid definitive medical/legal advice.
+      - Escalate to human ops for high-risk scenarios.
+    hitl_triggers:
+      - Emergency services contact initiation.
+      - Route recommendations that conflict with local advisories.
+    kpis:
+      safety_alert_response_time_seconds: "<= 120"
+      incident_close_rate: ">= 95%"

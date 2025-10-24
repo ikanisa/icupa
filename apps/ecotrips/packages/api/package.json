@@ -1,0 +1,23 @@
+{
+  "name": "@ecotrips/api",
+  "version": "0.0.1",
+  "type": "module",
+  "private": true,
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.45.0",
+    "zod": "3.23.8",
+    "@ecotrips/types": "file:../types"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "vitest": "2.1.4"
+  }
+}
