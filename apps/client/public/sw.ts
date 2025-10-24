@@ -95,3 +95,30 @@ function stamp(response: Response) {
     headers,
   });
 }
+
+self.addEventListener("push", (event) => {
+  const pushEvent = event as PushEvent;
+  let payload: Record<string, unknown> = {};
+  try {
+    payload = pushEvent.data?.json?.() ?? {};
+  } catch (_error) {
+    payload = { title: "ecoTrips alert", body: pushEvent.data?.text?.() ?? "" };
+  }
+  const title = typeof payload.title === "string" ? payload.title : "ecoTrips";
+  const body = typeof payload.body === "string" ? payload.body : "Offline push demo";
+  pushEvent.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      data: payload,
+      tag: typeof payload.tag === "string" ? payload.tag : undefined,
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  const notificationEvent = event as NotificationEvent;
+  notificationEvent.notification.close();
+  notificationEvent.waitUntil(
+    clients.openWindow((notificationEvent.notification.data as { url?: string })?.url ?? "/support"),
+  );
+});

@@ -1,5 +1,7 @@
 import { CardGlass, buttonClassName } from "@ecotrips/ui";
 
+import { SosCard } from "./SosCard";
+
 export default function SupportPage() {
   return (
     <div className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 px-4 pb-24 pt-10">
@@ -16,6 +18,9 @@ export default function SupportPage() {
             Request refund
           </a>
         </div>
+      </CardGlass>
+      <CardGlass title="SOS kit" subtitle="Escalation-ready contacts with call and share actions.">
+        <SosCard />
       </CardGlass>
       <CardGlass title="Safety" subtitle="SafetyAgent monitors night travel and weather advisories.">
         <ul className="space-y-2 text-sm text-white/80">

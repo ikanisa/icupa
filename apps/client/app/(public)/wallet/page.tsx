@@ -1,6 +1,7 @@
 import { CardGlass, buttonClassName } from "@ecotrips/ui";
 
 import { WalletOfflinePack } from "../components/WalletOfflinePack";
+import { TripRecapCard } from "./TripRecapCard";
 
 export default function WalletPage() {
   return (
@@ -22,6 +23,9 @@ export default function WalletPage() {
           <li>• Contributions recorded with ledger snapshots and WA notifications.</li>
           <li>• Partial payouts require FinOps HITL approval.</li>
         </ul>
+      </CardGlass>
+      <CardGlass title="Trip recap" subtitle="Generate recap email previews for partner demos.">
+        <TripRecapCard />
       </CardGlass>
     </div>
   );
