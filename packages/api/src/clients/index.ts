@@ -9,6 +9,7 @@ import { createOpsClient, type OpsClient } from "./ops";
 import { createPermitsClient, type PermitsClient } from "./permits";
 import { createPrivacyClient, type PrivacyClient } from "./privacy";
 import { createWalletClient, type WalletClient } from "./wallet";
+import { createUserClient, type UserClient } from "./user";
 
 export type DomainClients = {
   inventory: InventoryClient;
@@ -20,6 +21,7 @@ export type DomainClients = {
   finance: FinanceClient;
   privacy: PrivacyClient;
   dr: DisasterRecoveryClient;
+  user: UserClient;
 };
 
 export function createDomainClients(client: FunctionCaller<FunctionMap>): DomainClients {
@@ -33,6 +35,7 @@ export function createDomainClients(client: FunctionCaller<FunctionMap>): Domain
     finance: createFinanceClient(client),
     privacy: createPrivacyClient(client),
     dr: createDisasterRecoveryClient(client),
+    user: createUserClient(client),
   };
 }
 
@@ -45,3 +48,4 @@ export * from "./ops";
 export * from "./permits";
 export * from "./privacy";
 export * from "./wallet";
+export * from "./user";

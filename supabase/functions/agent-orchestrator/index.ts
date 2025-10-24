@@ -1,5 +1,17 @@
 import { getRequestId, healthResponse, withObs } from "../_obs/withObs.ts";
 import { ERROR_CODES } from "../_obs/constants.ts";
+import {
+  isAutonomyCategory,
+  isAutonomyLevel,
+  isComposerDial,
+  rankAutonomyLevel,
+  type AutonomyCategory,
+  type AutonomyLevel,
+  type ComposerDial,
+} from "../_shared/autonomy.ts";
+import autonomyFixtures from "../../../ops/fixtures/user_autonomy_prefs.json" assert {
+  type: "json",
+};
 
 interface ToolDefinition {
   key: string;
@@ -35,6 +47,56 @@ interface RequestPayload {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE") ??
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+const AUTONOMY_PREFS_FIXTURES = Deno.env.get("AUTONOMY_PREFS_FIXTURES") === "1";
+const AUTONOMY_PREFS_CACHE_TTL_MS = Number(
+  Deno.env.get("AUTONOMY_PREFS_CACHE_MS") ?? "60000",
+);
+const AUTONOMY_DEFAULT_LEVEL: AutonomyLevel = "L1";
+const AUTONOMY_DEFAULT_COMPOSER: ComposerDial = "assist";
+const AUTONOMY_MIN_EXECUTION_LEVEL = 2;
+
+const HIGH_RISK_TOOLS = new Set<string>([
+  "checkout.intent",
+  "ops.refund",
+  "groups.contribute",
+  "groups.create_escrow",
+  "groups.payout_now",
+  "permits.ops_approve",
+  "permits.ops_reject",
+  "webhook.stripe",
+]);
+
+const AGENT_AUTONOMY_CATEGORY: Record<string, AutonomyCategory> = {
+  PlannerCoPilot: "planner",
+  ConciergeGuide: "concierge",
+  GroupBuilder: "planner",
+  SupportCopilot: "support",
+  SupplierOpsAgent: "ops",
+  FinOpsAgent: "ops",
+  ContentMarketingAgent: "marketing",
+};
+
+type StoredAutonomyPreference = {
+  level: AutonomyLevel;
+  composer: ComposerDial;
+  updatedAt?: string;
+  source: "db" | "fixtures";
+};
+
+type AutonomyGateResult = {
+  allowed: boolean;
+  category: AutonomyCategory;
+  level: AutonomyLevel;
+  composer: ComposerDial;
+  source: "db" | "fixtures" | "default";
+  requiredLevel: number;
+};
+
+const AUTONOMY_PREF_CACHE = new Map<
+  string,
+  { expiresAt: number; prefs: Map<AutonomyCategory, StoredAutonomyPreference> }
+>();
 
 const EMBEDDED_REGISTRY: ToolDefinition[] = [
   {
@@ -398,6 +460,7 @@ const handler = withObs(async (req) => {
     typeof payload.agent === "string" && payload.agent.trim().length > 0
       ? payload.agent.trim()
       : "";
+  const autonomyCategory = resolveAutonomyCategory(agentKey);
   if (!agentKey) {
     validationErrors.push("agent is required");
   }
@@ -572,6 +635,35 @@ const handler = withObs(async (req) => {
     }
   }
 
+  let autonomyGate: AutonomyGateResult | null = null;
+  if (toolDef) {
+    if (payload.user_id) {
+      autonomyGate = await evaluateAutonomyGate(
+        payload.user_id,
+        autonomyCategory,
+        toolDef.key,
+        requestId,
+      );
+    } else {
+      autonomyGate = buildDefaultAutonomyGate(autonomyCategory, toolDef.key);
+    }
+
+    if (!dryRun && payload.user_id && autonomyGate && !autonomyGate.allowed) {
+      return jsonResponse({
+        ok: false,
+        error: "autonomy_threshold",
+        autonomy: {
+          category: autonomyGate.category,
+          level: autonomyGate.level,
+          composer: autonomyGate.composer,
+          source: autonomyGate.source,
+          required_level: `L${autonomyGate.requiredLevel}`,
+          allowed: autonomyGate.allowed,
+        },
+      }, 403);
+    }
+  }
+
   const toolRequestId = crypto.randomUUID();
   let plannedTool: Record<string, unknown> | undefined;
   let toolResult: Record<string, unknown> | undefined;
@@ -641,6 +733,17 @@ const handler = withObs(async (req) => {
   if (!dryRun && toolResult) {
     responsePayload.tool_result = toolResult;
   }
+
+  const autonomySnapshot = autonomyGate ??
+    buildDefaultAutonomyGate(autonomyCategory, toolDef?.key ?? null);
+  responsePayload.autonomy = {
+    category: autonomySnapshot.category,
+    level: autonomySnapshot.level,
+    composer: autonomySnapshot.composer,
+    source: autonomySnapshot.source,
+    required_level: `L${autonomySnapshot.requiredLevel}`,
+    allowed: autonomySnapshot.allowed,
+  };
 
   return jsonResponse(responsePayload, 200);
 }, { fn: "agent-orchestrator", defaultErrorCode: ERROR_CODES.UNKNOWN });
@@ -967,6 +1070,162 @@ function serviceHeaders(): Record<string, string> {
     apikey: SERVICE_ROLE_KEY!,
     Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
   };
+}
+
+function resolveAutonomyCategory(agentKey: string): AutonomyCategory {
+  if (isAutonomyCategory(agentKey)) {
+    return agentKey;
+  }
+  return AGENT_AUTONOMY_CATEGORY[agentKey] ?? "planner";
+}
+
+function requiredLevelForTool(toolKey: string | null | undefined): number {
+  if (!toolKey) return AUTONOMY_MIN_EXECUTION_LEVEL;
+  return HIGH_RISK_TOOLS.has(toolKey)
+    ? 4
+    : AUTONOMY_MIN_EXECUTION_LEVEL;
+}
+
+function buildDefaultAutonomyGate(
+  category: AutonomyCategory,
+  toolKey: string | null,
+): AutonomyGateResult {
+  const requiredLevel = requiredLevelForTool(toolKey);
+  const level = AUTONOMY_DEFAULT_LEVEL;
+  const allowed = rankAutonomyLevel(level) >= requiredLevel;
+  return {
+    allowed,
+    category,
+    level,
+    composer: AUTONOMY_DEFAULT_COMPOSER,
+    source: "default",
+    requiredLevel,
+  };
+}
+
+async function evaluateAutonomyGate(
+  userId: string,
+  category: AutonomyCategory,
+  toolKey: string,
+  requestId: string,
+): Promise<AutonomyGateResult> {
+  const prefs = await getAutonomyPreferences(userId, requestId);
+  const pref = prefs.get(category);
+  const level = pref?.level ?? AUTONOMY_DEFAULT_LEVEL;
+  const composer = pref?.composer ?? AUTONOMY_DEFAULT_COMPOSER;
+  const source = pref?.source ?? "default";
+  const requiredLevel = requiredLevelForTool(toolKey);
+  const allowed = rankAutonomyLevel(level) >= requiredLevel;
+  return {
+    allowed,
+    category,
+    level,
+    composer,
+    source,
+    requiredLevel,
+  };
+}
+
+async function getAutonomyPreferences(
+  userId: string,
+  requestId: string,
+): Promise<Map<AutonomyCategory, StoredAutonomyPreference>> {
+  const cached = AUTONOMY_PREF_CACHE.get(userId);
+  const now = Date.now();
+  if (cached && cached.expiresAt > now) {
+    return cached.prefs;
+  }
+
+  if (AUTONOMY_PREFS_FIXTURES) {
+    const prefs = buildFixturePreferences();
+    AUTONOMY_PREF_CACHE.set(userId, {
+      prefs,
+      expiresAt: now + AUTONOMY_PREFS_CACHE_TTL_MS,
+    });
+    return prefs;
+  }
+
+  try {
+    const headers = { ...serviceHeaders(), "Accept-Profile": "app" };
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/app.user_autonomy_prefs?select=category,autonomy_level,composer_mode,updated_at&user_id=eq.${userId}`,
+      { headers },
+    );
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(text || response.statusText);
+    }
+
+    const rows = await response.json() as Array<Record<string, unknown>>;
+    const map = new Map<AutonomyCategory, StoredAutonomyPreference>();
+    for (const row of rows) {
+      const category = row.category;
+      const level = row.autonomy_level;
+      const composer = row.composer_mode;
+      if (
+        isAutonomyCategory(category) &&
+        isAutonomyLevel(level) &&
+        isComposerDial(composer)
+      ) {
+        map.set(category, {
+          level,
+          composer,
+          updatedAt: typeof row.updated_at === "string" ? row.updated_at : undefined,
+          source: "db",
+        });
+      }
+    }
+
+    AUTONOMY_PREF_CACHE.set(userId, {
+      prefs: map,
+      expiresAt: now + AUTONOMY_PREFS_CACHE_TTL_MS,
+    });
+    return map;
+  } catch (error) {
+    console.log(JSON.stringify({
+      level: "WARN",
+      event: "agent.autonomy.fetch_failed",
+      fn: "agent-orchestrator",
+      request_id: requestId,
+      message: (error as Error).message,
+    }));
+    const fallback = new Map<AutonomyCategory, StoredAutonomyPreference>();
+    AUTONOMY_PREF_CACHE.set(userId, {
+      prefs: fallback,
+      expiresAt: now + AUTONOMY_PREFS_CACHE_TTL_MS,
+    });
+    return fallback;
+  }
+}
+
+function buildFixturePreferences(): Map<AutonomyCategory, StoredAutonomyPreference> {
+  const map = new Map<AutonomyCategory, StoredAutonomyPreference>();
+  const items = Array.isArray((autonomyFixtures as { preferences?: unknown }).preferences)
+    ? (autonomyFixtures as { preferences: unknown[] }).preferences
+    : [];
+  const timestamp = new Date().toISOString();
+  for (const entry of items) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      continue;
+    }
+    const category = (entry as Record<string, unknown>).category;
+    const level = (entry as Record<string, unknown>).level;
+    const composer = (entry as Record<string, unknown>).composer;
+    if (
+      isAutonomyCategory(category) &&
+      isAutonomyLevel(level) &&
+      isComposerDial(composer)
+    ) {
+      map.set(category, {
+        level,
+        composer,
+        updatedAt: timestamp,
+        source: "fixtures",
+      });
+    }
+  }
+  return map;
 }
 
 function deepMerge(

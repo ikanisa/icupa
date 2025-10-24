@@ -1,4 +1,12 @@
-import { CheckoutInput, ContributionCreate, EscrowCreate, InventorySearchInput, PermitRequest } from "@ecotrips/types";
+import {
+  AutonomyPreferencesResponse,
+  AutonomyPreferencesUpsertInput,
+  CheckoutInput,
+  ContributionCreate,
+  EscrowCreate,
+  InventorySearchInput,
+  PermitRequest,
+} from "@ecotrips/types";
 import {
   DrSnapshotInput,
   GroupsOpsPayoutNowInput,
@@ -286,6 +294,20 @@ const descriptors = {
         )
         .optional(),
     }),
+  },
+  "user.autonomy.get": {
+    path: "/functions/v1/user-autonomy-save",
+    method: "GET",
+    auth: "user",
+    input: z.object({}).optional(),
+    output: AutonomyPreferencesResponse,
+  },
+  "user.autonomy.save": {
+    path: "/functions/v1/user-autonomy-save",
+    method: "POST",
+    auth: "user",
+    input: AutonomyPreferencesUpsertInput,
+    output: AutonomyPreferencesResponse,
   },
   "dr.snapshot": {
     path: "/functions/v1/dr-snapshot",
