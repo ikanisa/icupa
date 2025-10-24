@@ -6,6 +6,7 @@ import { createEcoTripsFunctionClient } from "@ecotrips/api";
 import type { GroupSuggestion, GroupSuggestionResponse } from "@ecotrips/types";
 
 import { emitAgentEvent } from "../lib/agentTelemetry";
+import { usePlannerRollout } from "./usePlannerRollout";
 
 type ToastState = { id: string; title: string; description?: string } | null;
 
@@ -20,6 +21,7 @@ export function GroupSuggestionChips({
   sessionId: initialSessionId,
   followUp: initialFollowUp,
 }: GroupSuggestionChipsProps) {
+  const plannerRollout = usePlannerRollout();
   const [suggestions, setSuggestions] = useState(initialSuggestions);
   const [sessionId, setSessionId] = useState(initialSessionId ?? null);
   const [followUp, setFollowUp] = useState(initialFollowUp ?? null);
@@ -84,7 +86,9 @@ export function GroupSuggestionChips({
       <div className="flex flex-col gap-3">
         {suggestions.length === 0 ? (
           <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-5 text-sm text-white/70">
-            PlannerCoPilot will surface new ideas once connectivity is restored.
+            {plannerRollout.enabled
+              ? "PlannerCoPilot will surface new ideas once connectivity is restored."
+              : "ConciergeGuide will surface new ideas once connectivity is restored."}
           </div>
         ) : (
           suggestions.map((suggestion) => (
@@ -108,7 +112,7 @@ export function GroupSuggestionChips({
               <div className="flex flex-wrap items-center gap-2">
                 {(suggestion.actions.length > 0
                   ? suggestion.actions
-                  : [{ label: "Ask Planner", intent: "rerun" }]
+                  : [{ label: plannerRollout.enabled ? "Ask Planner" : "Request update", intent: "rerun" }]
                 ).map((action) =>
                   action.href ? (
                     <Button key={`${suggestion.id}-${action.label}`} asChild variant="glass">

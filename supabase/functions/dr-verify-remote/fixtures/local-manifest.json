@@ -1,0 +1,11 @@
+{
+  "snapshot_id": "snap-local-2024-09-15",
+  "label": "daily-dr",
+  "generated_at": "2024-09-15T02:15:00.000Z",
+  "tables": {
+    "core.profiles": { "rows": 1285, "checksum": "8b2137a8" },
+    "booking.itineraries": { "rows": 452, "checksum": "bb12c77d" },
+    "booking.items": { "rows": 1984, "checksum": "b7719f10" },
+    "payment.payments": { "rows": 342, "checksum": "9dd66351" }
+  }
+}

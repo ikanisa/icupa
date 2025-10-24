@@ -163,14 +163,58 @@ export function CheckoutForm({ itineraryId }: { itineraryId: string }) {
     return fallback;
   };
 
-  const submit = async () => {
+  const baseIdempotencyKey = useMemo(() => `intent-${itineraryId}`, [itineraryId]);
+
+  const deriveFailureCode = (error: unknown): string => {
+    const message = error instanceof Error ? error.message : String(error ?? "");
+    if (message.includes("stripe_unavailable") || message.includes("429")) {
+      return "stripe_unavailable";
+    }
+    if (message.toLowerCase().includes("declined")) {
+      return "card_declined";
+    }
+    return "unknown";
+  };
+
+  const resolveEscalation = async (
+    client: Awaited<typeof clientPromise>,
+    payload: CheckoutInput,
+    error: unknown,
+  ) => {
+    if (!client) {
+      setToast({ id: "offline", title: "Offline mode", description: "Cannot load escalation guidance without auth." });
+      return;
+    }
+    const failureCode = deriveFailureCode(error);
+    try {
+      const response = await client.call(
+        "checkout.escalate",
+        {
+          itineraryId: payload.itineraryId,
+          paymentId: intent ?? undefined,
+          failureCode,
+          idempotencyKey: payload.idempotencyKey,
+          amountCents: payload.amountCents,
+          currency: payload.currency,
+        },
+        { idempotencyKey: `escalate-${payload.idempotencyKey}` },
+      );
+      setEscalation(response);
+      setToast({ id: "escalate", title: "Checkout failed", description: response.summary });
+    } catch (escalateError) {
+      console.error("payment-escalate", escalateError);
+      setToast({ id: "error", title: "Checkout failed", description: "Could not load escalation guidance." });
+    }
+  };
+
+  const submit = async (overrides?: Partial<CheckoutInput>) => {
     const parsed = CheckoutInput.safeParse({
       itineraryId,
       quoteId: itineraryId,
-      amountCents: amount,
-      currency,
-      paymentProvider: "stripe",
-      idempotencyKey: `intent-${itineraryId}`,
+      amountCents: overrides?.amountCents ?? amount,
+      currency: overrides?.currency ?? currency,
+      paymentProvider: overrides?.paymentProvider ?? "stripe",
+      idempotencyKey: overrides?.idempotencyKey ?? baseIdempotencyKey,
     });
     if (!parsed.success) {
       const details = parsed.error.issues.map((issue) => issue.message).join("\n");
@@ -282,7 +326,7 @@ export function CheckoutForm({ itineraryId }: { itineraryId: string }) {
       <Button fullWidth disabled={pending} onClick={submit}>
         {pending ? "Creating payment intent…" : "Create payment intent"}
       </Button>
-      {intent && <p className="text-sm text-sky-200">Payment intent {intent}</p>}
+      {checkoutIntent && <p className="text-sm text-sky-200">Payment intent {checkoutIntent}</p>}
       <div className="fixed bottom-24 left-1/2 z-50 w-full max-w-sm -translate-x-1/2">
         {toast && <Toast id={toast.id} title={toast.title} description={toast.description} onDismiss={() => setToast(null)} />}
       </div>

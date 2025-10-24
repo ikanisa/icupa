@@ -1,0 +1,20 @@
+{
+  "conflicts": [
+    {
+      "id": "drive-window-overlap",
+      "day_id": "day-3",
+      "anchor_ids": ["akagera-safari", "lake-kivu-transfer"],
+      "severity": "high",
+      "rationale": "Drive from Akagera to Lake Kivu exceeds max_drive_minutes by 45 minutes while overlapping with daylight-only window.",
+      "recommendation": "Insert sunset buffer in Kigali and push Lake Kivu paddle to morning of day 4."
+    },
+    {
+      "id": "late-night-checkin",
+      "day_id": "day-5",
+      "anchor_ids": ["nyungwe-canopy", "kigali-transfer"],
+      "severity": "medium",
+      "rationale": "Nyungwe canopy walk ends at 18:30 but transfer to Kigali hotel is scheduled to arrive at 23:10, breaching daylight guardrail.",
+      "recommendation": "Overnight near Nyungwe or shift Kigali tasting tour to morning departure."
+    }
+  ]
+}

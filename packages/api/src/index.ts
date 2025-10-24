@@ -1,11 +1,15 @@
 import {
+  AffiliateOutboundInput,
+  AffiliateOutboundResult,
   CheckoutInput,
   ContributionCreate,
   EscrowCreate,
-  GroupSuggestionInput,
-  GroupSuggestionResponse,
   InventorySearchInput,
   PermitRequest,
+  VoiceCallInitiateInput,
+  VoiceCallInitiateResponse,
+  VoiceCallSummarizeInput,
+  VoiceCallSummarizeResponse,
 } from "@ecotrips/types";
 import {
   DrSnapshotInput,
@@ -82,6 +86,13 @@ const descriptors = {
     auth: "user",
     input: CheckoutInput,
     output: z.object({ ok: z.boolean(), payment_intent_id: z.string().optional(), client_secret: z.string().optional(), ledger_entry_id: z.string().optional() }),
+  },
+  "checkout.escalate": {
+    path: "/functions/v1/payment-escalate",
+    method: "POST",
+    auth: "user",
+    input: PaymentEscalationInput,
+    output: PaymentEscalationResponse,
   },
   "groups.create": {
     path: "/functions/v1/groups-create-escrow",
@@ -237,6 +248,13 @@ const descriptors = {
       message: z.string().optional(),
     }),
   },
+  "affiliate.outbound": {
+    path: "/functions/v1/affiliate-outbound",
+    method: "POST",
+    auth: "user",
+    input: AffiliateOutboundInput,
+    output: AffiliateOutboundResult,
+  },
   "privacy.request": {
     path: "/functions/v1/privacy-request",
     method: "POST",
@@ -303,6 +321,20 @@ const descriptors = {
         .optional(),
     }),
   },
+  "voice.call.initiate": {
+    path: "/functions/v1/voice-call-initiate",
+    method: "POST",
+    auth: "user",
+    input: VoiceCallInitiateInput,
+    output: VoiceCallInitiateResponse,
+  },
+  "voice.call.summarize": {
+    path: "/functions/v1/voice-call-summarize",
+    method: "POST",
+    auth: "user",
+    input: VoiceCallSummarizeInput,
+    output: VoiceCallSummarizeResponse,
+  },
   "dr.snapshot": {
     path: "/functions/v1/dr-snapshot",
     method: "POST",
@@ -315,6 +347,14 @@ const descriptors = {
       bytes: z.number().optional(),
       sha256: z.string().optional(),
     }),
+  },
+  "search.places": {
+    path: "/functions/v1/search-places",
+    method: "POST",
+    auth: "anon",
+    input: SearchPlacesInput,
+    output: SearchPlacesResponse,
+    cacheTtlMs: 15_000,
   },
 } satisfies Record<string, FunctionDescriptor<z.ZodTypeAny, z.ZodTypeAny>>;
 
