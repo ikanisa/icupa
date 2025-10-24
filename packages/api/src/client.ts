@@ -11,6 +11,7 @@ export class EcoTripsFunctionClient {
   readonly inventory: DomainClients["inventory"];
   readonly growth: DomainClients["growth"];
   readonly checkout: DomainClients["checkout"];
+  readonly concierge: DomainClients["concierge"];
   readonly groups: DomainClients["groups"];
   readonly permits: DomainClients["permits"];
   readonly wallet: DomainClients["wallet"];
@@ -32,6 +33,7 @@ export class EcoTripsFunctionClient {
     this.inventory = domains.inventory;
     this.growth = domains.growth;
     this.checkout = domains.checkout;
+    this.concierge = domains.concierge;
     this.groups = domains.groups;
     this.permits = domains.permits;
     this.wallet = domains.wallet;
