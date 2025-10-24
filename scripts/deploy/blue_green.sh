@@ -39,4 +39,13 @@ aws s3 sync "$CONSOLE_BUILD_DIR" "s3://ecotrips-console-$PROJECT_REF-blue" --del
 
 set +x
 
+base_url="https://${PROJECT_REF}.supabase.co/functions/v1"
+echo "Growth endpoints staged:"
+echo "  referral-link: ${base_url}/referral-link"
+echo "  reward-grant: ${base_url}/reward-grant"
+echo "  price-lock-offer: ${base_url}/price-lock-offer"
+echo "  hold-extend-offer: ${base_url}/hold-extend-offer"
+echo "  providers-air-status: ${base_url}/providers-air-status"
+echo "  rebook-suggest: ${base_url}/rebook-suggest"
+
 echo "Blue/green deploy queued. Complete the traffic switch via CDN configuration."

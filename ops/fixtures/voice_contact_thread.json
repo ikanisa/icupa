@@ -1,0 +1,95 @@
+{
+  "thread": {
+    "id": "thread-ops-ank-001",
+    "subject": "Sunrise gorilla trek pickup",
+    "traveler": {
+      "name": "Anika Uwimana",
+      "phone": "+250 788 123 456",
+      "itinerary_id": "7a7c4b66-6f1e-4b63-a215-5f7f9c0eaa20"
+    },
+    "entries": [
+      {
+        "id": "msg-001",
+        "type": "message",
+        "author": "traveler",
+        "channel": "whatsapp",
+        "sent_at": "2025-01-13T19:06:24.000Z",
+        "body": "Hi team, just confirming tomorrow's pickup time for the gorilla trek."
+      },
+      {
+        "id": "msg-002",
+        "type": "message",
+        "author": "ops",
+        "channel": "whatsapp",
+        "sent_at": "2025-01-13T19:07:58.000Z",
+        "body": "Muraho Anika! Driver Aimable will meet you in the Serena lobby at 05:30. Reply 1 to confirm or 2 if you need any adjustments."
+      },
+      {
+        "id": "note-003",
+        "type": "note",
+        "author": "supportcopilot",
+        "channel": "system",
+        "sent_at": "2025-01-13T19:12:41.000Z",
+        "body": "SupportCopilot flagged night transfer risk if departure slips past 18:30. Ops to monitor driver check-in at 21:00."
+      }
+    ]
+  },
+  "voice_call": {
+    "call_id": "call-fixture-ank-001",
+    "dialer_url": "https://voice.ecotrips.dev/mock/call-fixture-ank-001",
+    "agent": {
+      "name": "Claire (Duty Manager)",
+      "extension": "ops-771"
+    },
+    "participant": {
+      "name": "Anika Uwimana",
+      "phone": "+250 788 123 456"
+    },
+    "expires_in_seconds": 420
+  },
+  "transcript": [
+    {
+      "speaker": "agent",
+      "timestamp": "2025-01-13T19:14:03.000Z",
+      "text": "Hi Anika, this is Claire from ecoTrips ops. Can we go over the trek pickup for tomorrow?"
+    },
+    {
+      "speaker": "traveler",
+      "timestamp": "2025-01-13T19:14:11.000Z",
+      "text": "Muraho Claire! Yes please. I just wanted to be sure the driver comes with enough time for the permit check."
+    },
+    {
+      "speaker": "agent",
+      "timestamp": "2025-01-13T19:14:32.000Z",
+      "text": "Absolutely. Aimable confirmed 05:30 pickup and will be in a white Toyota Prado, plate RAD 472Q."
+    },
+    {
+      "speaker": "traveler",
+      "timestamp": "2025-01-13T19:14:55.000Z",
+      "text": "Perfect. Could the hotel pack breakfast since we'll leave before service opens?"
+    },
+    {
+      "speaker": "agent",
+      "timestamp": "2025-01-13T19:15:08.000Z",
+      "text": "Already arranged—chef will have a breakfast box at reception by 04:45. I'll text the confirmation plus driver plate tonight."
+    },
+    {
+      "speaker": "traveler",
+      "timestamp": "2025-01-13T19:15:22.000Z",
+      "text": "That is great, thank you."
+    }
+  ],
+  "summary": {
+    "headline": "Confirmed dawn pickup with breakfast ready for gorilla trek",
+    "sentiment": "positive",
+    "highlights": [
+      "Driver Aimable reconfirmed for 05:30 Serena Hotel lobby pickup in plate RAD 472Q",
+      "Hotel preparing take-away breakfast box for 04:45 handoff"
+    ],
+    "next_steps": [
+      "Send WhatsApp follow-up with driver plate once roster publishes at 21:00",
+      "Set reminder to ping driver at 21:00 for status check"
+    ],
+    "duration_seconds": 312
+  }
+}

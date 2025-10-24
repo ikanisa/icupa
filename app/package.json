@@ -19,6 +19,8 @@
   "dependencies": {
     "@ecotrips/config": "file:../packages/config",
     "@supabase/supabase-js": "2.45.4",
+    "@upstash/ratelimit": "2.0.6",
+    "@upstash/redis": "1.35.6",
     "next": "15.5.3",
     "react": "19.1.0",
     "react-dom": "19.1.0",
