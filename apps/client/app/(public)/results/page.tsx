@@ -107,6 +107,7 @@ export default async function ResultsPage({ searchParams }: { searchParams: Reco
             {results.items.map((item, index) => {
               const optionId = typeof item.supplier_hotel_id === "string" ? item.supplier_hotel_id : `option-${index}`;
               const breakdown = breakdowns.get(optionId) ?? breakdowns.get("default");
+              const itinerarySlug = typeof item.id === "string" && item.id.length > 0 ? item.id : "draft";
               return (
                 <li key={optionId} className="rounded-2xl border border-white/10 bg-white/5 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
@@ -119,14 +120,11 @@ export default async function ResultsPage({ searchParams }: { searchParams: Reco
                     </p>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <Link
-                      href={`/itinerary/${item.id ?? optionId ?? "draft"}`}
-                      className={buttonClassName("glass")}
-                    >
+                    <Link href={`/itinerary/${itinerarySlug}`} className={buttonClassName("glass")}>
                       View itinerary
                     </Link>
                     <Link
-                      href={`/itinerary/${item.id ?? optionId ?? "draft"}?action=quote`}
+                      href={`/itinerary/${itinerarySlug}?action=quote`}
                       className={buttonClassName("secondary")}
                     >
                       Request quote
