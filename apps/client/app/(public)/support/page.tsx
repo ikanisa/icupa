@@ -38,6 +38,8 @@ export default async function SupportPage() {
 
 import { SosCard } from "./SosCard";
 
+import { SupportChat } from "../components/SupportChat";
+
 export default function SupportPage() {
   return (
     <PublicPage>
@@ -45,10 +47,17 @@ export default function SupportPage() {
         <p className="text-sm text-white/80">
           Chat with ConciergeGuide for travel nudges or escalate to ops. Refunds, credit notes, and payouts always require HITL approval.
         </p>
-        <ChatOptionModals breakdowns={breakdowns} />
-      </CardGlass>
-      <CardGlass title="SOS kit" subtitle="Escalation-ready contacts with call and share actions.">
-        <SosCard />
+        <div className="mt-4 flex flex-wrap gap-3">
+          <a href="https://wa.me/250789123456" className={buttonClassName("glass")}>
+            Chat on WhatsApp
+          </a>
+          <a href="/support?refund=1" className={buttonClassName("secondary")}>
+            Request refund
+          </a>
+        </div>
+        <div className="mt-6">
+          <SupportChat />
+        </div>
       </CardGlass>
       <CardGlass title="Safety" subtitle="SafetyAgent monitors night travel and weather advisories.">
         <ul className="space-y-2 text-sm text-white/80">

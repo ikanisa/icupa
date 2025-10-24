@@ -14,29 +14,62 @@ export type Database = {
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };
-  app: {
+  travel: {
     Tables: {
-      user_autonomy_prefs: {
+      price_watches: {
         Row: {
-          user_id: string;
-          category: string;
-          autonomy_level: string;
-          composer_mode: string;
+          id: string;
+          created_at: string;
           updated_at: string;
+          origin: string;
+          destination: string;
+          departure_date: string;
+          return_date: string | null;
+          currency: string;
+          target_price_cents: number;
+          contact: string | null;
+          channel: string;
+          status: string;
+          metadata: Json;
+          request_id: string | null;
+          next_refresh_at: string | null;
+          notes: string | null;
         };
         Insert: {
-          user_id: string;
-          category: string;
-          autonomy_level: string;
-          composer_mode?: string;
+          id?: string;
+          created_at?: string;
           updated_at?: string;
+          origin: string;
+          destination: string;
+          departure_date: string;
+          return_date?: string | null;
+          currency?: string;
+          target_price_cents: number;
+          contact?: string | null;
+          channel?: string;
+          status?: string;
+          metadata?: Json;
+          request_id?: string | null;
+          next_refresh_at?: string | null;
+          notes?: string | null;
         };
         Update: {
-          user_id?: string;
-          category?: string;
-          autonomy_level?: string;
-          composer_mode?: string;
+          id?: string;
+          created_at?: string;
           updated_at?: string;
+          origin?: string;
+          destination?: string;
+          departure_date?: string;
+          return_date?: string | null;
+          currency?: string;
+          target_price_cents?: number;
+          contact?: string | null;
+          channel?: string;
+          status?: string;
+          metadata?: Json;
+          request_id?: string | null;
+          next_refresh_at?: string | null;
+          notes?: string | null;
         };
         Relationships: [];
       };
