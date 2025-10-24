@@ -1,0 +1,92 @@
+services:
+  agents-service:
+    build:
+      context: ../..
+      dockerfile: agents-service/Dockerfile
+    image: ghcr.io/icupa/agents-service:latest
+    env_file:
+      - ./agents-service.env
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_SERVICE_NAME: icupa-agents-service
+    networks:
+      - internal
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    depends_on:
+      - otel-collector
+
+  oauth2-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.7.1
+    env_file:
+      - ./oauth2-proxy.env
+    command:
+      - "--http-address=0.0.0.0:4180"
+      - "--upstream=http://agents-service:8787"
+      - "--cookie-secure=true"
+      - "--set-authorization-header=true"
+      - "--set-xauthrequest=true"
+    networks:
+      - internal
+    depends_on:
+      - agents-service
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.agents.rule=Host(`${AGENTS_PUBLIC_HOST}`)"
+      - "traefik.http.routers.agents.entrypoints=websecure"
+      - "traefik.http.routers.agents.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.agents.service=agents-service-protected"
+      - "traefik.http.routers.agents.middlewares=agents-https-redirect"
+      - "traefik.http.routers.agents-web.rule=Host(`${AGENTS_PUBLIC_HOST}`)"
+      - "traefik.http.routers.agents-web.entrypoints=web"
+      - "traefik.http.routers.agents-web.middlewares=agents-https-redirect"
+      - "traefik.http.routers.agents-web.service=agents-service-protected"
+      - "traefik.http.services.agents-service-protected.loadbalancer.server.port=4180"
+      - "traefik.http.services.agents-service-protected.loadbalancer.server.scheme=http"
+      - "traefik.http.middlewares.agents-https-redirect.redirectscheme.scheme=https"
+
+  traefik:
+    image: traefik:v3.1
+    command:
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--certificatesresolvers.letsencrypt.acme.email=${TRAEFIK_ACME_EMAIL}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+      - "--accesslog=true"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik-acme:/letsencrypt
+    networks:
+      - edge
+      - internal
+    depends_on:
+      - oauth2-proxy
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.110.0
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    environment:
+      OTLP_EXPORTER_ENDPOINT: ${OTLP_EXPORTER_ENDPOINT}
+      OTLP_EXPORTER_HEADERS: ${OTLP_EXPORTER_HEADERS:-}
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+    networks:
+      - internal
+
+networks:
+  edge:
+    driver: bridge
+  internal:
+    driver: bridge
+
+volumes:
+  traefik-acme:

@@ -50,6 +50,13 @@ describe('Supabase RLS regressions', () => {
     return;
   }
 
+  if (!supabaseStackOnline()) {
+    it.skip('requires the local Supabase stack to be running (supabase start)', () => {
+      expect(true).toBe(true);
+    });
+    return;
+  }
+
   for (const sqlTest of rlsTests) {
     it(`passes ${sqlTest}`, () => {
       execFileSync('supabase', buildArgs(sqlTest), {

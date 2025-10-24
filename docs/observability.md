@@ -19,3 +19,9 @@
 
 - Logging happens via `console.error`/`console.warn` in Edge Functions. Always redact PII (phone numbers, OTPs, MoMo codes). The ingestion helpers already mask phone numbers (`maskPhone`), and payments helpers log trace IDs.
 - When adding new functions, follow the pattern in `_shared/` modules: return JSON errors with codes, and avoid printing raw request bodies.
+
+## CI pipelines
+
+- After setting the `PLAYWRIGHT_BASE_URL` secret to the staging domain, track the `verify-full` workflow in GitHub Actions → Insights → Workflow for median duration and failure rate deltas. Capture a four-week baseline and note changes in the release journal.
+- Create a saved search in `github.com/icupa/icupa/actions?query=workflow%3Averify-full+event%3Apull_request+status%3Afailure` and review flakes weekly. Annotate known issues in the Linear QA project with links to the failing run.
+- Surface regressions in the DevOps stand-up by exporting the Actions data with `./scripts/ci-metrics.sh ci.yml` and charting runtime P95 vs. success ratio in Looker Studio. Pass a status filter (e.g. `./scripts/ci-metrics.sh ci.yml failure`) to drill into problem runs.

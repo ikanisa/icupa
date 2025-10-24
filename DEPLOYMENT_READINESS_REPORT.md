@@ -2,7 +2,7 @@
 
 ## Overview
 - **Audit date:** 2025-10-21
-- **Node version:** 18.20.4 (pinned via `.nvmrc` and enforced in `package.json` engines)
+- **Node version:** 20.11.1 (pinned via `.nvmrc` and enforced in `package.json` engines)
 - **npm version:** 10.7.0 (documented in `package.json` engines to align workspace tooling)
 - **Package manager:** npm workspaces (`package-lock.json`), bun lockfile removed to avoid drift.
 - **Key artifacts:**
@@ -33,6 +33,7 @@ _All web apps move to Green once the required environment variables listed in `a
 ## Vercel Configuration
 - Per-app `vercel.json` files define install/build commands using npm workspaces and set `output: 'standalone'` in Next.js configs.
 - Root `vercel.json` now includes Vite framework metadata with static output directory `dist`.
+- Run `npm run deploy` to execute a scripted `vercel pull` → `vercel build` → `vercel deploy` flow once secrets are available. The helper automatically loads `.env.deploy`, `.env.preview`, `.env.production.local`, or `.env.local` if present and also supports `--env-file <path>` overrides for bespoke bundles.
 - Follow `audit/vercel-plan.md` to map each Vercel project to its `rootDirectory`, `installCommand`, and `buildCommand`.
 - Recommended secrets for GitHub Actions (per project):
   - `VERCEL_TOKEN`
@@ -59,6 +60,16 @@ _All web apps move to Green once the required environment variables listed in `a
 - Latest dry run from feature branch `work` built with placeholder Supabase credentials and passed smoke QA via `npm run preview -- --host 127.0.0.1 --port 5000`.
 - Preview deploy checklist exercised against temporary Vercel preview URLs (see `docs/deployment/vercel-env-sync.md` for the environment promotion log).
 - Supabase smoke (`scripts/smoke/functions-smoke.sh`) queued for execution once service-role secrets land in the preview environment.
+
+### 2025-10-23 Preview Attempt
+- Attempted to trigger the workspace deployment via `npm run deploy`, but the script is not defined in `package.json`; Vercel preview could not be kicked off from the CLI.
+- Ran `npm run vercel:preflight` to validate readiness. The script halted immediately because required Supabase environment variables (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`) are absent in the shell.
+- Without the missing secrets the preview URL never materialized, so no end-to-end verification of performance reporting (metrics posting, sampling controls, callbacks) was possible in this session.
+
+### 2025-10-24 Preview Attempt
+- Added a non-interactive deployment helper (`npm run deploy`) that shells out to the Vercel CLI with `vercel pull`, `vercel build`, and `vercel deploy` steps.
+- Populated placeholder Supabase environment variables locally; the helper now runs until it calls `vercel pull`.
+- The CLI halted with `ENETUNREACH` because outbound network access to `vercel.com` is blocked in the current environment. A valid `VERCEL_TOKEN` (and optionally `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID`) will still be required once connectivity is restored.
 
 ## Release & Rollback
 - Tag production releases using `git tag vYYYY.MM.DD` on the merge commit and push with `git push origin --tags`. Mirror the tag into Vercel (Project → Deployments → Promote) when promoting preview to production.

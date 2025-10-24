@@ -183,7 +183,7 @@ function buildWaiterSuggestedPrompts(context: AgentSessionContext, output: Waite
 }
 
 async function runAgentWithTimeout(
-  agent: ReturnType<typeof Agent.create>,
+  agent: Agent<AgentSessionContext, any>,
   message: string,
   context: AgentSessionContext,
   timeoutMs = DEFAULT_AGENT_TIMEOUT_MS,
@@ -212,7 +212,7 @@ const tracer = trace.getTracer('icupa-agents-service');
 
 async function executeManagedAgentRun<TOutput>(params: {
   agentType: string;
-  agent: ReturnType<typeof Agent.create>;
+  agent: Agent<AgentSessionContext, any>;
   message: string;
   context: AgentSessionContext;
   toolsUsed: string[];

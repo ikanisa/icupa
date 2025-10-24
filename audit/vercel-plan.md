@@ -1,6 +1,6 @@
 # Vercel Deployment Plan
 
-This repository hosts multiple deployable targets. Each Vercel project should pin Node.js 18 and use npm workspaces from the monorepo root.
+This repository hosts multiple deployable targets. Each Vercel project should pin Node.js 20.11.1 and use npm workspaces from the monorepo root.
 
 ## Monorepo Settings
 - **Install command:** `npm install --include-workspace-root --workspaces`
@@ -16,7 +16,7 @@ This repository hosts multiple deployable targets. Each Vercel project should pi
 - **Build Command:** `npm run build --workspace @icupa/admin --prefix ..`
 - **Dev Command (local):** `npm run dev --workspace @icupa/admin`
 - **Output Directory:** `.next`
-- **Node.js version:** 18
+- **Node.js version:** 20.11.1
 - **Notes:** Requires Supabase URL/keys and optional NEXT_PUBLIC_APP_URL for link building. Next config exports `output: 'standalone'` to enable Vercel auto-lambda packaging.
 
 ### Client App (`apps/client`)

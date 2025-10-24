@@ -4,3 +4,7 @@ project_id = "icupa-local-dev"
 [db]
 # Pin to Postgres 15 to match managed Supabase and ensure bundled extensions (e.g. pgvector) are available.
 major_version = 15
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]

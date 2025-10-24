@@ -37,10 +37,9 @@ export function buildRetrievalTools() {
 }
 
 export function createRunner<TContext>() {
-  return new Runner<TContext>({
+  return new Runner({
     modelProvider: openAIProvider,
     model: config.openai.lowCostModel,
-    maxToolDepth: 3,
   });
 }
 

@@ -1,11 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import { axe } from 'vitest-axe';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { ActionDock } from '@/components/client/ActionDock';
 import { AIChatScreen } from '@/components/client/AIChatScreen';
 import { MenuItemDrawer } from '@/components/client/MenuItemDrawer';
 import { menuItems } from '@/data/menu';
+import { createQueryClient } from '@/modules/core/providers/queryClient';
 
 describe.sequential('Phase 3 diner experience accessibility', () => {
   let originalScrollIntoView: ((options?: ScrollIntoViewOptions | boolean) => void) | undefined;
@@ -21,7 +22,7 @@ describe.sequential('Phase 3 diner experience accessibility', () => {
     }
   });
 
-  const queryClient = new QueryClient();
+  const queryClient = createQueryClient();
 
   it('action dock navigation has no critical accessibility issues', async () => {
     const { container } = render(

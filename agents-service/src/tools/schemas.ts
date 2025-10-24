@@ -1,25 +1,27 @@
 import { z } from 'zod';
 import { CartItemSchema, UpsellListSchema } from '../agents/types';
 
-export const GetMenuInputSchema = z.object({
-  limit: z.number().int().min(1).max(100).optional().default(40),
-});
+export const GetMenuInputSchema = z
+  .object({
+    limit: z.number().int().min(1).max(100).optional(),
+  })
+  .strict();
 
 export const CheckAllergensInputSchema = z.object({
   item_ids: z.array(z.string().uuid()),
   explicit_allergens: z.array(z.string()).optional(),
 });
 
-export const RecommendItemsInputSchema = z.object({
-  goals: z
-    .array(
-      z.enum(['pair', 'upsell', 'dessert', 'drink', 'non_alcoholic'])
-    )
-    .min(1)
-    .max(10)
-    .default(['upsell']),
-  limit: z.number().int().min(1).max(3).optional().default(3),
-});
+export const RecommendItemsInputSchema = z
+  .object({
+    goals: z
+      .array(z.enum(['pair', 'upsell', 'dessert', 'drink', 'non_alcoholic']))
+      .min(1)
+      .max(10)
+      .optional(),
+    limit: z.number().int().min(1).max(3).optional(),
+  })
+  .strict();
 
 export const RecommendItemsOutputSchema = z.object({
   suggestions: z.array(
@@ -49,4 +51,4 @@ export const CreateOrderOutputSchema = z.object({
   proposal_ref: z.string(),
 });
 
-export const KitchenLoadInputSchema = z.object({}).default({});
+export const KitchenLoadInputSchema = z.object({}).strict();

@@ -10,7 +10,7 @@ const candidateConfigs = [
   resolve(repoRoot, 'supabase/config.toml'),
 ];
 const configPath = candidateConfigs.find((path) => existsSync(path));
-const seedFile = resolve(repoRoot, 'supabase/seed/seed.sql');
+const SUPABASE_CLI = 'supabase';
 
 function captureOutput(command, args) {
   const result = spawnSync(command, args, {
@@ -25,7 +25,7 @@ function captureOutput(command, args) {
 }
 
 function hasSupabaseCli() {
-  const result = spawnSync('supabase', ['--version'], {
+  const result = spawnSync(SUPABASE_CLI, ['--version'], {
     cwd: repoRoot,
     stdio: 'ignore',
   });

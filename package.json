@@ -24,6 +24,7 @@
     "smoke:ingestion": "node scripts/smoke/ingestion-smoke.mjs",
     "release:canary-toggle": "node scripts/release/canary-toggle.mjs",
     "release:checklist": "node scripts/release/checklist.mjs",
+    "deploy": "node scripts/deploy/vercel-preview.mjs",
     "vercel:preflight": "node scripts/vercel-preflight.mjs",
     "supabase:test": "npx --yes supabase db test",
     "test": "vitest run",
@@ -107,6 +108,7 @@
     "@types/react": "^18.3.23",
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react-swc": "^3.11.0",
+    "dotenv": "^16.6.1",
     "autoprefixer": "^10.4.21",
     "axe-core": "^4.10.3",
     "eslint": "^9.32.0",
@@ -138,7 +140,7 @@
     ]
   },
   "engines": {
-    "node": ">=18.20.4",
+    "node": ">=20.11.1",
     "npm": ">=10.7.0"
   }
 }

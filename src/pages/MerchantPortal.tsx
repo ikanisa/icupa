@@ -1,7 +1,7 @@
-import { MerchantShell } from "@/components/merchant/MerchantShell";
+import { MerchantPortalPage } from "@/modules/merchant/portal";
 
 const MerchantPortal = () => {
-  return <MerchantShell />;
+  return <MerchantPortalPage />;
 };
 
 export default MerchantPortal;

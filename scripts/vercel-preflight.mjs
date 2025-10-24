@@ -32,7 +32,7 @@ try {
   run('npm --version');
   run('npx vercel --version');
 } catch (error) {
-  console.error('\n[ENV] Unable to determine tooling versions. Ensure Node.js 18+, npm, and the Vercel CLI are installed.');
+  console.error('\n[ENV] Unable to determine tooling versions. Ensure Node.js 20.11.1+, npm, and the Vercel CLI are installed.');
   throw error;
 }
 
