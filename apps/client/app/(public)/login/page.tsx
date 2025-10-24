@@ -1,10 +1,18 @@
 import { CardGlass, buttonClassName } from "@ecotrips/ui";
 
+import { createPageMetadata } from "../../../lib/seo/metadata";
+import { PublicPage } from "../components/PublicPage";
 import { MagicLinkForm } from "../components/MagicLinkForm";
+
+export const metadata = createPageMetadata({
+  title: "Login",
+  description: "Sign in with Supabase Auth magic links or federated providers.",
+  path: "/login",
+});
 
 export default function LoginPage() {
   return (
-    <div className="mx-auto flex min-h-screen max-w-3xl flex-col items-center justify-center gap-6 px-4 py-16">
+    <PublicPage align="center" maxWidthClass="max-w-lg">
       <CardGlass
         title="Sign in"
         subtitle="Secure login powered by Supabase Auth."
@@ -18,6 +26,6 @@ export default function LoginPage() {
         </p>
         <MagicLinkForm redirectPath="/" title="Check your inbox" />
       </CardGlass>
-    </div>
+    </PublicPage>
   );
 }

@@ -48,6 +48,8 @@ agents:
       - webhook.stripe
       - permits.request
       - map.route
+      - b2b.inventory
+      - b2b.lead_intent
       - notify.whatsapp_send
       - notify.whatsapp
       - agent.log_goal
