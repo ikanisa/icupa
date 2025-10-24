@@ -9,6 +9,7 @@ export class EcoTripsFunctionClient {
   private readonly fetchImpl: typeof fetch;
   private readonly timeoutMs: number;
   readonly inventory: DomainClients["inventory"];
+  readonly growth: DomainClients["growth"];
   readonly checkout: DomainClients["checkout"];
   readonly groups: DomainClients["groups"];
   readonly permits: DomainClients["permits"];
@@ -17,6 +18,7 @@ export class EcoTripsFunctionClient {
   readonly finance: DomainClients["finance"];
   readonly privacy: DomainClients["privacy"];
   readonly dr: DomainClients["dr"];
+  readonly maps: DomainClients["maps"];
 
   constructor(private readonly options: ClientOptions) {
     this.fetchImpl = options.fetch ?? fetch;
@@ -24,6 +26,7 @@ export class EcoTripsFunctionClient {
 
     const domains = createDomainClients(this);
     this.inventory = domains.inventory;
+    this.growth = domains.growth;
     this.checkout = domains.checkout;
     this.groups = domains.groups;
     this.permits = domains.permits;
@@ -32,6 +35,7 @@ export class EcoTripsFunctionClient {
     this.finance = domains.finance;
     this.privacy = domains.privacy;
     this.dr = domains.dr;
+    this.maps = domains.maps;
   }
 
   async call<K extends DescriptorKey>(
@@ -79,7 +83,9 @@ export class EcoTripsFunctionClient {
       }
 
       const parsed = await safeJson(response);
-      return descriptor.output ? descriptor.output.parse(parsed) : (parsed as InferOutput<FunctionMap[K]>);
+      return descriptor.output
+        ? descriptor.output.parse(parsed) as unknown as InferOutput<FunctionMap[K]>
+        : parsed as InferOutput<FunctionMap[K]>;
     } finally {
       clearTimeout(timeout);
     }
