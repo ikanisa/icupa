@@ -1,6 +1,7 @@
 import { CardGlass, Stepper, buttonClassName } from "@ecotrips/ui";
 import { createEcoTripsFunctionClient } from "@ecotrips/api";
 import Link from "next/link";
+import { AutoBalanceDayControl } from "./AutoBalanceDayControl";
 
 async function loadQuote(id: string) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -55,6 +56,12 @@ export default async function ItineraryPage({ params }: { params: { id: string }
       </CardGlass>
       <CardGlass title="Trip rhythm" subtitle="PlannerCoPilot ensures daylight transfers and safety.">
         <Stepper steps={steps} />
+      </CardGlass>
+      <CardGlass
+        title="Day optimizer"
+        subtitle="Resolve itinerary conflicts before handing bundles to Supabase agents."
+      >
+        <AutoBalanceDayControl />
       </CardGlass>
       <CardGlass title="Group planning" subtitle="Spin up split-pay escrows and WhatsApp invites.">
         <div className="flex flex-wrap gap-3">
