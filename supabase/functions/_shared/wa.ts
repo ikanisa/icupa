@@ -106,7 +106,8 @@ export async function storeMessage(input: StoreMessageInput) {
     const text = await response.text();
     throw new Error(`agent_store_message failed: ${text}`);
   }
-  await response.json();
+  const stored = await response.json();
+  await maybeEmitChatEvent(stored, input);
 }
 
 export async function sendWhatsAppMessage(options: SendWhatsAppOptions): Promise<SendWhatsAppResult> {
@@ -397,4 +398,57 @@ async function callRpc(name: string, body: Record<string, unknown>) {
     },
     body: JSON.stringify(body)
   });
+}
+
+async function maybeEmitChatEvent(record: unknown, input: StoreMessageInput) {
+  const sessionId = resolveSessionId(record) ?? input.sessionId ?? null;
+  if (!sessionId) return;
+
+  const payload: Record<string, unknown> = {
+    direction: input.direction,
+    channel: input.channel ?? "whatsapp",
+    wa_message_id: input.waMessageId ?? null,
+  };
+
+  if (input.body && typeof input.body === "object" && !Array.isArray(input.body)) {
+    const bodyRecord = input.body as Record<string, unknown>;
+    const maybeText = bodyRecord.text;
+    if (typeof maybeText === "string" && maybeText.trim()) {
+      payload.excerpt = maybeText.trim().slice(0, 160);
+    }
+    const maybeState = bodyRecord.state_after;
+    if (typeof maybeState === "string") {
+      payload.state_after = maybeState;
+    }
+  }
+
+  try {
+    const response = await callRpc("agent_insert_event", {
+      p_session: sessionId,
+      p_level: "AUDIT",
+      p_event: `chat.message.${input.direction === "out" ? "outbound" : "inbound"}`,
+      p_payload: payload,
+    });
+    if (!response.ok) {
+      const text = await response.text();
+      console.log(
+        `WARN chat.event_insert_failed session=${sessionId} status=${response.status} message=${text}`,
+      );
+    } else {
+      await response.json().catch(() => null);
+    }
+  } catch (error) {
+    console.log(
+      `WARN chat.event_exception session=${sessionId} message=${String(error)}`,
+    );
+  }
+}
+
+function resolveSessionId(record: unknown): string | null {
+  if (!record || typeof record !== "object") return null;
+  if (Array.isArray(record)) {
+    return resolveSessionId(record[0]);
+  }
+  const value = (record as Record<string, unknown>).session_id;
+  return typeof value === "string" && value ? value : null;
 }

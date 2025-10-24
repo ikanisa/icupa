@@ -1,18 +1,5 @@
 import { ERROR_CODES } from "../_obs/constants.ts";
 import { getRequestId, healthResponse, withObs } from "../_obs/withObs.ts";
-import { retryWithBackoff } from "../_shared/inventory.ts";
-import {
-  jsonResponse,
-  logAudit,
-  normalizeCurrency,
-  normalizeIata,
-  requireIsoDate,
-} from "../_shared/providers.ts";
-import { getSupabaseServiceConfig } from "../_shared/env.ts";
-
-const { url: SUPABASE_URL, serviceRoleKey: SERVICE_ROLE_KEY } =
-  getSupabaseServiceConfig({ feature: "air-price-watch" });
-const TABLE_URL = `${SUPABASE_URL}/rest/v1/travel.price_watches`;
 
 const handler = withObs(async (req) => {
   const requestId = getRequestId(req) ?? crypto.randomUUID();
@@ -33,70 +20,32 @@ const handler = withObs(async (req) => {
     return jsonResponse({ ok: false, error: "Invalid JSON body" }, 400);
   }
 
-  const originRaw = pickString(body, ["origin", "origin_code", "originCode"]);
-  const destinationRaw = pickString(body, ["destination", "destination_code", "destinationCode"]);
-  const departureRaw = pickString(body, ["departure_date", "departureDate", "depart"]);
-  const returnRaw = pickString(body, ["return_date", "returnDate", "return"]);
-  const currencyRaw = pickString(body, ["currency"]);
-  const contact = pickString(body, ["contact", "email", "phone"]);
-  const channel = pickString(body, ["channel"]);
-  const notes = pickString(body, ["notes", "memo"]);
-
-  const targetCentsRaw = pickNumber(body, ["target_price_cents", "targetPriceCents", "max_price_cents"]);
-  const targetDollarsRaw = pickNumber(body, ["target_price", "targetPrice", "max_price"]);
+  const origin = parseAirport(body.origin);
+  const destination = parseAirport(body.destination);
+  const departureDate = parseDate(body.departure_date);
+  const returnDate = body.return_date ? parseDate(body.return_date) : null;
+  const seats = Number(body.seats ?? 0);
+  const cabin = typeof body.cabin === "string" ? body.cabin.toLowerCase() : "";
+  const targetPriceCents = body.target_price_cents ? Number(body.target_price_cents) : null;
+  const travelerName = typeof body.traveler_name === "string" ? body.traveler_name.trim() : "";
+  const contactEmail = typeof body.contact_email === "string" ? body.contact_email.trim() : "";
+  const itineraryId = typeof body.itinerary_id === "string" ? body.itinerary_id : null;
 
   const errors: string[] = [];
-  let origin = "";
-  let destination = "";
-  let departureDate = "";
-  let returnDate: string | null = null;
-  let currency = "USD";
-
-  try {
-    origin = normalizeIata(originRaw ?? "", "origin");
-  } catch (error) {
-    errors.push((error as Error).message);
+  if (!origin) errors.push("origin must be a valid IATA code");
+  if (!destination) errors.push("destination must be a valid IATA code");
+  if (!departureDate) errors.push("departure_date must be YYYY-MM-DD");
+  if (returnDate === false) errors.push("return_date must be YYYY-MM-DD");
+  if (!Number.isInteger(seats) || seats <= 0 || seats > 9) {
+    errors.push("seats must be between 1 and 9");
   }
-
-  try {
-    destination = normalizeIata(destinationRaw ?? "", "destination");
-  } catch (error) {
-    errors.push((error as Error).message);
+  if (!isSupportedCabin(cabin)) {
+    errors.push("cabin must be economy, premium_economy, or business");
   }
-
-  try {
-    departureDate = requireIsoDate(departureRaw ?? "", "departure_date");
-  } catch (error) {
-    errors.push((error as Error).message);
-  }
-
-  if (returnRaw) {
-    try {
-      returnDate = requireIsoDate(returnRaw, "return_date");
-    } catch (error) {
-      errors.push((error as Error).message);
-    }
-  }
-
-  try {
-    currency = normalizeCurrency(currencyRaw, "USD");
-  } catch (error) {
-    errors.push((error as Error).message);
-  }
-
-  let targetPriceCents = 0;
-  if (typeof targetCentsRaw === "number" && Number.isFinite(targetCentsRaw)) {
-    targetPriceCents = Math.trunc(targetCentsRaw);
-  } else if (typeof targetDollarsRaw === "number" && Number.isFinite(targetDollarsRaw)) {
-    targetPriceCents = Math.round(targetDollarsRaw * 100);
-  }
-
-  if (!Number.isInteger(targetPriceCents) || targetPriceCents <= 0) {
-    errors.push("target_price_cents must be > 0");
-  }
-
-  if (origin && destination && origin === destination) {
-    errors.push("origin and destination must differ");
+  if (!travelerName) errors.push("traveler_name is required");
+  if (!isValidEmail(contactEmail)) errors.push("contact_email must be valid");
+  if (targetPriceCents !== null && (!Number.isInteger(targetPriceCents) || targetPriceCents <= 0)) {
+    errors.push("target_price_cents must be a positive integer when provided");
   }
 
   if (errors.length > 0) {
@@ -105,139 +54,69 @@ const handler = withObs(async (req) => {
     throw error;
   }
 
-  const trimmedNotes = typeof notes === "string" ? notes.trim() : undefined;
+  const watchId = `watch-${crypto.randomUUID()}`;
+  const submittedAt = new Date().toISOString();
 
-  const payload = {
+  logAudit({
+    request_id: requestId,
+    watch_id: watchId,
     origin,
     destination,
     departure_date: departureDate,
     return_date: returnDate,
-    currency,
-    target_price_cents: targetPriceCents,
-    contact: contact ?? null,
-    channel: (channel ?? "chat").toLowerCase(),
-    metadata: buildMetadata({ notes: trimmedNotes, raw: body }),
-    request_id: requestId,
-    notes: trimmedNotes ?? null,
-  };
-
-  const response = await insertPriceWatch(payload);
-
-  logAudit("travel.price_watch.created", {
-    request_id: requestId,
-    watch_id: response.id,
-    origin,
-    destination,
-    departure_date: departureDate,
-    return_date: returnDate,
-    currency,
-    target_price_cents: targetPriceCents,
-    channel: payload.channel,
+    seats,
+    cabin,
+    has_target_price: targetPriceCents !== null,
+    itinerary_id: itineraryId,
   });
 
   return jsonResponse({
     ok: true,
+    watch_id: watchId,
     request_id: requestId,
-    watch_id: response.id,
-    status: response.status ?? "active",
-    next_refresh_at: response.next_refresh_at ?? null,
+    submitted_at: submittedAt,
   });
 }, { fn: "air-price-watch", defaultErrorCode: ERROR_CODES.UNKNOWN });
 
 Deno.serve(handler);
 
-export { handler };
-
-function pickString(source: Record<string, unknown>, keys: string[]): string | undefined {
-  for (const key of keys) {
-    const value = source?.[key];
-    if (typeof value === "string" && value.trim()) {
-      return value;
-    }
-  }
-  return undefined;
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
 }
 
-function pickNumber(source: Record<string, unknown>, keys: string[]): number | undefined {
-  for (const key of keys) {
-    const value = source?.[key];
-    if (typeof value === "number") {
-      return value;
-    }
-  }
-  return undefined;
+function parseAirport(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim().toUpperCase();
+  return /^[A-Z]{3}$/.test(trimmed) ? trimmed : null;
 }
 
-function buildMetadata(input: { notes?: string; raw: Record<string, unknown> }): Record<string, unknown> {
-  const metadata: Record<string, unknown> = {
-    raw_request: input.raw,
-  };
-  if (input.notes) {
-    metadata.notes = input.notes;
-  }
-  return metadata;
+function parseDate(value: unknown): string | false {
+  if (typeof value !== "string") return false;
+  const trimmed = value.trim();
+  if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(trimmed)) return false;
+  const parsed = Date.parse(trimmed);
+  return Number.isNaN(parsed) ? false : trimmed;
 }
 
-async function insertPriceWatch(body: Record<string, unknown>): Promise<{
-  id: string;
-  status?: string;
-  next_refresh_at?: string | null;
-}> {
-  const headers: HeadersInit = {
-    apikey: SERVICE_ROLE_KEY,
-    Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
-    "Content-Type": "application/json",
-    Prefer: "return=representation",
-    "Accept-Profile": "travel",
-    "Content-Profile": "travel",
-  };
-
-  const result = await retryWithBackoff(async () => {
-    let response: Response;
-    try {
-      response = await fetch(TABLE_URL, {
-        method: "POST",
-        headers,
-        body: JSON.stringify([body]),
-      });
-    } catch (cause) {
-      const networkError = cause instanceof Error ? cause : new Error(String(cause));
-      (networkError as { code?: string }).code = ERROR_CODES.SUPPLIER_TIMEOUT;
-      (networkError as { retryable?: boolean }).retryable = true;
-      throw networkError;
-    }
-
-    if (!response.ok) {
-      const text = await response.text();
-      const error = new Error(`price watch insert failed: ${text || response.statusText}`);
-      (error as { code?: string }).code = classifyStatus(response.status);
-      if (response.status >= 500 || response.status === 429) {
-        (error as { retryable?: boolean }).retryable = true;
-      }
-      throw error;
-    }
-
-    const json = await response.json();
-    if (Array.isArray(json) && json[0] && typeof json[0].id === "string") {
-      return json[0] as {
-        id: string;
-        status?: string;
-        next_refresh_at?: string | null;
-      };
-    }
-
-    const error = new Error("price watch insert missing id");
-    (error as { code?: string }).code = ERROR_CODES.UNKNOWN;
-    throw error;
-  }, { attempts: 3, baseDelayMs: 250 });
-
-  return result;
+function isSupportedCabin(value: string): boolean {
+  return value === "economy" || value === "premium_economy" || value === "business";
 }
 
-function classifyStatus(status: number): typeof ERROR_CODES[keyof typeof ERROR_CODES] {
-  if (status === 409) return ERROR_CODES.DATA_CONFLICT;
-  if (status === 401 || status === 403) return ERROR_CODES.AUTH_REQUIRED;
-  if (status === 429) return ERROR_CODES.RATE_LIMITED;
-  if (status >= 500) return ERROR_CODES.SUPPLIER_TIMEOUT;
-  return ERROR_CODES.UNKNOWN;
+function isValidEmail(value: string): boolean {
+  if (!value) return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function logAudit(fields: Record<string, unknown>) {
+  console.log(
+    JSON.stringify({
+      level: "AUDIT",
+      event: "air.price.watch",
+      fn: "air-price-watch",
+      ...fields,
+    }),
+  );
 }

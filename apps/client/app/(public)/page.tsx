@@ -9,9 +9,9 @@ import { PublicPage } from "./components/PublicPage";
 const navItems = [
   { href: "/", label: "Home", icon: "🏡" },
   { href: "/search", label: "Search", icon: "🔍" },
+  { href: "/chat", label: "Chat", icon: "🤖" },
   { href: "/wallet", label: "Wallet", icon: "👛" },
-  { href: "/support", label: "Support", icon: "💬" },
-  { href: "/settings", label: "Settings", icon: "⚙️" },
+  { href: "/support", label: "Support", icon: "🛟" },
 ] as const satisfies readonly BottomNavItem[];
 
 function toURLSearchParams(params: Record<string, string | string[] | undefined>) {

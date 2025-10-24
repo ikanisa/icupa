@@ -1,5 +1,5 @@
 import { checkoutDescriptors } from "./checkout";
-import { conciergeDescriptors } from "./concierge";
+import { airDescriptors } from "./air";
 import { drDescriptors } from "./dr";
 import { financeDescriptors } from "./finance";
 import { groupsDescriptors } from "./groups";
@@ -14,6 +14,7 @@ import { travelDescriptors } from "./travel";
 import type { DescriptorMap } from "../types";
 
 export const descriptors = {
+  ...airDescriptors,
   ...inventoryDescriptors,
   ...growthDescriptors,
   ...checkoutDescriptors,

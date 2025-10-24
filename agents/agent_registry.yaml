@@ -44,6 +44,8 @@ agents:
       - Capture traveler preferences into long-term memory for future reuse.
     tools:
       - quote.search
+      - inventory.hold
+      - air.price.watch
       - checkout.intent
       - webhook.stripe
       - permits.request
@@ -53,6 +55,89 @@ agents:
       - notify.whatsapp_send
       - notify.whatsapp
       - agent.log_goal
+    tool_bundles:
+      quote.search:
+        summary: Resolve search and quote steps with caching + fixtures fallback.
+        actions:
+          - key: inventory.search
+            breakdown:
+              endpoint: inventory-search
+              telemetry:
+                - otel.trace
+                - AUDIT inventory.search
+              cache:
+                strategy: cache-first
+                ttl_seconds: 600
+              offline_fixture: ops/fixtures/inventory_search_kigali.json
+          - key: inventory.quote
+            breakdown:
+              endpoint: inventory-quote
+              telemetry:
+                - otel.trace
+                - AUDIT inventory.quote
+              cache:
+                strategy: cache-first
+                ttl_seconds: 120
+              offline_fixture: ops/fixtures/inventory_quote.json
+      inventory.hold:
+        summary: Secure 15-minute room hold with idempotent retries.
+        actions:
+          - key: inventory.hold
+            breakdown:
+              endpoint: inventory-hold
+              idempotency: payload.idempotency_key + Idempotency-Key header
+              expiry_minutes: 15
+              offline_source: fixtures (INVENTORY_OFFLINE=1)
+      checkout.intent:
+        summary: Bootstrap checkout session with Stripe orchestration.
+        actions:
+          - key: checkout.intent
+            breakdown:
+              endpoint: bff-checkout
+              dependencies:
+                - stripe
+                - ledger
+              telemetry:
+                - otel.trace
+                - AUDIT checkout.intent
+      permits.request:
+        summary: Request park permits with SLA tracking + audit trails.
+        actions:
+          - key: permits.request
+            breakdown:
+              endpoint: permits-request
+              storage: agents.events (AUDIT) + permits tables
+              telemetry:
+                - otel.trace
+      notify.whatsapp_send:
+        summary: Push traveler updates via wa-send with audit logging.
+        actions:
+          - key: notify.whatsapp_send
+            breakdown:
+              endpoint: wa-send
+              channel: whatsapp
+              telemetry:
+                - AUDIT wa.send
+      air.price.watch:
+        summary: Register fare watches with traveler contact metadata and audit trails.
+        actions:
+          - key: air.price.watch
+            breakdown:
+              endpoint: air-price-watch
+              telemetry:
+                - otel.trace
+                - AUDIT air.price.watch
+              storage: agents.events (AUDIT)
+              retention: 30_days
+      agent.log_goal:
+        summary: Persist traveler goals for orchestration alignment.
+        actions:
+          - key: agent.log_goal
+            breakdown:
+              endpoint: agent-log-goal
+              storage: agents.events (AUDIT)
+              telemetry:
+                - otel.trace
     memory_scopes:
       - short_term
       - working_plan
