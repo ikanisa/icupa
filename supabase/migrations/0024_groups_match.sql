@@ -172,14 +172,22 @@ begin
     create policy p_group_match_feedback_insert on "group".match_feedback
       for insert
       with check (
-        sec.is_ops(auth.uid()) or exists (
-          select 1
-          from "group".match_candidates mc
-          join "group".members m
-            on m.group_id = mc.anchor_group_id or m.group_id = mc.candidate_group_id
-          where mc.id = "group".match_feedback.match_id
-            and m.user_id = auth.uid()
-            and m.role = 'owner'
+        (
+          sec.is_ops(auth.uid())
+          and "group".match_feedback.actor_user_id = auth.uid()
+          and "group".match_feedback.actor_role = 'ops'
+        ) or (
+          exists (
+            select 1
+            from "group".match_candidates mc
+            join "group".members m
+              on m.group_id = mc.anchor_group_id or m.group_id = mc.candidate_group_id
+            where mc.id = "group".match_feedback.match_id
+              and m.user_id = auth.uid()
+              and m.role = 'owner'
+          )
+          and "group".match_feedback.actor_user_id = auth.uid()
+          and "group".match_feedback.actor_role in ('owner', 'member')
         )
       );
   end if;
