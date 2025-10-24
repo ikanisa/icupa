@@ -55,6 +55,9 @@ agents:
       - notify.whatsapp_send
       - notify.whatsapp
       - agent.log_goal
+      - itinerary.assemble
+      - supplier.match
+      - reservation.handle
     tool_bundles:
       quote.search:
         summary: Resolve search and quote steps with caching + fixtures fallback.
@@ -88,6 +91,45 @@ agents:
               idempotency: payload.idempotency_key + Idempotency-Key header
               expiry_minutes: 15
               offline_source: fixtures (INVENTORY_OFFLINE=1)
+      itinerary.assemble:
+        summary: Compose itinerary shells and persist line items through booking RPC.
+        actions:
+          - key: itinerary.assemble
+            breakdown:
+              endpoint: itinerary-assemble
+              telemetry:
+                - otel.trace
+                - AUDIT itinerary.assemble
+              storage: booking.itineraries + booking.items
+              compliance:
+                license: ecoTrips.internal.itineraries
+                retention: 30_days
+      supplier.match:
+        summary: Score suppliers and traveler cohorts with pgvector similarity.
+        actions:
+          - key: supplier.match
+            breakdown:
+              endpoint: supplier-match
+              telemetry:
+                - otel.trace
+                - AUDIT supplier.match
+              storage: matching.traveler_embeddings + matching.supplier_embeddings
+              compliance:
+                license: ecoTrips.intent_embeddings
+                retention: 90_days
+      reservation.handle:
+        summary: Maintain reservation ledger entries with supplier confirmations.
+        actions:
+          - key: reservation.handle
+            breakdown:
+              endpoint: reservation-handle
+              telemetry:
+                - otel.trace
+                - AUDIT reservation.handle
+              storage: booking.reservations
+              compliance:
+                license: ecoTrips.supplier_terms
+                retention: 365_days
       checkout.intent:
         summary: Bootstrap checkout session with Stripe orchestration.
         actions:
@@ -118,6 +160,42 @@ agents:
               channel: whatsapp
               telemetry:
                 - AUDIT wa.send
+      notify.whatsapp:
+        summary: Compose WhatsApp advisories with route warnings and compliance tags.
+        actions:
+          - key: notify.whatsapp
+            breakdown:
+              endpoint: notify-whatsapp
+              channel: whatsapp
+              telemetry:
+                - AUDIT notify.whatsapp
+              compliance:
+                license: ecoTrips.messaging
+                retention: 90_days
+      chat.voice_call_initiate:
+        summary: Spin up concierge voice call bridges with consent logging.
+        actions:
+          - key: chat.voice_call_initiate
+            breakdown:
+              endpoint: voice-call-initiate
+              telemetry:
+                - AUDIT voice.call.initiate
+              channel: voice
+              compliance:
+                license: ecoTrips.voice.bridge
+                retention: 30_days
+      chat.voice_call_summarize:
+        summary: Summarize and archive concierge voice conversations for compliance.
+        actions:
+          - key: chat.voice_call_summarize
+            breakdown:
+              endpoint: voice-call-summarize
+              telemetry:
+                - AUDIT voice.call.summarize
+              storage: supplier_crm.threads
+              compliance:
+                license: ecoTrips.voice.bridge
+                retention: 30_days
       air.price.watch:
         summary: Register fare watches with traveler contact metadata and audit trails.
         actions:
@@ -158,12 +236,76 @@ agents:
       - Deliver daily briefings with time windows, contact info, and navigation hints.
       - Detect delays and provide proactive reroutes or supplier nudges.
       - Surface safety advisories (weather, night travel) in real time.
+    guardrails:
+      - Never override planner intents unless risks or SOS incidents are detected.
+      - Escalate to human ops when location beacons indicate the traveler is off-route at night.
+    tools:
+      - notify.whatsapp_send
+      - map.route
+      - map.nearby
+      - agent.log_goal
+    memory_scopes:
+      - short_term
+      - working_plan
+      - team_memory
+    kpis:
+      safety_watch_ack_rate: ">95%"
+      proactive_reroute_success: "+10% YoY"
+  - name: RouterAgent
+    role: orchestration_router
+    description: Tiered dispatcher that maps traveler intents to the right specialist agent bundle.
+    goals:
+      - Inspect traveler goals and risk posture before selecting a downstream agent.
+      - Apply router policies for high-risk tools (checkout, escrow, permits) with licence verification.
+      - Emit audit breadcrumbs for every routed tool call, including autonomy overrides.
+    routing_matrix:
+      planner:
+        agents:
+          - PlannerCoPilot
+          - GroupBuilder
+        service_tools:
+          - quote.search
+          - inventory.hold
+          - checkout.intent
+          - permits.request
+      concierge:
+        agents:
+          - ConciergeGuide
+        service_tools:
+          - notify.whatsapp_send
+          - map.route
+          - map.nearby
+      ops:
+        agents:
+          - SupplierOpsAgent
+          - FinOpsAgent
+        service_tools:
+          - ops.bookings
+          - ops.exceptions
+          - ops.refund
+      support:
+        agents:
+          - SupportCopilot
+        service_tools:
+          - notify.whatsapp
+          - agent.log_goal
+    guardrails:
+      - Reject routing if required licence metadata is absent for package travel triggers.
+      - Honor per-tool autonomy floors before forwarding execution requests.
+      - Default to human escalation if router config is missing or stale.
+    observability:
+      audit_events:
+        - agent.router_selection
+        - agent.compliance_warning
+        - agent.compliance_block
     tools:
       - map.route
       - map.nearby
       - notify.whatsapp_send
       - notify.whatsapp
       - ops.bookings
+      - chat.voice_call_initiate
+      - chat.voice_call_summarize
     memory_scopes:
       - short_term
       - working_plan
@@ -171,6 +313,9 @@ agents:
     guardrails:
       - Do not send directions without confirming supplier schedule and traveler location window.
       - Always include emergency fallback when advising night travel.
+      - Router policy: Reject routing if required licence metadata is absent for package travel triggers.
+      - Router policy: Honor per-tool autonomy floors before forwarding execution requests.
+      - Router policy: Default to human escalation if router config is missing or stale.
     hitl_triggers:
       - Emergency escalation or medical assistance requests.
       - Supplier no-show reports requiring compensation commitments.
@@ -214,8 +359,11 @@ agents:
       - ops.exceptions
       - ops.refund
       - groups.payout_now
+      - reservation.handle
       - checkout.intent
       - notify.whatsapp_send
+      - chat.voice_call_initiate
+      - chat.voice_call_summarize
     memory_scopes:
       - short_term
       - team_memory
@@ -240,6 +388,8 @@ agents:
       - ops.refund
       - webhook.stripe
       - groups.payout_now
+      - supplier.match
+      - reservation.handle
     memory_scopes:
       - team_memory
       - long_term

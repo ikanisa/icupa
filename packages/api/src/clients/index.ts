@@ -13,6 +13,20 @@ import { createPricingClient, type PricingClient } from "./pricing";
 import { createPrivacyClient, type PrivacyClient } from "./privacy";
 import { createWalletClient, type WalletClient } from "./wallet";
 import { createAirClient, type AirClient } from "./air";
+import { createGrowthClient, type GrowthClient } from "./growth";
+import { createTravelClient, type TravelClient } from "./travel";
+import { createMatchingClient, type MatchingClient } from "./matching";
+import { createMapsClient, type MapsClient } from "./maps";
+import { createVoiceClient, type VoiceClient } from "./voice";
+import { createNotifyClient, type NotifyClient } from "./notify";
+import { createSupportClient, type SupportClient } from "./support";
+import { createFlagsClient, type FlagsClient } from "./flags";
+import { createAdminClient, type AdminClient } from "./admin";
+import { createSupplierClient, type SupplierClient } from "./supplier";
+import { createUserClient, type UserClient } from "./user";
+import { createChatClient, type ChatClient } from "./chat";
+import { createSearchClient, type SearchClient } from "./search";
+import { createHelpersClient, type HelpersClient } from "./helpers";
 
 export type DomainClients = {
   air: AirClient;
@@ -30,6 +44,18 @@ export type DomainClients = {
   privacy: PrivacyClient;
   dr: DisasterRecoveryClient;
   travel: TravelClient;
+  matching: MatchingClient;
+  maps: MapsClient;
+  voice: VoiceClient;
+  notify: NotifyClient;
+  support: SupportClient;
+  flags: FlagsClient;
+  admin: AdminClient;
+  supplier: SupplierClient;
+  user: UserClient;
+  chat: ChatClient;
+  search: SearchClient;
+  helpers: HelpersClient;
 };
 
 export function createDomainClients(client: FunctionCaller<FunctionMap>): DomainClients {
@@ -49,6 +75,18 @@ export function createDomainClients(client: FunctionCaller<FunctionMap>): Domain
     privacy: createPrivacyClient(client),
     dr: createDisasterRecoveryClient(client),
     travel: createTravelClient(client),
+    matching: createMatchingClient(client),
+    maps: createMapsClient(client),
+    voice: createVoiceClient(client),
+    notify: createNotifyClient(client),
+    support: createSupportClient(client),
+    flags: createFlagsClient(client),
+    admin: createAdminClient(client),
+    supplier: createSupplierClient(client),
+    user: createUserClient(client),
+    chat: createChatClient(client),
+    search: createSearchClient(client),
+    helpers: createHelpersClient(client),
   };
 }
 
@@ -65,3 +103,15 @@ export * from "./pricing";
 export * from "./privacy";
 export * from "./wallet";
 export * from "./travel";
+export * from "./matching";
+export * from "./maps";
+export * from "./voice";
+export * from "./notify";
+export * from "./support";
+export * from "./flags";
+export * from "./admin";
+export * from "./supplier";
+export * from "./user";
+export * from "./chat";
+export * from "./search";
+export * from "./helpers";

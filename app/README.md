@@ -3,6 +3,9 @@
   - NEXT_PUBLIC_APP_NAME
   - NEXT_PUBLIC_SUPABASE_URL
   - NEXT_PUBLIC_SUPABASE_ANON_KEY
+  - OPENAI_API_KEY
+  - OPENAI_ROUTER_AGENT_ID
+  - CHATKIT_DOMAIN_KEY
 - `npm i`
 - `npm run dev`
 - Visit `/atlas-check` to verify Atlas UI + Supabase env.
