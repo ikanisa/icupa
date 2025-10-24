@@ -1,5 +1,7 @@
 import { CardGlass, Stepper } from "@ecotrips/ui";
 
+import { FinopsCostPanel } from "./FinopsCostPanel";
+
 export default function DashboardPage() {
   return (
     <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
@@ -34,6 +36,7 @@ export default function DashboardPage() {
           ]}
         />
       </CardGlass>
+      <FinopsCostPanel />
       <CardGlass
         title="Promise Board Snapshot"
         subtitle="Track supplier promises by promise board columns"
