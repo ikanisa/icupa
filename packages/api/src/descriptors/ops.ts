@@ -1,6 +1,11 @@
 import type { DescriptorMap } from "../types";
 import { paginatedResponse } from "../internal/schemas";
-import { OpsBookingsQuery, OpsExceptionsQuery } from "@ecotrips/types";
+import {
+  OpsBookingsQuery,
+  OpsExceptionsQuery,
+  OpsSupplierSlaForecastQuery,
+  SupplierSlaForecastResponse,
+} from "@ecotrips/types";
 
 export const opsDescriptors = {
   "ops.bookings": {
@@ -16,5 +21,12 @@ export const opsDescriptors = {
     auth: "user",
     input: OpsExceptionsQuery.default({}),
     output: paginatedResponse,
+  },
+  "ops.supplierSlaForecast": {
+    path: "/functions/v1/supplier-sla-forecast",
+    method: "GET",
+    auth: "user",
+    input: OpsSupplierSlaForecastQuery.default({}),
+    output: SupplierSlaForecastResponse,
   },
 } satisfies DescriptorMap;
