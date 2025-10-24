@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { createServer } from "node:http";
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFile } from "node:child_process";
@@ -10,6 +10,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const clientDir = path.resolve(__dirname, "..");
 const publicDir = path.join(clientDir, "public");
+const serviceWorkerPath = path.join(publicDir, "sw.js");
 const buildScript = path.join(clientDir, "scripts", "build-sw.mjs");
 
 const MIME_TYPES = new Map([
@@ -143,11 +144,15 @@ test.describe("service worker cache lifecycle", () => {
     const initialVersion = `${versionBase}-v1`;
     const updatedVersion = `${versionBase}-v2`;
 
-    await buildServiceWorker(initialVersion);
-    const server = await startStaticServer();
+    const originalServiceWorker = await readFile(serviceWorkerPath, "utf8");
+    let server: TestServer | null = null;
 
     try {
-      await page.goto(server.origin, { waitUntil: "load" });
+      await buildServiceWorker(initialVersion);
+      const activeServer = await startStaticServer();
+      server = activeServer;
+
+      await page.goto(activeServer.origin, { waitUntil: "load" });
       await waitForController(page);
 
       await page.waitForFunction(
@@ -179,7 +184,10 @@ test.describe("service worker cache lifecycle", () => {
       expect(secondSnapshot.names.some((name) => name.includes(updatedVersion))).toBeTruthy();
       expect(secondSnapshot.names.some((name) => name.includes(initialVersion))).toBeFalsy();
     } finally {
-      await server.close();
+      if (server) {
+        await server.close();
+      }
+      await writeFile(serviceWorkerPath, originalServiceWorker, "utf8");
     }
   });
 });
