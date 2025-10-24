@@ -106,6 +106,14 @@ const descriptors = {
     input: ContributionCreate,
     output: z.object({ ok: z.boolean(), contribution_id: z.string().uuid().optional() }),
   },
+  "groups.suggest": {
+    path: "/functions/v1/groups-suggest",
+    method: "POST",
+    auth: "anon",
+    input: GroupSuggestionInput,
+    output: GroupSuggestionResponse,
+    cacheTtlMs: 30_000,
+  },
   "permits.request": {
     path: "/functions/v1/permits-request",
     method: "POST",
@@ -323,6 +331,14 @@ const descriptors = {
       bytes: z.number().optional(),
       sha256: z.string().optional(),
     }),
+  },
+  "search.places": {
+    path: "/functions/v1/search-places",
+    method: "POST",
+    auth: "anon",
+    input: SearchPlacesInput,
+    output: SearchPlacesResponse,
+    cacheTtlMs: 15_000,
   },
 } satisfies Record<string, FunctionDescriptor<z.ZodTypeAny, z.ZodTypeAny>>;
 

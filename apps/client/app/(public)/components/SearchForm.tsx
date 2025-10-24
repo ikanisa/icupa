@@ -3,7 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@ecotrips/ui";
-import { InventorySearchInput } from "@ecotrips/types";
+import { InventorySearchInput, type SearchPlace } from "@ecotrips/types";
+
+import { SearchSuggestions } from "../search/SearchSuggestions";
+import { useSearchPlaces } from "../search/useSearchPlaces";
 
 export function SearchForm() {
   const router = useRouter();
@@ -13,8 +16,18 @@ export function SearchForm() {
   const [adults, setAdults] = useState(2);
   const [children, setChildren] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [isFocused, setIsFocused] = useState(false);
+
+  const suggestions = useSearchPlaces(destination);
+
+  const onSuggestionSelect = (item: SearchPlace) => {
+    setDestination(item.title);
+    setIsFocused(false);
+    setError(null);
+  };
 
   const submit = () => {
+    setError(null);
     const result = InventorySearchInput.safeParse({
       destination,
       startDate: startDate || new Date().toISOString().slice(0, 10),
@@ -44,8 +57,20 @@ export function SearchForm() {
         <input
           value={destination}
           onChange={(event) => setDestination(event.target.value)}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
           className="rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-sky-400"
           placeholder="Akagera, Nyungwe, Kigali..."
+        />
+        <SearchSuggestions
+          query={destination}
+          items={suggestions.items}
+          status={suggestions.status}
+          fallback={suggestions.fallback}
+          source={suggestions.source}
+          error={suggestions.error}
+          visible={isFocused}
+          onSelect={onSuggestionSelect}
         />
       </label>
       <div className="grid grid-cols-2 gap-4 text-sm">
