@@ -7,7 +7,7 @@ import type {
 
 import { getOpsFunctionClient } from "../../../lib/functionClient";
 import { logAdminAction } from "../../../lib/logging";
-import voiceFixture from "../../../../ops/fixtures/voice_contact_thread.json";
+import voiceFixture from "../../../../../ops/fixtures/voice_contact_thread.json";
 import { ContactThreadPanel, type ContactThreadState, type ThreadEntry } from "./ContactThreadPanel";
 
 type VoiceContactFixture = {
