@@ -18,8 +18,7 @@
   },
   "dependencies": {
     "@ecotrips/config": "file:../packages/config",
-    "@supabase/node-fetch": "^2.6.15",
-    "@supabase/realtime-js": "^2.10.2",
+    "@hookform/resolvers": "^5.2.2",
     "@supabase/ssr": "^0.5.0",
     "@supabase/supabase-js": "^2.45.0",
     "@upstash/ratelimit": "2.0.6",
@@ -27,6 +26,7 @@
     "next": "15.5.3",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "react-hook-form": "^7.65.0",
     "zod": "3.23.8"
   },
   "devDependencies": {
