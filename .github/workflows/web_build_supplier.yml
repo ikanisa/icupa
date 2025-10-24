@@ -1,0 +1,31 @@
+name: web:supplier build
+
+on:
+  push:
+    paths:
+      - 'apps/supplier/**'
+      - 'packages/**'
+      - '.github/workflows/web_build_supplier.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.base.json'
+  pull_request:
+    paths:
+      - 'apps/supplier/**'
+      - 'packages/**'
+      - '.github/workflows/web_build_supplier.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.base.json'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build --workspace @ecotrips/supplier
