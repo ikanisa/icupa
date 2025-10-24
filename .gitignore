@@ -32,3 +32,8 @@ artifacts/phase10/**
 .env.*
 !.env.example
 .husky/_
+
+# cleanup backup artifacts
+*.bak
+*.before-vercel-scrub
+apps/ecotrips/app/src/env.ts.backup-before-nodeenv
