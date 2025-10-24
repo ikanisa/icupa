@@ -236,31 +236,20 @@ export function CheckoutForm({ itineraryId }: { itineraryId: string }) {
     }
 
     try {
-      setPending(true);
-      const response = await client.call("checkout.intent", parsed.data, {
-        idempotencyKey: parsed.data.idempotencyKey,
-      });
-      const paymentIntentId =
-        response.payment_intent_id ?? (response as { payment_intent?: string }).payment_intent ?? null;
-      setIntent(paymentIntentId);
-
-      const fallbackDetails = response as { fallback?: boolean; fallback_reason?: string; request_id?: string };
-      if (fallbackDetails.fallback) {
-        setToast({
-          id: "fallback",
-          title: "Stripe fallback active",
-          description:
-            fallbackDetails.fallback_reason ??
-            "Stripe degraded. Using mock payment intent while live mode is unavailable.",
-        });
-        return;
+      setIsSubmitting(true);
+      const response = await client.call("checkout.intent", parsed.data, { idempotencyKey: parsed.data.idempotencyKey });
+      setIntent(response.payment_intent_id ?? null);
+      setToast({ id: "success", title: "Checkout ready", description: `Intent ${response.payment_intent_id ?? "fixture"}` });
+      setEscalation(null);
+      const ledgerPaymentId = response.payment_id ?? null;
+      const stripeIntentId = response.payment_intent ?? null;
+      if (ledgerPaymentId || stripeIntentId) {
+        const normalizedIntent = ledgerPaymentId ?? stripeIntentId ?? response.payment_intent_id ?? null;
+        const normalizedIntentLabel = stripeIntentId ?? ledgerPaymentId ?? response.payment_intent_id ?? "fixture";
+        setIntent(normalizedIntent);
+        setToast({ id: "success", title: "Checkout ready", description: `Intent ${normalizedIntentLabel}` });
       }
-
-      setToast({
-        id: "success",
-        title: "Checkout ready",
-        description: paymentIntentId ? `Intent ${paymentIntentId}` : "Payment intent created.",
-      });
+      return true;
     } catch (error) {
       console.error(error);
       setToast(interpretError(error));
