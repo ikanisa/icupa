@@ -1,5 +1,9 @@
 import { getRequestId, healthResponse, withObs } from "../_obs/withObs.ts";
 import { ERROR_CODES } from "../_obs/constants.ts";
+import {
+  AgentToolSpanTelemetryOptions,
+  buildAgentToolSpanPayload,
+} from "../_shared/agentObservability.ts";
 
 interface ToolDefinition {
   key: string;
@@ -588,6 +592,7 @@ const handler = withObs(async (req) => {
     };
 
     if (!dryRun) {
+      const spanStartMs = Date.now();
       try {
         toolResult = await executeTool(
           toolDef,
@@ -595,7 +600,54 @@ const handler = withObs(async (req) => {
           toolInput ?? {},
           toolRequestId,
         );
+        if (sessionId) {
+          const spanDurationMs = Math.max(0, Date.now() - spanStartMs);
+          const toolStatus = (toolResult as { status?: unknown }).status;
+          const toolBody = (toolResult as { body?: unknown }).body;
+          const spanStatus =
+            typeof toolStatus === "number"
+              ? toolStatus
+              : Number(toolStatus ?? NaN);
+          const spanOk = Number.isFinite(spanStatus)
+            ? spanStatus >= 200 && spanStatus < 400
+            : true;
+          await emitToolSpanEvent(
+            sessionId,
+            {
+              agentKey,
+              toolKey: toolDef.key,
+              requestId: toolRequestId,
+              startMs: spanStartMs,
+              durationMs: spanDurationMs,
+              ok: spanOk,
+              status: toolStatus,
+              requestPayload: toolInput ?? {},
+              responsePayload: toolBody,
+              ...(spanOk
+                ? {}
+                : {
+                    error: toolBody,
+                  }),
+            },
+          );
+        }
       } catch (error) {
+        const spanDurationMs = Math.max(0, Date.now() - spanStartMs);
+        if (sessionId) {
+          await emitToolSpanEvent(
+            sessionId,
+            {
+              agentKey,
+              toolKey: toolDef.key,
+              requestId: toolRequestId,
+              startMs: spanStartMs,
+              durationMs: spanDurationMs,
+              ok: false,
+              requestPayload: toolInput ?? {},
+              error,
+            },
+          );
+        }
         return jsonResponse({
           ok: false,
           error: `tool execution failed: ${(error as Error).message}`,
@@ -646,6 +698,22 @@ const handler = withObs(async (req) => {
 }, { fn: "agent-orchestrator", defaultErrorCode: ERROR_CODES.UNKNOWN });
 
 Deno.serve(handler);
+
+async function emitToolSpanEvent(
+  sessionId: string,
+  options: AgentToolSpanTelemetryOptions,
+): Promise<void> {
+  try {
+    const payload = await buildAgentToolSpanPayload(options);
+    await insertEvent(sessionId, "INFO", "agent.tool_span", payload);
+  } catch (error) {
+    console.error("agent.tool_span", {
+      error,
+      sessionId,
+      tool: options.toolKey,
+    });
+  }
+}
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
