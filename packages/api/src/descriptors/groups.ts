@@ -5,6 +5,8 @@ import {
   ContributionCreate,
   EscrowCreate,
   GroupJoinInput,
+  GroupSuggestionInput,
+  GroupSuggestionResponse,
   GroupsOpsPayoutNowInput,
   GroupsPayoutReportQuery,
 } from "@ecotrips/types";
@@ -30,6 +32,14 @@ export const groupsDescriptors = {
     auth: "user",
     input: ContributionCreate,
     output: z.object({ ok: z.boolean(), contribution_id: z.string().uuid().optional() }),
+  },
+  "groups.suggest": {
+    path: "/functions/v1/groups-suggest",
+    method: "POST",
+    auth: "anon",
+    input: GroupSuggestionInput,
+    output: GroupSuggestionResponse,
+    cacheTtlMs: 30_000,
   },
   "groups.payouts.report": {
     path: "/functions/v1/groups-payouts-report",

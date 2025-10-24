@@ -381,3 +381,73 @@ export async function insertGroupEscrow(
   }
   return data as { id: string; status?: string };
 }
+
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+async function callGroupRpc(name: string, payload: Record<string, unknown>) {
+  return await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
+    method: "POST",
+    headers: RPC_HEADERS,
+    body: JSON.stringify(payload ?? {}),
+  });
+}
+
+export async function ensureAgentSession(
+  options: { sessionId?: string | null; userId?: string | null; agentKey: string },
+): Promise<string | null> {
+  const { sessionId, userId, agentKey } = options;
+  if (sessionId && UUID_REGEX.test(sessionId)) {
+    return sessionId;
+  }
+
+  try {
+    const response = await callGroupRpc("agent_create_session", {
+      p_user: userId ?? null,
+      p_agent: agentKey,
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`agent_create_session failed: ${text}`);
+    }
+
+    const payload = (await response.json()) as { id?: string } | null;
+    if (payload?.id && UUID_REGEX.test(payload.id)) {
+      return payload.id;
+    }
+  } catch (error) {
+    console.error("agent_create_session", { error, userId, agentKey });
+  }
+
+  return null;
+}
+
+export async function insertAgentEventTelemetry(
+  sessionId: string | null,
+  event: string,
+  payload: Record<string, unknown>,
+  level: "AUDIT" | "INFO" | "WARN" | "ERROR" = "INFO",
+): Promise<void> {
+  if (!sessionId || !UUID_REGEX.test(sessionId)) {
+    return;
+  }
+
+  try {
+    const response = await callGroupRpc("agent_insert_event", {
+      p_session: sessionId,
+      p_level: level,
+      p_event: event,
+      p_payload: payload ?? {},
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`agent_insert_event failed: ${text}`);
+    }
+
+    await response.json().catch(() => undefined);
+  } catch (error) {
+    console.error("agent_insert_event", { error, sessionId, event });
+  }
+}
