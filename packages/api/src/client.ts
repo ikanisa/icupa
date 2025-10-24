@@ -83,8 +83,11 @@ export class EcoTripsFunctionClient {
       }
 
       const parsed = await safeJson(response);
-      // @ts-expect-error: Zod parsing guarantees the inferred output type matches the descriptor map entry.
-      return descriptor.output ? descriptor.output.parse(parsed) : (parsed as InferOutput<FunctionMap[K]>);
+      if (descriptor.output) {
+        return descriptor.output.parse(parsed) as InferOutput<FunctionMap[K]>;
+      }
+
+      return parsed as InferOutput<FunctionMap[K]>;
     } finally {
       clearTimeout(timeout);
     }

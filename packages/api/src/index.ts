@@ -466,6 +466,8 @@ export function createEcoTripsFunctionClient(options: ClientOptions) {
 
 export const functionDescriptors = descriptors;
 
+export * from "./mapRoute";
+
 function buildQueryString(input: unknown): string {
   if (!input || typeof input !== "object") {
     return "";

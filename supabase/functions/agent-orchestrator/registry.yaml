@@ -327,7 +327,7 @@
     calls_per_minute: 30
 - key: notify.whatsapp_send
   description: Stub: send templated or free-form WhatsApp messages via Business API.
-  endpoint: https://{project_ref}.supabase.co/functions/v1/notify-whatsapp-send
+  endpoint: https://{project_ref}.supabase.co/functions/v1/wa-send
   method: POST
   auth: service_role
   input_schema: |
@@ -345,165 +345,81 @@
   implementation_status: planned
   rate_limit:
     calls_per_minute: 60
-- key: growth.referral_link
-  description: Generate or reuse traveller referral invitations and return the shareable link.
-  endpoint: https://{project_ref}.supabase.co/functions/v1/referral-link
+- key: notify.whatsapp
+  description: Compose a safety advisory card and deliver via WhatsApp (fetches map-route warnings when needed).
+  endpoint: https://{project_ref}.supabase.co/functions/v1/notify-whatsapp
   method: POST
-  auth: user_jwt
+  auth: service_role
   input_schema: |
     type: object
-    required: [inviter_user_id, invitee_email, consent]
+    required: [to]
     properties:
-      inviter_user_id: { type: string, format: uuid }
-      invitee_email: { type: string, format: email }
-      invitee_user_id: { type: string, format: uuid }
-      channel:
-        oneOf:
-          - type: string
-          - type: array
-            items: { type: string }
-      consent: { type: boolean }
-      idempotency_key: { type: string }
-  output_schema: |
-    type: object
-    properties:
-      ok: { type: boolean }
-      referral_code: { type: string }
-      link: { type: string, format: uri }
-      status: { type: string }
-  idempotency:
-    key_field: idempotency_key
-  rate_limit:
-    calls_per_minute: 10
-- key: growth.reward_grant
-  description: Append a reward ledger entry and update referral balances for incentives.
-  endpoint: https://{project_ref}.supabase.co/functions/v1/reward-grant
-  method: POST
-  auth: service_token
-  input_schema: |
-    type: object
-    required: [user_id, amount_cents, idempotency_key, consent]
-    properties:
-      user_id: { type: string, format: uuid }
-      amount_cents: { type: integer, minimum: 1 }
-      currency: { type: string, minLength: 3 }
-      source: { type: string }
-      status: { type: string, enum: [pending, granted, cancelled, expired] }
-      referral_invitation_id: { type: string, format: uuid }
-      idempotency_key: { type: string }
-      consent: { type: boolean }
-  output_schema: |
-    type: object
-    properties:
-      ok: { type: boolean }
-      ledger_entry:
+      to: { type: string }
+      session_id: { type: string }
+      user_wa: { type: string }
+      route:
         type: object
         properties:
-          id: { type: string }
-          status: { type: string }
-          amount_cents: { type: integer }
-          currency: { type: string }
-  idempotency:
-    key_field: idempotency_key
-  rate_limit:
-    calls_per_minute: 20
-- key: growth.price_lock_offer
-  description: Issue a price lock offer backed by inventory holds and capture consent.
-  endpoint: https://{project_ref}.supabase.co/functions/v1/price-lock-offer
-  method: POST
-  auth: user_jwt
-  input_schema: |
-    type: object
-    required: [price_cents, idempotency_key, consent]
-    properties:
-      itinerary_id: { type: string, format: uuid }
-      user_id: { type: string, format: uuid }
-      price_cents: { type: integer, minimum: 1 }
-      currency: { type: string, minLength: 3 }
-      hold_reference: { type: string }
-      hold_expires_at: { type: string, format: date-time }
-      idempotency_key: { type: string }
-      consent: { type: boolean }
+          origin: { type: string }
+          destination: { type: string }
+          departure_time: { type: string, format: date-time }
+      warnings:
+        type: array
+        items:
+          type: object
+          required: [code, severity, summary, detail]
+          properties:
+            code: { type: string }
+            severity: { type: string, enum: [info, watch, alert] }
+            summary: { type: string }
+            detail: { type: string }
+            tags:
+              type: array
+              items: { type: string }
+            advisories:
+              type: array
+              items:
+                type: object
+                required: [code, audience, headline, detail]
+                properties:
+                  code: { type: string }
+                  audience: { type: string, enum: [traveler, ops, safety] }
+                  headline: { type: string }
+                  detail: { type: string }
+                  actions:
+                    type: array
+                    items: { type: string }
+                  effective_from: { type: string, format: date-time }
+                  effective_to: { type: string, format: date-time }
+                  tags:
+                    type: array
+                    items: { type: string }
+      advisories:
+        type: array
+        items:
+          type: object
+          required: [code, audience, headline, detail]
+          properties:
+            code: { type: string }
+            audience: { type: string, enum: [traveler, ops, safety] }
+            headline: { type: string }
+            detail: { type: string }
+            actions:
+              type: array
+              items: { type: string }
+            effective_from: { type: string, format: date-time }
+            effective_to: { type: string, format: date-time }
+            tags:
+              type: array
+              items: { type: string }
   output_schema: |
     type: object
     properties:
       ok: { type: boolean }
-      offer:
-        type: object
-        properties:
-          id: { type: string }
-          status: { type: string }
-          hold_expires_at: { type: string, format: date-time }
-  idempotency:
-    key_field: idempotency_key
+      warnings:
+        type: array
+        items: { type: string }
+      message_id: { type: string }
+  implementation_status: stub
   rate_limit:
-    calls_per_minute: 12
-- key: growth.hold_extend
-  description: Extend an existing price lock hold while maintaining idempotent audit trails.
-  endpoint: https://{project_ref}.supabase.co/functions/v1/hold-extend-offer
-  method: POST
-  auth: service_token
-  input_schema: |
-    type: object
-    required: [offer_id, idempotency_key]
-    properties:
-      offer_id: { type: string, format: uuid }
-      extension_minutes: { type: integer, minimum: 1 }
-      idempotency_key: { type: string }
-      consent: { type: boolean }
-      reason: { type: string }
-  output_schema: |
-    type: object
-    properties:
-      ok: { type: boolean }
-      hold_expires_at: { type: string, format: date-time }
-  idempotency:
-    key_field: idempotency_key
-  rate_limit:
-    calls_per_minute: 30
-- key: growth.air_status
-  description: Fetch live or fixture airline disruption telemetry for proactive messaging.
-  endpoint: https://{project_ref}.supabase.co/functions/v1/providers-air-status
-  method: GET
-  auth: user_jwt
-  input_schema: |
-    type: object
-    properties:
-      provider: { type: string }
-      flight: { type: string }
-      route: { type: string }
-      date: { type: string, format: date }
-  output_schema: |
-    type: object
-    properties:
-      ok: { type: boolean }
-      status: { type: object }
-  rate_limit:
-    calls_per_minute: 30
-- key: growth.rebook_suggest
-  description: Generate traveller-facing rebooking suggestions when disruptions are detected.
-  endpoint: https://{project_ref}.supabase.co/functions/v1/rebook-suggest
-  method: POST
-  auth: service_token
-  input_schema: |
-    type: object
-    required: [idempotency_key, consent]
-    properties:
-      disruption_id: { type: string, format: uuid }
-      itinerary_id: { type: string, format: uuid }
-      idempotency_key: { type: string }
-      consent: { type: boolean }
-      suggestion: { type: object }
-  output_schema: |
-    type: object
-    properties:
-      ok: { type: boolean }
-      suggestion:
-        type: object
-        properties:
-          id: { type: string }
-          status: { type: string }
-  idempotency:
-    key_field: idempotency_key
-  rate_limit:
-    calls_per_minute: 12
+    calls_per_minute: 60

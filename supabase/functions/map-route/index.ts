@@ -23,6 +23,26 @@ interface RouteLeg {
   notes?: string;
 }
 
+interface RouteAdvisory {
+  code: string;
+  audience: "traveler" | "ops" | "safety";
+  headline: string;
+  detail: string;
+  actions: string[];
+  effective_from?: string;
+  effective_to?: string;
+  tags: string[];
+}
+
+interface RouteWarning {
+  code: "night_travel" | "late_arrival_check_required" | "weather_alert";
+  severity: "info" | "watch" | "alert";
+  summary: string;
+  detail: string;
+  tags: string[];
+  advisories: RouteAdvisory[];
+}
+
 interface RoutePayload {
   ok: true;
   route: {
@@ -33,10 +53,8 @@ interface RoutePayload {
     total_minutes: number;
     distance_meters: number;
     warnings: string[];
-    // Structured warnings give richer daylight context today and can house
-    // additional market-specific metadata when the route service expands
-    // beyond Kigali.
-    warnings_details: WarningDetail[];
+    warning_details: RouteWarning[];
+    advisories: RouteAdvisory[];
     legs: RouteLeg[];
     source: "stub";
   };
@@ -100,14 +118,9 @@ const handler = withObs(async (req) => {
   const legOneEnd = new Date(departureTime.getTime() + legOneMinutes * 60_000);
   const legTwoEnd = new Date(legOneEnd.getTime() + legTwoMinutes * 60_000);
 
-  // Kigali-specific daylight logic lives in buildWarnings; normalize output so
-  // legacy consumers receive string identifiers while new consumers get detail
-  // objects. The helper exposes the normalization so future non-Kigali
-  // implementations can plug in additional metadata (including the multi-day
-  // arrival insights surfaced in warnings_details).
-  const rawWarnings = buildWarnings(departureTime, legTwoEnd);
-  const { legacyTypes: warnings, details: warningDetails } =
-    normalizeWarningOutputs(rawWarnings);
+  const warningDetails = buildWarnings(departureTime, legTwoEnd);
+  const warnings = warningDetails.map((warning) => warning.code);
+  const advisories = warningDetails.flatMap((warning) => warning.advisories);
 
   const legs: RouteLeg[] = [
     {
@@ -141,6 +154,8 @@ const handler = withObs(async (req) => {
     distance_meters: distanceMeters,
     total_minutes: totalMinutes,
     warnings,
+    warning_details: warningDetails,
+    advisories,
   });
 
   const payload: RoutePayload = {
@@ -154,7 +169,8 @@ const handler = withObs(async (req) => {
       total_minutes: totalMinutes,
       distance_meters: distanceMeters,
       warnings,
-      warnings_details: warningDetails,
+      warning_details: warningDetails,
+      advisories,
       legs,
       source: "stub",
     },
@@ -228,3 +244,87 @@ function estimateDistanceMeters(origin: string, destination: string): number {
   return 20_000 + accumulator;
 }
 
+function buildWarnings(start: Date, end: Date): RouteWarning[] {
+  const warnings: RouteWarning[] = [];
+  const departureHours = start.getUTCHours();
+  const arrivalHours = end.getUTCHours();
+
+  if (departureHours < 5 || departureHours >= 19) {
+    const advisories: RouteAdvisory[] = [
+      {
+        code: "night_travel.traveler",
+        audience: "traveler",
+        headline: "Night driving expected",
+        detail:
+          "Departing outside daylight hours. Reduce speed, ensure headlights and spotlights are working, and share your ETA with concierge support.",
+        actions: [
+          "Inspect headlights before departure",
+          "Share ETA with PlannerCoPilot",
+        ],
+        effective_from: start.toISOString(),
+        effective_to: end.toISOString(),
+        tags: ["night_travel", "visibility"],
+      },
+      {
+        code: "night_travel.ops",
+        audience: "ops",
+        headline: "Monitor night transfer",
+        detail:
+          "Ops should schedule a check-in once the traveler arrives and keep emergency contacts handy in case of delays.",
+        actions: ["Schedule arrival confirmation call"],
+        effective_from: start.toISOString(),
+        effective_to: end.toISOString(),
+        tags: ["night_travel", "ops_followup"],
+      },
+    ];
+
+    warnings.push({
+      code: "night_travel",
+      severity: "alert",
+      summary: "Portions of this route occur at night",
+      detail:
+        "The planned departure happens before sunrise or after sunset. Expect limited visibility, wildlife crossings, and sparse roadside assistance.",
+      tags: ["night", "visibility"],
+      advisories,
+    });
+  }
+
+  if (arrivalHours >= 21 || arrivalHours < 6) {
+    const advisories: RouteAdvisory[] = [
+      {
+        code: "late_arrival.traveler",
+        audience: "traveler",
+        headline: "Late check-in required",
+        detail:
+          "Arrival is projected after 21:00. Coordinate with lodging or supplier for late access and keep emergency contacts nearby.",
+        actions: ["Notify lodging of late check-in", "Keep emergency contacts handy"],
+        effective_from: start.toISOString(),
+        effective_to: end.toISOString(),
+        tags: ["late_arrival", "supplier"],
+      },
+      {
+        code: "late_arrival.ops",
+        audience: "ops",
+        headline: "Ops follow-up recommended",
+        detail:
+          "Late arrival triggers an ops confirmation. Verify supplier check-in procedures and be ready for escalation if the traveler cannot reach staff.",
+        actions: ["Confirm supplier contact availability"],
+        effective_from: start.toISOString(),
+        effective_to: end.toISOString(),
+        tags: ["late_arrival", "ops_followup"],
+      },
+    ];
+
+    warnings.push({
+      code: "late_arrival_check_required",
+      severity: "watch",
+      summary: "Arrival occurs after standard check-in hours",
+      detail:
+        "Expect to reach the destination after 21:00. Coordinate supplier late check-in steps and escalate to ops if contact fails.",
+      tags: ["late_arrival", "check_in"],
+      advisories,
+    });
+  }
+
+  return warnings;
+}
