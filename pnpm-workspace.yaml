@@ -1,0 +1,10 @@
+packages:
+  - apps/ecotrips
+  - apps/ecotrips/app
+  - apps/ecotrips/apps/*
+  - apps/ecotrips/packages/*
+
+ignoredBuiltDependencies:
+  - '@swc/core'
+  - esbuild
+  - supabase
