@@ -365,13 +365,33 @@ const descriptors = {
       sha256: z.string().optional(),
     }),
   },
-  "search.places": {
-    path: "/functions/v1/search-places",
+  "supplier.orders": {
+    path: "/functions/v1/supplier-orders",
+    method: "GET",
+    auth: "user",
+    input: SupplierOrdersRequest.default({ include_badges: false }),
+    output: SupplierOrdersResponse,
+  },
+  "supplier.confirm": {
+    path: "/functions/v1/supplier-confirm",
     method: "POST",
-    auth: "anon",
-    input: SearchPlacesInput,
-    output: SearchPlacesResponse,
-    cacheTtlMs: 15_000,
+    auth: "user",
+    input: SupplierConfirmInput,
+    output: SupplierConfirmResponse,
+  },
+  "flags.config": {
+    path: "/functions/v1/flags-config",
+    method: "GET",
+    auth: "user",
+    input: z.object({}).default({}),
+    output: FlagsConfigResponse,
+  },
+  "admin.synth.generate": {
+    path: "/functions/v1/synth-generate",
+    method: "POST",
+    auth: "user",
+    input: SynthGenerateInput.default({}),
+    output: SynthGenerateResponse,
   },
 } satisfies Record<string, FunctionDescriptor<z.ZodTypeAny, z.ZodTypeAny>>;
 

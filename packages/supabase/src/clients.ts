@@ -10,7 +10,7 @@ type RouteFactoryContext = Parameters<typeof createRouteHandlerClient<Database>>
 type ServerFactoryOptions = NonNullable<Parameters<typeof createServerComponentClient<Database>>[1]>;
 type RouteFactoryOptions = NonNullable<Parameters<typeof createRouteHandlerClient<Database>>[1]>;
 
-type SharedFactoryOverrides<TOptions> = {
+type SharedFactoryOverrides<TOptions extends { options?: unknown; cookieOptions?: unknown }> = {
   config?: SupabaseConfigInput;
   options?: TOptions["options"];
   cookieOptions?: TOptions["cookieOptions"];
