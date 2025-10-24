@@ -14,6 +14,38 @@ export type Database = {
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };
+  app: {
+    Tables: {
+      user_autonomy_prefs: {
+        Row: {
+          user_id: string;
+          category: string;
+          autonomy_level: string;
+          composer_mode: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          category: string;
+          autonomy_level: string;
+          composer_mode?: string;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          category?: string;
+          autonomy_level?: string;
+          composer_mode?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+    };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
+  };
   sec: {
     Tables: {
       user_roles: {

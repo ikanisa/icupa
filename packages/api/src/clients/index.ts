@@ -12,9 +12,7 @@ import { createPermitsClient, type PermitsClient } from "./permits";
 import { createPricingClient, type PricingClient } from "./pricing";
 import { createPrivacyClient, type PrivacyClient } from "./privacy";
 import { createWalletClient, type WalletClient } from "./wallet";
-import { createNotifyClient, type NotifyClient } from "./notify";
-import { createSupportClient, type SupportClient } from "./support";
-import { createChatClient, type ChatClient } from "./chat";
+import { createUserClient, type UserClient } from "./user";
 
 export type DomainClients = {
   inventory: InventoryClient;
@@ -30,9 +28,7 @@ export type DomainClients = {
   loyalty: LoyaltyClient;
   privacy: PrivacyClient;
   dr: DisasterRecoveryClient;
-  notify: NotifyClient;
-  support: SupportClient;
-  chat: ChatClient;
+  user: UserClient;
 };
 
 export function createDomainClients(client: FunctionCaller<FunctionMap>): DomainClients {
@@ -50,9 +46,7 @@ export function createDomainClients(client: FunctionCaller<FunctionMap>): Domain
     loyalty: createLoyaltyClient(client),
     privacy: createPrivacyClient(client),
     dr: createDisasterRecoveryClient(client),
-    notify: createNotifyClient(client),
-    support: createSupportClient(client),
-    chat: createChatClient(client),
+    user: createUserClient(client),
   };
 }
 
@@ -68,6 +62,4 @@ export * from "./permits";
 export * from "./pricing";
 export * from "./privacy";
 export * from "./wallet";
-export * from "./notify";
-export * from "./support";
-export * from "./chat";
+export * from "./user";

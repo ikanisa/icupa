@@ -1,9 +1,17 @@
 import { getRequestId, healthResponse, withObs } from "../_obs/withObs.ts";
 import { ERROR_CODES } from "../_obs/constants.ts";
 import {
-  AgentToolSpanTelemetryOptions,
-  buildAgentToolSpanPayload,
-} from "../_shared/agentObservability.ts";
+  isAutonomyCategory,
+  isAutonomyLevel,
+  isComposerDial,
+  rankAutonomyLevel,
+  type AutonomyCategory,
+  type AutonomyLevel,
+  type ComposerDial,
+} from "../_shared/autonomy.ts";
+import autonomyFixtures from "../../../ops/fixtures/user_autonomy_prefs.json" assert {
+  type: "json",
+};
 
 interface ToolDefinition {
   key: string;
@@ -64,6 +72,56 @@ interface ModerationSummary {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE") ??
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+const AUTONOMY_PREFS_FIXTURES = Deno.env.get("AUTONOMY_PREFS_FIXTURES") === "1";
+const AUTONOMY_PREFS_CACHE_TTL_MS = Number(
+  Deno.env.get("AUTONOMY_PREFS_CACHE_MS") ?? "60000",
+);
+const AUTONOMY_DEFAULT_LEVEL: AutonomyLevel = "L1";
+const AUTONOMY_DEFAULT_COMPOSER: ComposerDial = "assist";
+const AUTONOMY_MIN_EXECUTION_LEVEL = 2;
+
+const HIGH_RISK_TOOLS = new Set<string>([
+  "checkout.intent",
+  "ops.refund",
+  "groups.contribute",
+  "groups.create_escrow",
+  "groups.payout_now",
+  "permits.ops_approve",
+  "permits.ops_reject",
+  "webhook.stripe",
+]);
+
+const AGENT_AUTONOMY_CATEGORY: Record<string, AutonomyCategory> = {
+  PlannerCoPilot: "planner",
+  ConciergeGuide: "concierge",
+  GroupBuilder: "planner",
+  SupportCopilot: "support",
+  SupplierOpsAgent: "ops",
+  FinOpsAgent: "ops",
+  ContentMarketingAgent: "marketing",
+};
+
+type StoredAutonomyPreference = {
+  level: AutonomyLevel;
+  composer: ComposerDial;
+  updatedAt?: string;
+  source: "db" | "fixtures";
+};
+
+type AutonomyGateResult = {
+  allowed: boolean;
+  category: AutonomyCategory;
+  level: AutonomyLevel;
+  composer: ComposerDial;
+  source: "db" | "fixtures" | "default";
+  requiredLevel: number;
+};
+
+const AUTONOMY_PREF_CACHE = new Map<
+  string,
+  { expiresAt: number; prefs: Map<AutonomyCategory, StoredAutonomyPreference> }
+>();
 
 const EMBEDDED_REGISTRY: ToolDefinition[] = [
   {
@@ -435,6 +493,7 @@ const handler = withObs(async (req) => {
     typeof payload.agent === "string" && payload.agent.trim().length > 0
       ? payload.agent.trim()
       : "";
+  const autonomyCategory = resolveAutonomyCategory(agentKey);
   if (!agentKey) {
     validationErrors.push("agent is required");
   }
@@ -663,50 +722,33 @@ const handler = withObs(async (req) => {
     }
   }
 
-  const riskyCandidates = extractRiskyModerationCandidates(shortTermMessages);
-  if (riskyCandidates.length > 0) {
-    try {
-      moderationSummary = await requestModerationDecision(
-        riskyCandidates,
-        agentKey,
+  let autonomyGate: AutonomyGateResult | null = null;
+  if (toolDef) {
+    if (payload.user_id) {
+      autonomyGate = await evaluateAutonomyGate(
+        payload.user_id,
+        autonomyCategory,
+        toolDef.key,
         requestId,
       );
+    } else {
+      autonomyGate = buildDefaultAutonomyGate(autonomyCategory, toolDef.key);
+    }
 
-      if (sessionId) {
-        await insertEvent(
-          sessionId,
-          "AUDIT",
-          "agent.moderation",
-          createModerationAuditPayload(agentKey, riskyCandidates, moderationSummary),
-        );
-      }
-    } catch (error) {
+    if (!dryRun && payload.user_id && autonomyGate && !autonomyGate.allowed) {
       return jsonResponse({
         ok: false,
-        error: `moderation error: ${(error as Error).message}`,
-      }, 502);
+        error: "autonomy_threshold",
+        autonomy: {
+          category: autonomyGate.category,
+          level: autonomyGate.level,
+          composer: autonomyGate.composer,
+          source: autonomyGate.source,
+          required_level: `L${autonomyGate.requiredLevel}`,
+          allowed: autonomyGate.allowed,
+        },
+      }, 403);
     }
-  }
-
-  if (moderationSummary && moderationSummary.action !== "allow") {
-    const responsePayload: Record<string, unknown> = {
-      ok: false,
-      session_id: sessionId,
-      next: "moderation_review",
-      request_id: requestId,
-      moderation: {
-        action: moderationSummary.action,
-        category: moderationSummary.category,
-        decisions: moderationSummary.decisions.map((decision) => ({
-          message_index: decision.message_index,
-          action: decision.action,
-          category: decision.category,
-          reason: decision.reason,
-        })),
-      },
-    };
-
-    return jsonResponse(responsePayload, 200);
   }
 
   const toolRequestId = crypto.randomUUID();
@@ -827,18 +869,16 @@ const handler = withObs(async (req) => {
     responsePayload.tool_result = toolResult;
   }
 
-  if (moderationSummary) {
-    responsePayload.moderation = {
-      action: moderationSummary.action,
-      category: moderationSummary.category,
-      decisions: moderationSummary.decisions.map((decision) => ({
-        message_index: decision.message_index,
-        action: decision.action,
-        category: decision.category,
-        reason: decision.reason,
-      })),
-    };
-  }
+  const autonomySnapshot = autonomyGate ??
+    buildDefaultAutonomyGate(autonomyCategory, toolDef?.key ?? null);
+  responsePayload.autonomy = {
+    category: autonomySnapshot.category,
+    level: autonomySnapshot.level,
+    composer: autonomySnapshot.composer,
+    source: autonomySnapshot.source,
+    required_level: `L${autonomySnapshot.requiredLevel}`,
+    allowed: autonomySnapshot.allowed,
+  };
 
   return jsonResponse(responsePayload, 200);
 }, { fn: "agent-orchestrator", defaultErrorCode: ERROR_CODES.UNKNOWN });
@@ -1509,196 +1549,160 @@ function serviceHeaders(): Record<string, string> {
   };
 }
 
-async function runPlannerOptimizers(
-  input: Record<string, unknown>,
-  requestId: string,
-): Promise<{
-  why: string[];
-  conflicts: unknown[];
-  dayBalance: Record<string, unknown> | null;
-  diffSummary: Record<string, unknown>[];
-  rationales: string[];
-  before?: Record<string, unknown>;
-  after?: Record<string, unknown>;
-  source: string;
-  lastRunAt: string;
-} | null> {
-  const [conflictRes, balanceRes] = await Promise.all([
-    callOptimizerEndpoint("conflict-resolver", input, requestId),
-    callOptimizerEndpoint("day-balancer", input, requestId),
-  ]);
-
-  if (!conflictRes && !balanceRes) {
-    return null;
+function resolveAutonomyCategory(agentKey: string): AutonomyCategory {
+  if (isAutonomyCategory(agentKey)) {
+    return agentKey;
   }
+  return AGENT_AUTONOMY_CATEGORY[agentKey] ?? "planner";
+}
 
-  const lastRunAt = new Date().toISOString();
-  const why: string[] = [];
+function requiredLevelForTool(toolKey: string | null | undefined): number {
+  if (!toolKey) return AUTONOMY_MIN_EXECUTION_LEVEL;
+  return HIGH_RISK_TOOLS.has(toolKey)
+    ? 4
+    : AUTONOMY_MIN_EXECUTION_LEVEL;
+}
 
-  const conflicts = conflictRes && Array.isArray(conflictRes["conflicts"])
-    ? (conflictRes["conflicts"] as unknown[])
-    : [];
-  for (const entry of conflicts) {
-    if (!entry || typeof entry !== "object") continue;
-    const record = entry as Record<string, unknown>;
-    const recommendation =
-      typeof record.recommendation === "string"
-        ? record.recommendation
-        : null;
-    const rationale =
-      typeof record.rationale === "string" ? record.rationale : null;
-    const id = typeof record.id === "string" ? record.id : "conflict";
-    if (recommendation) {
-      why.push(`Resolve ${id}: ${recommendation}`);
-    } else if (rationale) {
-      why.push(`Resolve ${id}: ${rationale}`);
-    }
-  }
-
-  const rationales = balanceRes && Array.isArray(balanceRes["rationales"])
-    ? (balanceRes["rationales"] as unknown[])
-        .filter((item): item is string => typeof item === "string")
-    : [];
-  for (const note of rationales) {
-    why.push(`Auto-balance: ${note}`);
-  }
-
-  const diffSummary = balanceRes && Array.isArray(balanceRes["diff_summary"])
-    ? (balanceRes["diff_summary"] as Record<string, unknown>[])
-    : [];
-
-  const before =
-    balanceRes && typeof balanceRes["before"] === "object" &&
-      balanceRes["before"] !== null &&
-      !Array.isArray(balanceRes["before"])
-      ? (balanceRes["before"] as Record<string, unknown>)
-      : undefined;
-  const after =
-    balanceRes && typeof balanceRes["after"] === "object" &&
-      balanceRes["after"] !== null && !Array.isArray(balanceRes["after"])
-      ? (balanceRes["after"] as Record<string, unknown>)
-      : undefined;
-
+function buildDefaultAutonomyGate(
+  category: AutonomyCategory,
+  toolKey: string | null,
+): AutonomyGateResult {
+  const requiredLevel = requiredLevelForTool(toolKey);
+  const level = AUTONOMY_DEFAULT_LEVEL;
+  const allowed = rankAutonomyLevel(level) >= requiredLevel;
   return {
-    why,
-    conflicts,
-    dayBalance: after ?? null,
-    diffSummary,
-    rationales,
-    before,
-    after,
-    source:
-      (balanceRes && typeof balanceRes["source"] === "string" &&
-        (balanceRes["source"] as string).length > 0)
-        ? (balanceRes["source"] as string)
-        : (conflictRes && typeof conflictRes["source"] === "string" &&
-            (conflictRes["source"] as string).length > 0)
-        ? (conflictRes["source"] as string)
-        : "fixtures",
-    lastRunAt,
+    allowed,
+    category,
+    level,
+    composer: AUTONOMY_DEFAULT_COMPOSER,
+    source: "default",
+    requiredLevel,
   };
 }
 
-async function callOptimizerEndpoint(
-  slug: "conflict-resolver" | "day-balancer",
-  input: Record<string, unknown>,
+async function evaluateAutonomyGate(
+  userId: string,
+  category: AutonomyCategory,
+  toolKey: string,
   requestId: string,
-): Promise<Record<string, unknown> | null> {
-  const endpoint = `${SUPABASE_URL}/functions/v1/${slug}`;
-  try {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        ...serviceHeaders(),
-        "content-type": "application/json",
-        "x-request-id": requestId,
-        "x-optimizer-slug": slug,
-      },
-      body: JSON.stringify(input),
+): Promise<AutonomyGateResult> {
+  const prefs = await getAutonomyPreferences(userId, requestId);
+  const pref = prefs.get(category);
+  const level = pref?.level ?? AUTONOMY_DEFAULT_LEVEL;
+  const composer = pref?.composer ?? AUTONOMY_DEFAULT_COMPOSER;
+  const source = pref?.source ?? "default";
+  const requiredLevel = requiredLevelForTool(toolKey);
+  const allowed = rankAutonomyLevel(level) >= requiredLevel;
+  return {
+    allowed,
+    category,
+    level,
+    composer,
+    source,
+    requiredLevel,
+  };
+}
+
+async function getAutonomyPreferences(
+  userId: string,
+  requestId: string,
+): Promise<Map<AutonomyCategory, StoredAutonomyPreference>> {
+  const cached = AUTONOMY_PREF_CACHE.get(userId);
+  const now = Date.now();
+  if (cached && cached.expiresAt > now) {
+    return cached.prefs;
+  }
+
+  if (AUTONOMY_PREFS_FIXTURES) {
+    const prefs = buildFixturePreferences();
+    AUTONOMY_PREF_CACHE.set(userId, {
+      prefs,
+      expiresAt: now + AUTONOMY_PREFS_CACHE_TTL_MS,
     });
+    return prefs;
+  }
+
+  try {
+    const headers = { ...serviceHeaders(), "Accept-Profile": "app" };
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/app.user_autonomy_prefs?select=category,autonomy_level,composer_mode,updated_at&user_id=eq.${userId}`,
+      { headers },
+    );
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.warn(
-        JSON.stringify({
-          level: "WARN",
-          event: "optimizer.endpoint.failure",
-          fn: "agent-orchestrator",
-          requestId,
-          slug,
-          status: response.status,
-          error: errorText,
-        }),
-      );
-      return null;
+      const text = await response.text();
+      throw new Error(text || response.statusText);
     }
 
-    const raw = await response.text();
-    return raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
+    const rows = await response.json() as Array<Record<string, unknown>>;
+    const map = new Map<AutonomyCategory, StoredAutonomyPreference>();
+    for (const row of rows) {
+      const category = row.category;
+      const level = row.autonomy_level;
+      const composer = row.composer_mode;
+      if (
+        isAutonomyCategory(category) &&
+        isAutonomyLevel(level) &&
+        isComposerDial(composer)
+      ) {
+        map.set(category, {
+          level,
+          composer,
+          updatedAt: typeof row.updated_at === "string" ? row.updated_at : undefined,
+          source: "db",
+        });
+      }
+    }
+
+    AUTONOMY_PREF_CACHE.set(userId, {
+      prefs: map,
+      expiresAt: now + AUTONOMY_PREFS_CACHE_TTL_MS,
+    });
+    return map;
   } catch (error) {
-    console.error(
-      JSON.stringify({
-        level: "ERROR",
-        event: "optimizer.endpoint.error",
-        fn: "agent-orchestrator",
-        requestId,
-        slug,
-        message: error instanceof Error ? error.message : String(error),
-      }),
-    );
-    return null;
+    console.log(JSON.stringify({
+      level: "WARN",
+      event: "agent.autonomy.fetch_failed",
+      fn: "agent-orchestrator",
+      request_id: requestId,
+      message: (error as Error).message,
+    }));
+    const fallback = new Map<AutonomyCategory, StoredAutonomyPreference>();
+    AUTONOMY_PREF_CACHE.set(userId, {
+      prefs: fallback,
+      expiresAt: now + AUTONOMY_PREFS_CACHE_TTL_MS,
+    });
+    return fallback;
   }
 }
 
-function extractOptimizerInput(
-  plan: Record<string, unknown>,
-): Record<string, unknown> | null {
-  if (!plan || typeof plan !== "object") {
-    return null;
-  }
-
-  const candidateValue = (plan as Record<string, unknown>)["optimizer_input"];
-  const candidate =
-    candidateValue && typeof candidateValue === "object" &&
-      candidateValue !== null && !Array.isArray(candidateValue)
-      ? (candidateValue as Record<string, unknown>)
-      : plan;
-
-  if (!Array.isArray(candidate["days"]) || candidate["days"].length === 0) {
-    return null;
-  }
-  if (!Array.isArray(candidate["anchors"])) {
-    return null;
-  }
-  if (!Array.isArray(candidate["windows"])) {
-    return null;
-  }
-  if (typeof candidate["max_drive_minutes"] !== "number") {
-    return null;
-  }
-  if (typeof candidate["pace"] !== "string") {
-    return null;
-  }
-
-  return {
-    days: candidate["days"],
-    anchors: candidate["anchors"],
-    windows: candidate["windows"],
-    max_drive_minutes: candidate["max_drive_minutes"],
-    pace: candidate["pace"],
-  };
-}
-
-function dedupeStrings(values: string[]): string[] {
-  const seen = new Set<string>();
-  const results: string[] = [];
-  for (const value of values) {
-    if (!seen.has(value)) {
-      seen.add(value);
-      results.push(value);
+function buildFixturePreferences(): Map<AutonomyCategory, StoredAutonomyPreference> {
+  const map = new Map<AutonomyCategory, StoredAutonomyPreference>();
+  const items = Array.isArray((autonomyFixtures as { preferences?: unknown }).preferences)
+    ? (autonomyFixtures as { preferences: unknown[] }).preferences
+    : [];
+  const timestamp = new Date().toISOString();
+  for (const entry of items) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      continue;
+    }
+    const category = (entry as Record<string, unknown>).category;
+    const level = (entry as Record<string, unknown>).level;
+    const composer = (entry as Record<string, unknown>).composer;
+    if (
+      isAutonomyCategory(category) &&
+      isAutonomyLevel(level) &&
+      isComposerDial(composer)
+    ) {
+      map.set(category, {
+        level,
+        composer,
+        updatedAt: timestamp,
+        source: "fixtures",
+      });
     }
   }
-  return results;
+  return map;
 }
 
 function deepMerge(
