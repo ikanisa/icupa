@@ -1,14 +1,21 @@
 import { CardGlass, buttonClassName } from "@ecotrips/ui";
 
+import { createPageMetadata } from "../../../lib/seo/metadata";
+import { PublicPage } from "../components/PublicPage";
 import { WalletOfflinePack } from "../components/WalletOfflinePack";
+
+export const metadata = createPageMetadata({
+  title: "Wallet",
+  description: "Sync offline itinerary packs, receipts, and privacy exports for on-the-go access.",
+  path: "/wallet",
+});
 
 export default function WalletPage() {
   return (
-    <div className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 px-4 pb-24 pt-10">
+    <PublicPage>
       <CardGlass title="Wallet" subtitle="Offline pack caches itinerary JSON, QR tickets, and emergency contacts.">
         <p className="text-sm text-white/80">
-          Toggle INVENTORY_OFFLINE to force cached mode. Offline pack includes last synced itinerary, payment receipts, and
-          WhatsApp emergency channels. Supply a privacy export request id to retrieve the signed offline bundle.
+          Toggle INVENTORY_OFFLINE to force cached mode. Offline pack includes last synced itinerary, payment receipts, and WhatsApp emergency channels. Supply a privacy export request id to retrieve the signed offline bundle.
         </p>
         <div className="mt-4 flex flex-col gap-4">
           <WalletOfflinePack />
@@ -23,6 +30,6 @@ export default function WalletPage() {
           <li>• Partial payouts require FinOps HITL approval.</li>
         </ul>
       </CardGlass>
-    </div>
+    </PublicPage>
   );
 }

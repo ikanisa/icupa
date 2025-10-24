@@ -1,4 +1,16 @@
-import { CheckoutInput, ContributionCreate, EscrowCreate, InventorySearchInput, PermitRequest } from "@ecotrips/types";
+import {
+  AffiliateOutboundInput,
+  AffiliateOutboundResult,
+  CheckoutInput,
+  ContributionCreate,
+  EscrowCreate,
+  InventorySearchInput,
+  PermitRequest,
+  VoiceCallInitiateInput,
+  VoiceCallInitiateResponse,
+  VoiceCallSummarizeInput,
+  VoiceCallSummarizeResponse,
+} from "@ecotrips/types";
 import {
   DrSnapshotInput,
   GroupsOpsPayoutNowInput,
@@ -75,6 +87,13 @@ const descriptors = {
     input: CheckoutInput,
     output: z.object({ ok: z.boolean(), payment_intent_id: z.string().optional(), client_secret: z.string().optional(), ledger_entry_id: z.string().optional() }),
   },
+  "checkout.escalate": {
+    path: "/functions/v1/payment-escalate",
+    method: "POST",
+    auth: "user",
+    input: PaymentEscalationInput,
+    output: PaymentEscalationResponse,
+  },
   "groups.create": {
     path: "/functions/v1/groups-create-escrow",
     method: "POST",
@@ -95,6 +114,14 @@ const descriptors = {
     auth: "user",
     input: ContributionCreate,
     output: z.object({ ok: z.boolean(), contribution_id: z.string().uuid().optional() }),
+  },
+  "groups.suggest": {
+    path: "/functions/v1/groups-suggest",
+    method: "POST",
+    auth: "anon",
+    input: GroupSuggestionInput,
+    output: GroupSuggestionResponse,
+    cacheTtlMs: 30_000,
   },
   "permits.request": {
     path: "/functions/v1/permits-request",
@@ -204,6 +231,30 @@ const descriptors = {
       reused: z.boolean().optional(),
     }),
   },
+  "ops.refund": {
+    path: "/functions/v1/ops-refund",
+    method: "POST",
+    auth: "user",
+    input: z.object({
+      itinerary_id: z.string().uuid(),
+      amount_cents: z.number().int().positive(),
+      reason: z.string().min(1).max(200),
+    }),
+    output: z.object({
+      ok: z.boolean(),
+      request_id: z.string().optional(),
+      refund_id: z.string().optional(),
+      status: z.string().optional(),
+      message: z.string().optional(),
+    }),
+  },
+  "affiliate.outbound": {
+    path: "/functions/v1/affiliate-outbound",
+    method: "POST",
+    auth: "user",
+    input: AffiliateOutboundInput,
+    output: AffiliateOutboundResult,
+  },
   "privacy.request": {
     path: "/functions/v1/privacy-request",
     method: "POST",
@@ -270,6 +321,20 @@ const descriptors = {
         .optional(),
     }),
   },
+  "voice.call.initiate": {
+    path: "/functions/v1/voice-call-initiate",
+    method: "POST",
+    auth: "user",
+    input: VoiceCallInitiateInput,
+    output: VoiceCallInitiateResponse,
+  },
+  "voice.call.summarize": {
+    path: "/functions/v1/voice-call-summarize",
+    method: "POST",
+    auth: "user",
+    input: VoiceCallSummarizeInput,
+    output: VoiceCallSummarizeResponse,
+  },
   "dr.snapshot": {
     path: "/functions/v1/dr-snapshot",
     method: "POST",
@@ -282,6 +347,14 @@ const descriptors = {
       bytes: z.number().optional(),
       sha256: z.string().optional(),
     }),
+  },
+  "search.places": {
+    path: "/functions/v1/search-places",
+    method: "POST",
+    auth: "anon",
+    input: SearchPlacesInput,
+    output: SearchPlacesResponse,
+    cacheTtlMs: 15_000,
   },
 } satisfies Record<string, FunctionDescriptor<z.ZodTypeAny, z.ZodTypeAny>>;
 

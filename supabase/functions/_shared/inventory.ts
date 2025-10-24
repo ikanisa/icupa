@@ -1,14 +1,8 @@
 import { ERROR_CODES } from "./constants.ts";
+import { getSupabaseServiceConfig } from "./env.ts";
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
-const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE") ??
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
-  throw new Error(
-    "Supabase configuration missing for inventory shared helpers",
-  );
-}
+const { url: SUPABASE_URL, serviceRoleKey: SERVICE_ROLE_KEY } =
+  getSupabaseServiceConfig({ feature: "inventory" });
 
 const CATALOG_HEADERS = {
   apikey: SERVICE_ROLE_KEY,

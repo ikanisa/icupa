@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { Route } from "next";
-import type { ReactNode } from "react";
+import type { ComponentType, ReactNode } from "react";
 import { clsx } from "clsx";
 
 export type BottomNavItem = {
@@ -28,8 +27,8 @@ export function BottomNavDock({ items, activePath }: BottomNavDockProps) {
           const active = pathname === href || pathname.startsWith(`${href}/`);
           return (
             <li key={href}>
-              <Link
-                href={item.href}
+              <NextLink
+                href={item.href as never}
                 className={clsx(
                   "flex flex-col items-center gap-1 rounded-2xl px-4 py-2 text-xs font-medium transition-all duration-[var(--eco-duration-base)] ease-[var(--eco-easing-std)]",
                   active
@@ -40,7 +39,7 @@ export function BottomNavDock({ items, activePath }: BottomNavDockProps) {
               >
                 <span aria-hidden>{item.icon}</span>
                 <span>{item.label}</span>
-              </Link>
+              </NextLink>
             </li>
           );
         })}

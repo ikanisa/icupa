@@ -2,20 +2,9 @@
 
 import { useState } from "react";
 import { Button, Toast } from "@ecotrips/ui";
-import { createEcoTripsFunctionClient } from "@ecotrips/api";
 import { PrivacyExportInput } from "@ecotrips/types";
 
-const clientPromise = (async () => {
-  if (typeof window === "undefined") return null;
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !anonKey) return null;
-  return createEcoTripsFunctionClient({
-    supabaseUrl,
-    anonKey,
-    getAccessToken: async () => null,
-  });
-})();
+import { useOptionalFunctionClient } from "../../../lib/api/client-provider";
 
 type ToastState = { id: string; title: string; description?: string } | null;
 
@@ -24,6 +13,7 @@ export function WalletOfflinePack() {
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastState>(null);
   const [pending, setPending] = useState(false);
+  const optionalClient = useOptionalFunctionClient();
 
   const invoke = async () => {
     const parsed = PrivacyExportInput.safeParse({ request_id: requestId });
@@ -32,7 +22,7 @@ export function WalletOfflinePack() {
       return;
     }
 
-    const client = await clientPromise;
+    const client = optionalClient;
     if (!client) {
       setToast({ id: "offline", title: "Offline mode", description: "Authenticate to sync offline packs." });
       return;

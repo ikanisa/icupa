@@ -8,6 +8,7 @@ import {
 } from "@ecotrips/types";
 
 import { getOpsFunctionClient } from "../../../lib/functionClient";
+import { logAdminAction } from "../../../lib/logging";
 
 import { ActionForm, type ActionFormState } from "./ActionForm";
 
@@ -23,22 +24,31 @@ async function requestAction(_: ServerState, formData: FormData): Promise<Server
   });
 
   if (!payload.success) {
+    logAdminAction("privacy.request", { status: "validation_failed" });
     return { status: "error", message: "Valid subject UUID required." };
   }
 
   const client = await getOpsFunctionClient();
   if (!client) {
+    logAdminAction("privacy.request", { status: "offline" });
     return { status: "offline", message: "Supabase session missing." };
   }
 
   try {
     const response = await client.call("privacy.request", payload.data);
     if (!response.ok || !response.request_id) {
+      logAdminAction("privacy.request", { status: "error", requestId: response.request_id });
       return { status: "error", message: "Edge function reported failure." };
     }
+    logAdminAction("privacy.request", {
+      status: "success",
+      requestId: response.request_id,
+      kind: payload.data.kind,
+    });
     return { status: "success", detail: `Request ${response.request_id}` };
   } catch (error) {
     console.error("privacy.request", error);
+    logAdminAction("privacy.request", { status: "error", error: error instanceof Error ? error.message : String(error) });
     return { status: "error", message: "Check withObs taxonomy for details." };
   }
 }
@@ -53,22 +63,31 @@ async function reviewAction(_: ServerState, formData: FormData): Promise<ServerS
   });
 
   if (!payload.success) {
+    logAdminAction("privacy.review", { status: "validation_failed" });
     return { status: "error", message: "Provide request id and decision." };
   }
 
   const client = await getOpsFunctionClient();
   if (!client) {
+    logAdminAction("privacy.review", { status: "offline" });
     return { status: "offline", message: "Supabase session missing." };
   }
 
   try {
     const response = await client.call("privacy.review", payload.data);
     if (!response.ok) {
+      logAdminAction("privacy.review", { status: "error", requestId: response.request_id });
       return { status: "error", message: "Review failed." };
     }
+    logAdminAction("privacy.review", {
+      status: "success",
+      requestId: response.request_id,
+      decision: payload.data.decision,
+    });
     return { status: "success", detail: `Request now ${response.status ?? "updated"}` };
   } catch (error) {
     console.error("privacy.review", error);
+    logAdminAction("privacy.review", { status: "error", error: error instanceof Error ? error.message : String(error) });
     return { status: "error", message: "Check withObs taxonomy for details." };
   }
 }
@@ -78,25 +97,33 @@ async function exportAction(_: ServerState, formData: FormData): Promise<ServerS
 
   const payload = PrivacyExportInput.safeParse({ request_id: String(formData.get("requestId") ?? "") });
   if (!payload.success) {
+    logAdminAction("privacy.export", { status: "validation_failed" });
     return { status: "error", message: "Request id required." };
   }
 
   const client = await getOpsFunctionClient();
   if (!client) {
+    logAdminAction("privacy.export", { status: "offline" });
     return { status: "offline", message: "Supabase session missing." };
   }
 
   try {
     const response = await client.call("privacy.export", payload.data);
     if (!response.ok) {
+      logAdminAction("privacy.export", { status: "error", requestId: response.request_id });
       return { status: "error", message: "Export failed." };
     }
+    logAdminAction("privacy.export", {
+      status: "success",
+      requestId: response.request_id,
+    });
     return {
       status: "success",
       detail: response.signed_url ? `Signed URL ready: ${response.signed_url}` : "Export queued",
     };
   } catch (error) {
     console.error("privacy.export", error);
+    logAdminAction("privacy.export", { status: "error", error: error instanceof Error ? error.message : String(error) });
     return { status: "error", message: "Check withObs taxonomy for details." };
   }
 }
@@ -106,25 +133,33 @@ async function planAction(_: ServerState, formData: FormData): Promise<ServerSta
 
   const payload = PrivacyErasurePlanInput.safeParse({ request_id: String(formData.get("requestId") ?? "") });
   if (!payload.success) {
+    logAdminAction("privacy.erasure.plan", { status: "validation_failed" });
     return { status: "error", message: "Request id required." };
   }
 
   const client = await getOpsFunctionClient();
   if (!client) {
+    logAdminAction("privacy.erasure.plan", { status: "offline" });
     return { status: "offline", message: "Supabase session missing." };
   }
 
   try {
     const response = await client.call("privacy.erasure.plan", payload.data);
     if (!response.ok) {
+      logAdminAction("privacy.erasure.plan", { status: "error", requestId: response.request_id });
       return { status: "error", message: "Plan generation failed." };
     }
+    logAdminAction("privacy.erasure.plan", {
+      status: "success",
+      requestId: response.request_id,
+    });
     return {
       status: "success",
       detail: response.signed_url ? `Plan ready: ${response.signed_url}` : "Dry-run completed",
     };
   } catch (error) {
     console.error("privacy.erasure.plan", error);
+    logAdminAction("privacy.erasure.plan", { status: "error", error: error instanceof Error ? error.message : String(error) });
     return { status: "error", message: "Check withObs taxonomy for details." };
   }
 }
@@ -138,25 +173,36 @@ async function executeAction(_: ServerState, formData: FormData): Promise<Server
   });
 
   if (!payload.success) {
+    logAdminAction("privacy.erasure.execute", { status: "validation_failed" });
     return { status: "error", message: "Confirm with ERASE and provide request id." };
   }
 
   const client = await getOpsFunctionClient();
   if (!client) {
+    logAdminAction("privacy.erasure.execute", { status: "offline" });
     return { status: "offline", message: "Supabase session missing." };
   }
 
   try {
     const response = await client.call("privacy.erasure.execute", payload.data);
     if (!response.ok) {
+      logAdminAction("privacy.erasure.execute", { status: "error", requestId: response.request_id });
       return { status: "error", message: "Erasure execution failed." };
     }
+    logAdminAction("privacy.erasure.execute", {
+      status: "success",
+      requestId: response.request_id,
+    });
     return {
       status: "success",
       detail: response.summary ? `Tables affected: ${response.summary.length}` : "Erasure completed",
     };
   } catch (error) {
     console.error("privacy.erasure.execute", error);
+    logAdminAction("privacy.erasure.execute", {
+      status: "error",
+      error: error instanceof Error ? error.message : String(error),
+    });
     return { status: "error", message: "Check withObs taxonomy for details." };
   }
 }

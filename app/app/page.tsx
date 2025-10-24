@@ -265,6 +265,34 @@ export default function Home() {
           </div>
         </section>
 
+        <section className="rounded-3xl border border-emerald-600/30 bg-slate-900/60 p-8">
+          <div className="grid gap-6 md:grid-cols-[0.7fr_0.3fr] md:items-center">
+            <div className="space-y-3">
+              <h2 className="text-3xl font-semibold text-white sm:text-4xl">Release operations control tower</h2>
+              <p className="text-base text-slate-300">
+                Planning a multi-branch merge? Our integration checklist bundles every runbook item with clipboard-ready
+                commands so you can launch tasks in one click and track completion for Vercel-ready deployments.
+              </p>
+            </div>
+            <div className="flex flex-wrap justify-start gap-3 md:justify-end">
+              <Link
+                href="/phases"
+                className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-200"
+              >
+                Launch phase tasks
+                <span aria-hidden>→</span>
+              </Link>
+              <Link
+                href="/docs/phased-tasks"
+                className="inline-flex items-center gap-2 rounded-full border border-emerald-400 px-5 py-3 text-sm font-semibold text-emerald-200 transition hover:border-emerald-300 hover:text-emerald-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-200"
+              >
+                View runbook (Markdown)
+                <span aria-hidden>↗</span>
+              </Link>
+            </div>
+          </div>
+        </section>
+
         <section className="space-y-10">
           <div>
             <h2 className="text-3xl font-semibold text-white sm:text-4xl">Loved by travelers and partners</h2>

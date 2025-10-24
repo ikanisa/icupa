@@ -1,29 +1,22 @@
 import { CardGlass, Stepper, buttonClassName } from "@ecotrips/ui";
-import { createEcoTripsFunctionClient } from "@ecotrips/api";
 import Link from "next/link";
+import { AutoBalanceDayControl } from "./AutoBalanceDayControl";
 
-async function loadQuote(id: string) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !anonKey) return { ok: false, quote: null };
+import { createPageMetadata } from "../../../lib/seo/metadata";
+import { loadInventoryQuote } from "../../../lib/loaders/itinerary";
+import { PublicPage } from "../../components/PublicPage";
+import { QuoteHydrator } from "./QuoteHydrator";
 
-  const client = createEcoTripsFunctionClient({
-    supabaseUrl,
-    anonKey,
-    getAccessToken: async () => null,
+export async function generateMetadata({ params }: { params: { id: string } }) {
+  return createPageMetadata({
+    title: `Itinerary ${params.id}`,
+    description: "Review quote details, escrow steps, and checkout readiness.",
+    path: `/itinerary/${params.id}`,
   });
-
-  try {
-    const response = await client.call("inventory.quote", { quoteId: id, locale: "en" });
-    return response;
-  } catch (error) {
-    console.error("inventory.quote failed", error);
-    return { ok: false, quote: null };
-  }
 }
 
 export default async function ItineraryPage({ params }: { params: { id: string } }) {
-  const quote = await loadQuote(params.id);
+  const quote = await loadInventoryQuote(params.id);
 
   const steps = [
     { id: "plan", label: "Plan", status: "complete" as const },
@@ -32,7 +25,8 @@ export default async function ItineraryPage({ params }: { params: { id: string }
   ];
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 px-4 pb-24 pt-10">
+    <PublicPage>
+      <QuoteHydrator quote={quote} />
       <CardGlass
         title="Itinerary"
         subtitle={`Quote ${params.id}`}
@@ -56,6 +50,12 @@ export default async function ItineraryPage({ params }: { params: { id: string }
       <CardGlass title="Trip rhythm" subtitle="PlannerCoPilot ensures daylight transfers and safety.">
         <Stepper steps={steps} />
       </CardGlass>
+      <CardGlass
+        title="Day optimizer"
+        subtitle="Resolve itinerary conflicts before handing bundles to Supabase agents."
+      >
+        <AutoBalanceDayControl />
+      </CardGlass>
       <CardGlass title="Group planning" subtitle="Spin up split-pay escrows and WhatsApp invites.">
         <div className="flex flex-wrap gap-3">
           <Link href={`/group/${params.id}`} className={buttonClassName()}>
@@ -66,6 +66,6 @@ export default async function ItineraryPage({ params }: { params: { id: string }
           </Link>
         </div>
       </CardGlass>
-    </div>
+    </PublicPage>
   );
 }

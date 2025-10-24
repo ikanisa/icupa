@@ -1,13 +1,12 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { ERROR_CODES } from "../_obs/constants.ts";
 import { healthResponse, withObs } from "../_obs/withObs.ts";
+import { getSupabaseServiceConfig } from "../_shared/env.ts";
 
 const BASE_TOTAL_CENTS = 10000;
 const PER_ITEM_CENTS = 2500;
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
-const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE") ??
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ??
-  "";
+const { url: SUPABASE_URL, serviceRoleKey: SERVICE_ROLE_KEY } =
+  getSupabaseServiceConfig({ feature: "bff-quote" });
 const INVENTORY_REQUEST_TIMEOUT_MS = Number(
   Deno.env.get("INVENTORY_BFF_TIMEOUT_MS") ?? "4500",
 );
