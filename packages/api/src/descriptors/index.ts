@@ -1,4 +1,5 @@
 import { checkoutDescriptors } from "./checkout";
+import { conciergeDescriptors } from "./concierge";
 import { drDescriptors } from "./dr";
 import { financeDescriptors } from "./finance";
 import { groupsDescriptors } from "./groups";
@@ -16,6 +17,7 @@ export const descriptors = {
   ...inventoryDescriptors,
   ...growthDescriptors,
   ...checkoutDescriptors,
+  ...conciergeDescriptors,
   ...groupsDescriptors,
   ...permitsDescriptors,
   ...walletDescriptors,
