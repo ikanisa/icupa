@@ -6,7 +6,6 @@ SUPABASE_SERVICE_ROLE_KEY,yes,build+runtime,server,app; scripts/audit,Service ro
 SUPABASE_SERVICE_ROLE,no,runtime,server,scripts/audit,Legacy fallback for service role key if `_KEY` unset
 SUPABASE_ANON_KEY,no,runtime,server,ops/console,Optional when running Ops console against Supabase anonymously
 PLAYWRIGHT_BASE_URL,no,build,tooling,app/tests,Overrides Playwright base URL in CI
-VERCEL_AUTOMATION_BYPASS_SECRET,no,build,server,apps/*; app,Required when Deployment Protection is enabled
 CI_OFFLINE,no,build+runtime,server,scripts/audit; ops/console,Flags offline/test mode and must be disabled for prod
 OPSCONSOLE_BYPASS_AUTH,no,build+runtime,server,scripts/audit; ops/console,Disables auth for ops console; forbidden in prod
 OPS_CONSOLE_BYPASS_AUTH,no,build+runtime,server,scripts/audit,Legacy spelling for bypass flag
@@ -16,6 +15,5 @@ SUPABASE_TEST_URL,yes,test,server,tools/tests/*,Integration tests connect to Sup
 SUPABASE_TEST_SERVICE_ROLE_KEY,yes,test,server,tools/tests/*,Service role for contract/observability tests
 SUPABASE_TEST_ANON_KEY,no,test,server,tools/tests/contracts.mjs,Falls back to service role if unset
 OPS_BYPASS_ALERT_WEBHOOK_URL,no,runtime,server,ops/console/lib/bypass-alert.ts,Optional webhook for bypass alerts
-VERCEL_ENV,no,build,server,ops/console/lib/env.ts,Provided by Vercel; used to categorize environment
 NODE_ENV,no,build,server,ops/console/lib/env.ts,Standard Node environment variable referenced by env util
 NEXT_PUBLIC_CHECKOUT_ALLOW_ANON,no,runtime,client,apps/client,Set to "1" to allow checkout without Supabase session in previews.
