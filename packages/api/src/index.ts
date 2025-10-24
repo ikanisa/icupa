@@ -87,6 +87,13 @@ const descriptors = {
     input: CheckoutInput,
     output: z.object({ ok: z.boolean(), payment_intent_id: z.string().optional(), client_secret: z.string().optional(), ledger_entry_id: z.string().optional() }),
   },
+  "checkout.escalate": {
+    path: "/functions/v1/payment-escalate",
+    method: "POST",
+    auth: "user",
+    input: PaymentEscalationInput,
+    output: PaymentEscalationResponse,
+  },
   "groups.create": {
     path: "/functions/v1/groups-create-escrow",
     method: "POST",

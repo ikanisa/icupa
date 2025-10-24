@@ -1,4 +1,5 @@
-import { CardGlass } from "@ecotrips/ui";
+import Link from "next/link";
+import { Button, CardGlass } from "@ecotrips/ui";
 import { InvoiceGenerateInput } from "@ecotrips/types";
 import { z } from "zod";
 
@@ -125,10 +126,15 @@ export default function FinancePage() {
   return (
     <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
       <CardGlass title="Finance ledger" subtitle="Invoices, refunds, and payouts recorded with HITL guardrails.">
-        <p className="text-sm text-white/80">
-          Generate invoices directly from ledger payments. Signed URLs are short-lived; store them in secure channels and audit
-          every action using structured logs.
-        </p>
+        <div className="flex flex-col gap-3 text-sm text-white/80 lg:flex-row lg:items-start lg:justify-between">
+          <p className="max-w-2xl">
+            Generate invoices directly from ledger payments. Signed URLs are short-lived; store them in secure channels and
+            audit every action using structured logs.
+          </p>
+          <Button size="sm" variant="glass" asChild>
+            <Link href="/finance/incidents">Payment incidents board</Link>
+          </Button>
+        </div>
         <InvoiceGenerateForm action={generateInvoiceAction} />
         <div className="mt-6">
           <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white/60">Submit refund</h3>
