@@ -21,7 +21,7 @@ if [[ -z "$PROJECT_REF" ]]; then
 fi
 
 if ! command -v supabase >/dev/null 2>&1; then
-  echo "Supabase CLI is not installed. Install via: npm i -g supabase" >&2
+  echo "Supabase CLI is not installed. Run 'npm install' in the repo or use 'npx supabase@latest'." >&2
   exit 1
 fi
 
