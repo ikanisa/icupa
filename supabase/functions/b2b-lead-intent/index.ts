@@ -86,7 +86,7 @@ const handler = withObs(async (req) => {
     throw error;
   }
 
-  let intent = await findIntentByIdempotency(idempotencyKey);
+  let intent = await findIntentByIdempotency({ idempotencyKey, apiKeyId: principal.id });
   let reused = false;
 
   if (!intent) {
@@ -98,7 +98,7 @@ const handler = withObs(async (req) => {
       });
     } catch (error) {
       if (error instanceof IdempotencyConflictError) {
-        intent = await findIntentByIdempotency(idempotencyKey);
+        intent = await findIntentByIdempotency({ idempotencyKey, apiKeyId: principal.id });
         if (intent) {
           reused = true;
         } else {
@@ -167,10 +167,14 @@ function validatePayload(payload: LeadPayload): string[] {
   return errors;
 }
 
-async function findIntentByIdempotency(idempotencyKey: string): Promise<IntentRecord | null> {
+async function findIntentByIdempotency(input: {
+  idempotencyKey: string;
+  apiKeyId: string;
+}): Promise<IntentRecord | null> {
   const url = new URL(`${SUPABASE_URL}/rest/v1/intents`);
   url.searchParams.set("select", "id,company_name,contact_name,email,phone,party_size,start_date,end_date,destinations,notes,status,created_at,updated_at,idempotency_key");
-  url.searchParams.set("idempotency_key", `eq.${idempotencyKey}`);
+  url.searchParams.set("idempotency_key", `eq.${input.idempotencyKey}`);
+  url.searchParams.set("api_key_id", `eq.${input.apiKeyId}`);
   url.searchParams.set("limit", "1");
 
   const response = await fetch(url, {
