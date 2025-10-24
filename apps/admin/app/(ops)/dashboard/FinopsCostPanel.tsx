@@ -109,12 +109,28 @@ async function loadCostEstimates(): Promise<{ estimates: PresentableEstimate[]; 
   }
 
   const normalized = data
-    .filter((entry): entry is PresentableEstimate => !!entry && typeof entry.estimated_cents === "number")
-    .map((entry) => ({
-      ...entry,
-      currency: entry.currency ?? "USD",
-      usage_notes: entry.usage_notes ?? null,
-    }));
+    .map((entry) => {
+      if (!entry) {
+        return null;
+      }
+
+      const estimatedCents =
+        typeof entry.estimated_cents === "string"
+          ? Number(entry.estimated_cents)
+          : entry.estimated_cents;
+
+      if (typeof estimatedCents !== "number" || Number.isNaN(estimatedCents)) {
+        return null;
+      }
+
+      return {
+        ...entry,
+        estimated_cents: estimatedCents,
+        currency: entry.currency ?? "USD",
+        usage_notes: entry.usage_notes ?? null,
+      } satisfies PresentableEstimate;
+    })
+    .filter((entry): entry is PresentableEstimate => entry !== null);
 
   if (normalized.length === 0) {
     return { estimates: FALLBACK_ESTIMATES, offline: true };
