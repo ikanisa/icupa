@@ -4,9 +4,9 @@ import "@ecotrips/ui/styles/tokens.css";
 import type { Metadata } from "next";
 import { ReactNode } from "react";
 
-import { FeatureFlagsProvider } from "@ecotrips/ui";
-
+import { defaultMetadata } from "../lib/seo/metadata";
 import { ServiceWorkerBridge } from "./(public)/components/ServiceWorkerBridge";
+import { AppProviders } from "./(public)/providers/AppProviders";
 
 const structuredData = {
   "@context": "https://schema.org",
@@ -39,12 +39,7 @@ const structuredData = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://app.ecotrips.africa"),
-  title: {
-    default: "ecoTrips — Liquid-glass journeys",
-    template: "%s · ecoTrips",
-  },
-  description: "Gradient, liquid-glass, mobile-first eco travel planning",
+  ...defaultMetadata,
   manifest: "/manifest.json",
   alternates: {
     canonical: "https://app.ecotrips.africa",
@@ -85,18 +80,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <head>
-        <script
-          type="application/ld+json"
-          suppressHydrationWarning
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
-        />
-      </head>
-      <body className="bg-slate-950 text-slate-50">
-        <FeatureFlagsProvider>
-          {children}
-          <ServiceWorkerBridge />
-        </FeatureFlagsProvider>
+      <body>
+        <AppProviders>{children}</AppProviders>
+        <ServiceWorkerBridge />
       </body>
     </html>
   );

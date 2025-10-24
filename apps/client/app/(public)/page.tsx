@@ -3,6 +3,9 @@ import type { BottomNavItem } from "@ecotrips/ui";
 import { availableLocales, createTranslator } from "@ecotrips/i18n";
 import { PlannerFeatureGate } from "./components/PlannerFeatureGate";
 
+import { createPageMetadata } from "../../../lib/seo/metadata";
+import { PublicPage } from "./components/PublicPage";
+
 const navItems = [
   { href: "/", label: "Home", icon: "🏡" },
   { href: "/search", label: "Search", icon: "🔍" },
@@ -30,12 +33,18 @@ function getLocale(searchParams: URLSearchParams) {
   return "en";
 }
 
+export const metadata = createPageMetadata({
+  title: "Home",
+  description: "Plan off-grid eco journeys with realtime inventory, escrows, and offline-first agents.",
+  path: "/",
+});
+
 export default function HomePage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
   const locale = getLocale(toURLSearchParams(searchParams));
   const t = createTranslator(locale);
 
   return (
-    <div className="relative mx-auto flex min-h-screen max-w-3xl flex-col gap-8 px-4 pb-32 pt-10">
+    <PublicPage gapClass="gap-8" className="relative pb-32">
       <header className="space-y-3">
         <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/70">
           <span aria-hidden>🌿</span>
@@ -54,22 +63,17 @@ export default function HomePage({ searchParams }: { searchParams: Record<string
           </PlannerFeatureGate>
         </div>
       </header>
-      <PlannerFeatureGate debugLabel="home.hero">
-        <CardGlass
-          title={t("home.cta")}
-          subtitle="PlannerCoPilot turns vague intents into price-aware itineraries."
-          actions={
-            <a href="/search" className={buttonClassName()}>
-              {t("search.cta")}
-            </a>
-          }
-        >
-          <p>
-            Share your dream route — Kigali sunsets, Akagera safari, Nyungwe canopy. We keep daylight transfers and safety
-            nudges.
-          </p>
-        </CardGlass>
-      </PlannerFeatureGate>
+      <CardGlass
+        title={t("home.cta")}
+        subtitle="PlannerCoPilot turns vague intents into price-aware itineraries."
+        actions={
+          <a href="/search" className={buttonClassName()}>
+            {t("search.cta")}
+          </a>
+        }
+      >
+        <p>Share your dream route — Kigali sunsets, Akagera safari, Nyungwe canopy. We keep daylight transfers and safety nudges.</p>
+      </CardGlass>
       <CardGlass
         title="Split-pay escrows"
         subtitle="Create groups with WhatsApp invites, contributions, and payout audit trails."
@@ -90,6 +94,6 @@ export default function HomePage({ searchParams }: { searchParams: Record<string
         <p className="text-xs text-white/60">PlannerCoPilot logs fixture fallbacks whenever growth services are offline so you always see a link.</p>
       </OptionCard>
       <BottomNavDock items={navItems} />
-    </div>
+    </PublicPage>
   );
 }

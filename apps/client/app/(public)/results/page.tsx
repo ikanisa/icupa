@@ -1,68 +1,30 @@
 import { CardGlass, buttonClassName } from "@ecotrips/ui";
-import { createEcoTripsFunctionClient } from "@ecotrips/api";
-import { OptionCard, CountdownChip } from "../components/OptionCard";
-import { InventorySearchInput } from "@ecotrips/types";
 import Link from "next/link";
 
-import { PlannerFeatureGate } from "../components/PlannerFeatureGate";
+import { createPageMetadata } from "../../../lib/seo/metadata";
+import { loadInventorySearch, parseSearchParams } from "../../../lib/loaders/search";
+import type { RawSearchParams } from "../../../lib/loaders/search";
+import { PublicPage } from "../components/PublicPage";
+import { ResultsHydrator } from "./ResultsHydrator";
 
-function parseSearchParams(searchParams: Record<string, string | string[] | undefined>) {
-  const destination = typeof searchParams.destination === "string" ? searchParams.destination : "Kigali";
-  const startDate = typeof searchParams.startDate === "string" ? searchParams.startDate : new Date().toISOString().slice(0, 10);
-  const endDate = typeof searchParams.endDate === "string" ? searchParams.endDate : new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  const adults = Number(Array.isArray(searchParams.adults) ? searchParams.adults[0] : searchParams.adults ?? 2);
-  const children = Number(Array.isArray(searchParams.children) ? searchParams.children[0] : searchParams.children ?? 0);
-
-  const parsed = InventorySearchInput.safeParse({
-    destination,
-    startDate,
-    endDate,
-    party: { adults: Number.isFinite(adults) ? adults : 2, children: Number.isFinite(children) ? children : 0 },
+export async function generateMetadata({ searchParams }: { searchParams: RawSearchParams }) {
+  const input = parseSearchParams(searchParams);
+  return createPageMetadata({
+    title: `Results · ${input.destination}`,
+    description: `Top picks for ${input.destination} between ${input.startDate} and ${input.endDate}.`,
+    path: "/results",
   });
-
-  return parsed.success
-    ? parsed.data
-    : {
-        destination,
-        startDate,
-        endDate,
-        party: { adults: 2, children: 0 },
-        budgetHint: "balanced" as const,
-        locale: "en" as const,
-      };
 }
 
-async function loadResults(searchParams: Record<string, string | string[] | undefined>) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !anonKey) {
-    return { items: [], ok: false, cacheHit: true };
-  }
-
+export default async function ResultsPage({ searchParams }: { searchParams: RawSearchParams }) {
   const input = parseSearchParams(searchParams);
-  const client = createEcoTripsFunctionClient({
-    supabaseUrl,
-    anonKey,
-    getAccessToken: async () => null,
-  });
-
-  try {
-    const response = await client.call("inventory.search", input);
-    return response;
-  } catch (error) {
-    console.error("inventory.search failed", error);
-    return { items: [], ok: false, cacheHit: true };
-  }
-}
-
-export default async function ResultsPage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
-  const input = parseSearchParams(searchParams);
-  const results = await loadResults(searchParams);
+  const results = await loadInventorySearch(searchParams);
 
   const isOffline = !results.ok || results.cacheHit;
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 px-4 pb-24 pt-10">
+    <PublicPage>
+      <ResultsHydrator input={input} results={results} />
       <CardGlass
         title={`Top picks for ${input.destination}`}
         subtitle={`Dates ${input.startDate} → ${input.endDate} · party of ${input.party.adults}${input.party.children ? ` + ${input.party.children} children` : ""}`}
@@ -127,7 +89,7 @@ export default async function ResultsPage({ searchParams }: { searchParams: Reco
           </p>
         </CardGlass>
       )}
-    </div>
+    </PublicPage>
   );
 }
 

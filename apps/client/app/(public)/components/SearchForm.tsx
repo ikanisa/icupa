@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button, useFeatureFlag } from "@ecotrips/ui";
 import { InventorySearchInput } from "@ecotrips/types";
 
-import { useAnalytics } from "./useAnalytics";
+import { useAppStore } from "../../../lib/state/appStore";
 
 export function SearchForm() {
   const router = useRouter();
@@ -15,24 +15,8 @@ export function SearchForm() {
   const [adults, setAdults] = useState(2);
   const [children, setChildren] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const { track } = useAnalytics();
-  const chipsTop = useFeatureFlag("client.suggestion_chips.top");
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!sessionStorage.getItem("ecotrips_session")) {
-      sessionStorage.setItem("ecotrips_session", crypto.randomUUID());
-    }
-  }, []);
-
-  const suggestions = useMemo(
-    () => [
-      { label: "Akagera safari", value: "Akagera" },
-      { label: "Nyungwe canopy", value: "Nyungwe" },
-      { label: "Lake Kivu retreat", value: "Lake Kivu" },
-    ],
-    [],
-  );
+  const setSearchInput = useAppStore((state) => state.setSearchInput);
+  const setSearchResults = useAppStore((state) => state.setSearchResults);
 
   const submit = () => {
     setError(null);
@@ -55,6 +39,8 @@ export function SearchForm() {
       adults: String(result.data.party.adults),
       children: String(result.data.party.children ?? 0),
     });
+    setSearchInput(result.data);
+    setSearchResults(null);
     router.push(`/results?${params.toString()}`);
     track("search_submitted", {
       destination: result.data.destination,
