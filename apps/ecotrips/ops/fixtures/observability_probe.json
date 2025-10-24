@@ -1,0 +1,27 @@
+{
+  "ok_count": 3,
+  "fail_count": 0,
+  "results": [
+    {
+      "fn": "router-agent/telemetry",
+      "chaos": {
+        "fallback": "voice-fallback",
+        "fallback_used": true
+      }
+    },
+    {
+      "fn": "router-agent/gdpr-log",
+      "chaos": {
+        "fallback": "gdpr-audit",
+        "fallback_used": true
+      }
+    },
+    {
+      "fn": "router-agent/whatsapp-pricing",
+      "chaos": {
+        "fallback": "pricing-cache",
+        "fallback_used": true
+      }
+    }
+  ]
+}

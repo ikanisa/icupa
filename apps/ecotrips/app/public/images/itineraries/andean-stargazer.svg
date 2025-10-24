@@ -1,0 +1,24 @@
+<svg width="1200" height="700" viewBox="0 0 1200 700" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Andean Stargazer illustration</title>
+  <desc id="desc">Stylized mountain range under a star-filled emerald sky.</desc>
+  <defs>
+    <linearGradient id="sky" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="60%" stop-color="#052e16" />
+    </linearGradient>
+    <linearGradient id="mountain" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#1e3a8a" />
+      <stop offset="100%" stop-color="#10b981" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="700" fill="url(#sky)" />
+  <g fill="white" opacity="0.65">
+    <circle cx="120" cy="140" r="3" />
+    <circle cx="340" cy="90" r="2.5" />
+    <circle cx="540" cy="180" r="2" />
+    <circle cx="820" cy="120" r="3" />
+    <circle cx="980" cy="70" r="2" />
+    <circle cx="1120" cy="210" r="2.5" />
+  </g>
+  <path d="M0 520 L180 420 L320 520 L480 360 L620 520 L800 400 L920 520 L1040 470 L1200 520 L1200 700 L0 700 Z" fill="url(#mountain)" />
+</svg>

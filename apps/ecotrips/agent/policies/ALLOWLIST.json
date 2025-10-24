@@ -1,0 +1,17 @@
+{
+  "allowed_paths": [
+    "app/**",
+    "packages/**",
+    "supabase/migrations/**",
+    "supabase/seed/**",
+    "agent/**",
+    "docs/**",
+    ".github/workflows/**"
+  ],
+  "forbidden_paths": [
+    "**/node_modules/**",
+    "**/.git/**",
+    "**/.env*"
+  ]
+}
+

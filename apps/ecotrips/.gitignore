@@ -1,0 +1,33 @@
+node_modules
+.env
+.supabase
+.DS_Store
+dist
+coverage
+.env
+.env.*
+!.env.production.example
+!/supabase/.env.production.example
+!/ops/console/.env.production.example
+.DS_Store
+node_modules/
+dist/
+build/
+.cache/
+.turbo/
+.next/
+**/.next/
+.supabase/
+# Supabase local artifacts
+.supabase/
+supabase/.branches/
+supabase/.temp/
+
+# Env & logs
+.env
+.env.*
+*.log
+
+# Misc
+*.swp
+supabase/config.toml.bak

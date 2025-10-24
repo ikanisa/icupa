@@ -1,0 +1,64 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> lint
+> turbo run lint
+
+turbo 2.5.8
+
+• Packages in scope: @ecotrips/admin, @ecotrips/api, @ecotrips/client, @ecotrips/config, @ecotrips/eslint-config, @ecotrips/i18n, @ecotrips/prettier-config, @ecotrips/supabase, @ecotrips/tools, @ecotrips/types, @ecotrips/ui, app, ops-console
+• Running lint in 13 packages
+• Remote caching disabled
+ops-console:lint: cache hit, replaying logs 3eb1dd970bffd05a
+ops-console:lint: 
+ops-console:lint: > ops-console@0.1.0 lint
+ops-console:lint: > next lint
+ops-console:lint: 
+ops-console:lint: Attention: Next.js now collects completely anonymous telemetry regarding usage.
+ops-console:lint: This information is used to shape Next.js' roadmap and prioritize features.
+ops-console:lint: You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+ops-console:lint: https://nextjs.org/telemetry
+ops-console:lint: 
+ops-console:lint: ✔ No ESLint warnings or errors
+@ecotrips/client:lint: cache hit, replaying logs a038f67dbcebfdd0
+@ecotrips/client:lint: 
+@ecotrips/client:lint: > @ecotrips/client@0.0.1 lint
+@ecotrips/client:lint: > next lint
+@ecotrips/client:lint: 
+@ecotrips/client:lint: Attention: Next.js now collects completely anonymous telemetry regarding usage.
+@ecotrips/client:lint: This information is used to shape Next.js' roadmap and prioritize features.
+@ecotrips/client:lint: You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+@ecotrips/client:lint: https://nextjs.org/telemetry
+@ecotrips/client:lint: 
+@ecotrips/client:lint: ✔ No ESLint warnings or errors
+@ecotrips/admin:lint: cache hit, replaying logs 889dca3e9e13660b
+@ecotrips/admin:lint: 
+app:lint: cache hit, replaying logs 76136676c439abae
+app:lint: 
+app:lint: > app@0.1.0 lint
+app:lint: > node ./scripts/run-next-lint.mjs
+app:lint: 
+app:lint: `next lint` is deprecated and will be removed in Next.js 16.
+app:lint: For new projects, use create-next-app to choose your preferred linter.
+app:lint: For existing projects, migrate to the ESLint CLI:
+app:lint: npx @next/codemod@canary next-lint-to-eslint-cli .
+app:lint: 
+app:lint: Attention: Next.js now collects completely anonymous telemetry regarding usage.
+app:lint: This information is used to shape Next.js' roadmap and prioritize features.
+app:lint: You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+app:lint: https://nextjs.org/telemetry
+app:lint: 
+app:lint: ✔ No ESLint warnings or errors
+@ecotrips/admin:lint: > @ecotrips/admin@0.0.1 lint
+@ecotrips/admin:lint: > next lint
+@ecotrips/admin:lint: 
+@ecotrips/admin:lint: Attention: Next.js now collects completely anonymous telemetry regarding usage.
+@ecotrips/admin:lint: This information is used to shape Next.js' roadmap and prioritize features.
+@ecotrips/admin:lint: You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+@ecotrips/admin:lint: https://nextjs.org/telemetry
+@ecotrips/admin:lint: 
+@ecotrips/admin:lint: ✔ No ESLint warnings or errors
+
+ Tasks:    4 successful, 4 total
+Cached:    4 cached, 4 total
+  Time:    502ms >>> FULL TURBO
+

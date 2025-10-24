@@ -1,0 +1,29 @@
+[
+  {
+    "supplier": "akagera-safaris",
+    "tier": "gold",
+    "avg_confirmation_hours": 9.5,
+    "open_confirms": 2,
+    "breach_state": "warning",
+    "cancellations_pct": 3.1,
+    "last_breach_at": "2025-09-09T18:20:00Z"
+  },
+  {
+    "supplier": "lake-kivu-lodge",
+    "tier": "silver",
+    "avg_confirmation_hours": 4.2,
+    "open_confirms": 0,
+    "breach_state": "on_track",
+    "cancellations_pct": 1.4,
+    "last_breach_at": null
+  },
+  {
+    "supplier": "nyungwe-treks",
+    "tier": "silver",
+    "avg_confirmation_hours": 14.8,
+    "open_confirms": 5,
+    "breach_state": "breach",
+    "cancellations_pct": 6.7,
+    "last_breach_at": "2025-09-11T07:55:00Z"
+  }
+]

@@ -1,0 +1,111 @@
+{
+  "offers": [
+    {
+      "id": "WB452-Y",
+      "origin": "KGL",
+      "destination": "NBO",
+      "carrier": "RwandAir",
+      "flight_number": "WB452",
+      "segments": [
+        {
+          "origin": "KGL",
+          "destination": "NBO",
+          "flight_number": "WB452",
+          "carrier": "RwandAir",
+          "departure_time_local": "08:15",
+          "arrival_time_local": "10:05",
+          "duration_minutes": 110,
+          "cabin": "economy",
+          "fare_class": "Y"
+        },
+        {
+          "origin": "NBO",
+          "destination": "KGL",
+          "flight_number": "WB453",
+          "carrier": "RwandAir",
+          "departure_time_local": "18:45",
+          "arrival_time_local": "20:35",
+          "duration_minutes": 110,
+          "cabin": "economy",
+          "fare_class": "Y"
+        }
+      ],
+      "price": {
+        "currency": "USD",
+        "base_cents": 20800,
+        "taxes_cents": 3700,
+        "total_cents": 24500
+      },
+      "baggage": {
+        "carry_on": "7kg included",
+        "checked": "23kg included"
+      },
+      "seats_remaining": 6,
+      "refundable": false
+    },
+    {
+      "id": "ET806-Z",
+      "origin": "KGL",
+      "destination": "ADD",
+      "carrier": "Ethiopian",
+      "flight_number": "ET806",
+      "segments": [
+        {
+          "origin": "KGL",
+          "destination": "ADD",
+          "flight_number": "ET806",
+          "carrier": "Ethiopian",
+          "departure_time_local": "04:30",
+          "arrival_time_local": "07:25",
+          "duration_minutes": 175,
+          "cabin": "economy",
+          "fare_class": "T"
+        }
+      ],
+      "price": {
+        "currency": "USD",
+        "base_cents": 18900,
+        "taxes_cents": 2600,
+        "total_cents": 21500
+      },
+      "baggage": {
+        "carry_on": "8kg included",
+        "checked": "2 x 23kg"
+      },
+      "seats_remaining": 4,
+      "refundable": true
+    },
+    {
+      "id": "WB110-J",
+      "origin": "KGL",
+      "destination": "JRO",
+      "carrier": "RwandAir",
+      "flight_number": "WB110",
+      "segments": [
+        {
+          "origin": "KGL",
+          "destination": "JRO",
+          "flight_number": "WB110",
+          "carrier": "RwandAir",
+          "departure_time_local": "09:20",
+          "arrival_time_local": "11:45",
+          "duration_minutes": 145,
+          "cabin": "economy",
+          "fare_class": "V"
+        }
+      ],
+      "price": {
+        "currency": "USD",
+        "base_cents": 16400,
+        "taxes_cents": 1800,
+        "total_cents": 18200
+      },
+      "baggage": {
+        "carry_on": "7kg included",
+        "checked": "20kg included"
+      },
+      "seats_remaining": 3,
+      "refundable": false
+    }
+  ]
+}

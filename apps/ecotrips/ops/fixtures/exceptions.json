@@ -1,0 +1,26 @@
+[
+  {
+    "id": "exc-5001",
+    "type": "webhook_failed",
+    "status": "open",
+    "supplier": "akagera-safaris",
+    "last_error": "Stripe payment webhook timeout",
+    "occurred_at": "2025-09-20T08:10:00Z"
+  },
+  {
+    "id": "exc-5002",
+    "type": "permit_rejected",
+    "status": "in_progress",
+    "supplier": "volcanoes-park",
+    "last_error": "Permit quota exhausted",
+    "occurred_at": "2025-09-19T12:45:00Z"
+  },
+  {
+    "id": "exc-5003",
+    "type": "partial_payment",
+    "status": "open",
+    "supplier": "lake-kivu-lodge",
+    "last_error": "Captured amount mismatch",
+    "occurred_at": "2025-09-18T16:30:00Z"
+  }
+]

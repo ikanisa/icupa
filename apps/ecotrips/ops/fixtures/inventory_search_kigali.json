@@ -1,0 +1,29 @@
+{
+  "supplier": "HBX",
+  "items": [
+    {
+      "supplier_hotel_id": "HBX-001",
+      "name": "Kigali City Hotel",
+      "city": "Kigali",
+      "price_cents": 12000,
+      "currency": "USD",
+      "refundable": true
+    },
+    {
+      "supplier_hotel_id": "HBX-002",
+      "name": "Nyamirambo Boutique",
+      "city": "Kigali",
+      "price_cents": 9800,
+      "currency": "USD",
+      "refundable": false
+    },
+    {
+      "supplier_hotel_id": "HBX-003",
+      "name": "Volcano Suites",
+      "city": "Kigali",
+      "price_cents": 14500,
+      "currency": "USD",
+      "refundable": true
+    }
+  ]
+}

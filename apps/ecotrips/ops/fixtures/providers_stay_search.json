@@ -1,0 +1,52 @@
+{
+  "properties": [
+    {
+      "id": "KGL-LAKEWOOD",
+      "name": "Lake Kivu Wood Lodge",
+      "city": "Kigali",
+      "neighborhood": "Gisozi",
+      "supplier": "StayAfrica",
+      "rating": 4.6,
+      "review_count": 184,
+      "starting_price_cents": 15800,
+      "currency": "USD",
+      "amenities": ["Breakfast included", "Lakeview deck", "Solar power"],
+      "images": [
+        "https://images.ecotrips.africa/stays/lakewood/main.jpg",
+        "https://images.ecotrips.africa/stays/lakewood/room.jpg"
+      ]
+    },
+    {
+      "id": "KGL-GARDENS",
+      "name": "Nyandungu Gardens Retreat",
+      "city": "Kigali",
+      "neighborhood": "Remera",
+      "supplier": "StayAfrica",
+      "rating": 4.4,
+      "review_count": 132,
+      "starting_price_cents": 14200,
+      "currency": "USD",
+      "amenities": ["Botanical walk", "Airport shuttle", "Local cuisine"],
+      "images": [
+        "https://images.ecotrips.africa/stays/gardens/main.jpg",
+        "https://images.ecotrips.africa/stays/gardens/pool.jpg"
+      ]
+    },
+    {
+      "id": "NBO-SKYLINE",
+      "name": "Nairobi Skyline Residences",
+      "city": "Nairobi",
+      "neighborhood": "Westlands",
+      "supplier": "StayAfrica",
+      "rating": 4.7,
+      "review_count": 256,
+      "starting_price_cents": 18600,
+      "currency": "USD",
+      "amenities": ["Rooftop lounge", "Concierge", "Airport transfer"],
+      "images": [
+        "https://images.ecotrips.africa/stays/skyline/main.jpg",
+        "https://images.ecotrips.africa/stays/skyline/lounge.jpg"
+      ]
+    }
+  ]
+}

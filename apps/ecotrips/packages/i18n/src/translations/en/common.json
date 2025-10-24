@@ -1,0 +1,22 @@
+{
+  "app.title": "ecoTrips",
+  "app.tagline": "Liquid-glass journeys across Rwanda",
+  "home.cta": "Plan your eco-adventure",
+  "home.secondary": "Discover curated itineraries, split-pay escrows, and concierge nudges.",
+  "search.placeholder": "Search destinations, parks, or activities",
+  "search.cta": "Search",
+  "results.title": "Top picks for {destination}",
+  "results.empty": "No matching inventory yet. PlannerCoPilot is preparing new options.",
+  "itinerary.title": "Itinerary",
+  "itinerary.hold": "Hold & Split-Pay",
+  "checkout.title": "Checkout",
+  "checkout.summary": "Secure checkout with wallet-friendly options.",
+  "wallet.title": "Wallet & Offline Pack",
+  "support.title": "Concierge & Support",
+  "support.subtitle": "We’re online 24/7 with human-in-the-loop controls.",
+  "login.title": "Sign in to continue",
+  "nav.home": "Home",
+  "nav.search": "Search",
+  "nav.wallet": "Wallet",
+  "nav.support": "Support"
+}

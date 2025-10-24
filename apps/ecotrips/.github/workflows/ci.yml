@@ -1,0 +1,181 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+jobs:
+  baseline:
+    name: Baseline checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: latest
+
+      - name: Install Supabase CLI
+        run: |
+          curl -fsSL https://supabase.com/cli/install | sh -s -- -b "$HOME/.supabase/bin"
+          echo "$HOME/.supabase/bin" >> $GITHUB_PATH
+
+      - name: Install npm dependencies
+        run: npm install
+
+      - name: Enforce no binary artifacts
+        run: npm run check:binaries
+
+      - name: Check formatting
+        run: |
+          deno fmt --check supabase/functions
+
+      - name: Cache TypeScript dependencies
+        run: |
+          deno cache supabase/functions/**/index.ts
+
+      - name: Build Ops Console
+        run: npm run build --workspace ops/console
+
+      - name: Lint Ops Console
+        run: npm run lint --workspace ops/console
+
+      - name: Contract smoke tests
+        env:
+          SUPABASE_TEST_URL: ${{ secrets.SUPABASE_TEST_URL }}
+          SUPABASE_TEST_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_TEST_SERVICE_ROLE_KEY }}
+          SUPABASE_TEST_ANON_KEY: ${{ secrets.SUPABASE_TEST_ANON_KEY }}
+        run: npm run test:contracts
+
+      - name: Observability probe
+        env:
+          SUPABASE_TEST_URL: ${{ secrets.SUPABASE_TEST_URL }}
+          SUPABASE_TEST_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_TEST_SERVICE_ROLE_KEY }}
+        run: npm run test:observability
+
+      - name: Observability guardrails
+        run: |
+          target_count=15
+          actual=$(rg -l "withObs" supabase/functions | wc -l | tr -d ' ')
+          if [ "$actual" -lt "$target_count" ]; then
+            echo "Expected at least $target_count functions using withObs, found $actual" >&2
+            exit 1
+          fi
+          response_logs=$(rg -l '"event":"http\.response"' supabase/functions | wc -l | tr -d ' ')
+          if [ "$response_logs" -lt "$target_count" ]; then
+            echo "Structured response logging not detected broadly enough (found $response_logs)." >&2
+            exit 1
+          fi
+          echo "withObs wrappers detected: $actual"
+          echo "Structured response log emitters: $response_logs"
+
+      - name: Map route safety warnings tests
+        run: npm run test:map-route
+
+      - name: Supabase CLI version
+        run: |
+          SUPABASE_BIN=${SUPABASE_BIN:-$(command -v supabase || echo "$HOME/.supabase/bin/supabase")}
+          if [ ! -x "$SUPABASE_BIN" ]; then
+            echo "Supabase CLI not found" >&2
+            exit 1
+          fi
+          "$SUPABASE_BIN" --version
+
+      - name: Validate migrations (dry run)
+        run: |
+          SUPABASE_BIN=${SUPABASE_BIN:-$(command -v supabase || echo "$HOME/.supabase/bin/supabase")}
+          if [ ! -x "$SUPABASE_BIN" ]; then
+            echo "Supabase CLI not found" >&2
+            exit 1
+          fi
+          "$SUPABASE_BIN" db push --workdir . --dry-run
+      - name: Show tree
+        run: |
+          echo "Repo blueprint:"
+          ls -la
+          echo
+          echo "Key folders:"
+          ls -la app packages supabase agent .github docs .changeset || true
+      - name: Verify policy files exist
+        run: |
+          test -f agent/policies/ALLOWLIST.json || (echo "Missing ALLOWLIST.json" && exit 1)
+          echo "ALLOWLIST.json is present ✅"
+
+  workspace-quality:
+    name: Quality checks (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: marketing-app
+            kind: next
+            workspace: app
+          - name: client-app
+            kind: next
+            workspace: apps/client
+          - name: admin-app
+            kind: next
+            workspace: apps/admin
+          - name: ops-console
+            kind: next
+            workspace: ops/console
+          - name: deno-edge
+            kind: deno
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        if: matrix.kind == 'next'
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install npm dependencies
+        if: matrix.kind == 'next'
+        run: npm install
+
+      - name: Install Playwright browsers
+        if: matrix.workspace == 'app'
+        run: npx playwright install --with-deps chromium firefox
+
+      - name: Setup Deno
+        if: matrix.kind == 'deno'
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: latest
+
+      - name: Lint ${{ matrix.workspace }}
+        if: matrix.kind == 'next'
+        run: npm run lint --workspace ${{ matrix.workspace }}
+
+      - name: Typecheck ${{ matrix.workspace }}
+        if: matrix.kind == 'next'
+        run: npm run typecheck --workspace ${{ matrix.workspace }}
+
+      - name: Test ${{ matrix.workspace }}
+        if: matrix.kind == 'next'
+        run: npm run test --workspace ${{ matrix.workspace }} --if-present
+
+      - name: Build ${{ matrix.workspace }}
+        if: matrix.kind == 'next'
+        run: npm run build --workspace ${{ matrix.workspace }}
+
+      - name: Format check (Supabase functions)
+        if: matrix.kind == 'deno'
+        run: deno fmt --check supabase/functions
+
+      - name: Type check Supabase edge functions
+        if: matrix.kind == 'deno'
+        run: deno check supabase/functions/**/index.ts

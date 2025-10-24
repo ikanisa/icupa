@@ -1,0 +1,1 @@
+2024-12-05: Added /groups and /chat suggestion flows – screenshots pending (capturing unavailable in CI environment).
