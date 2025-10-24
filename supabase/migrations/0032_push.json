@@ -1,0 +1,11 @@
+{
+  "statements": [
+    "create schema if not exists notify;",
+    "create table if not exists notify.subscriptions ( id uuid primary key default gen_random_uuid(), profile_id uuid, endpoint text not null unique, p256dh text not null, auth text not null, tags text[] not null default '{}', status text not null default 'active', last_seen_at timestamptz not null default now(), created_at timestamptz not null default now(), metadata jsonb not null default '{}'::jsonb );",
+    "comment on table notify.subscriptions is 'Web Push subscriptions captured from ecoTrips clients.';",
+    "comment on column notify.subscriptions.tags is 'Segments assigned to subscription (e.g., wallet, support).';",
+    "comment on column notify.subscriptions.status is 'active, inactive, or errored based on last delivery attempt.';",
+    "insert into notify.subscriptions (id, endpoint, p256dh, auth, tags, status, last_seen_at) values ('00000000-1111-4222-8333-444444444444', 'https://updates.ecotrips.app/push/mock-1', 'BMockKeyOne', 'mockAuthOne', array['wallet','search'], 'active', '2025-09-10T08:00:00Z') on conflict (endpoint) do nothing;",
+    "insert into notify.subscriptions (id, endpoint, p256dh, auth, tags, status, last_seen_at) values ('55555555-6666-4777-8888-999999999999', 'https://updates.ecotrips.app/push/mock-2', 'BMockKeyTwo', 'mockAuthTwo', array['support'], 'inactive', '2025-09-08T17:30:00Z') on conflict (endpoint) do nothing;"
+  ]
+}

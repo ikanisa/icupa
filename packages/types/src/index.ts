@@ -12,5 +12,6 @@ export * from "./domains/supplier";
 export * from "./domains/flags";
 export * from "./domains/admin";
 export * from "./supabase";
-export * from "./domains/pricing";
-export * from "./domains/loyalty";
+export * from "./domains/notify";
+export * from "./domains/support";
+export * from "./domains/chat";

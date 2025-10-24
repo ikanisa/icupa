@@ -12,63 +12,7 @@ import {
 import { ConciergeDailyBriefs } from "../components/ConciergeDailyBriefs";
 import { GroupSavingsChat } from "../components/GroupSavingsChat";
 import { WalletOfflinePack } from "../components/WalletOfflinePack";
-import { fallbackDailyBrief, fallbackSafety, fallbackTimeToLeave } from "./fixtures";
-
-type WalletSignals = {
-  dailyBrief: ConciergeDailyBriefResponse;
-  timeToLeave: TimeToLeaveResponse;
-  safety: SafetyAdvisoryResponse;
-  offline: boolean;
-  errors: string[];
-};
-
-async function loadWalletSignals(): Promise<WalletSignals> {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || !anonKey) {
-    return {
-      dailyBrief: fallbackDailyBrief,
-      timeToLeave: fallbackTimeToLeave,
-      safety: fallbackSafety,
-      offline: true,
-      errors: ["Supabase credentials unavailable; using fixtures."],
-    };
-  }
-
-  const client = createEcoTripsFunctionClient({
-    supabaseUrl,
-    anonKey,
-    getAccessToken: async () => null,
-  });
-
-  try {
-    const [dailyBrief, timeToLeave, safety] = await Promise.all([
-      client.call("concierge.dailyBrief", {} as ConciergeDailyBriefQuery),
-      client.call("concierge.timeToLeave", { upcoming: "1" } as TimeToLeaveQuery),
-      client.call("concierge.safetyAdvisory", { channel: "wallet_modal" } as SafetyAdvisoryQuery),
-    ]);
-
-    const offline = [dailyBrief.source, timeToLeave.source, safety.source].some((source) =>
-      typeof source === "string" ? source.includes("fixture") : false,
-    );
-
-    return { dailyBrief, timeToLeave, safety, offline, errors: [] };
-  } catch (error) {
-    console.error("wallet.load", error);
-    return {
-      dailyBrief: fallbackDailyBrief,
-      timeToLeave: fallbackTimeToLeave,
-      safety: fallbackSafety,
-      offline: true,
-      errors: ["Edge functions unavailable; showing concierge fixtures."],
-    };
-  }
-}
-
-export default async function WalletPage() {
-  const { dailyBrief, timeToLeave, safety, offline, errors } = await loadWalletSignals();
-  const timezone = dailyBrief.timezone ?? timeToLeave.timezone ?? "Africa/Kigali";
+import { TripRecapCard } from "./TripRecapCard";
 
   return (
     <div className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 px-4 pb-24 pt-10">
@@ -133,7 +77,10 @@ export default async function WalletPage() {
       >
         <GroupSavingsChat briefs={dailyBrief.briefs} timezone={timezone} />
       </CardGlass>
-    </PublicPage>
+      <CardGlass title="Trip recap" subtitle="Generate recap email previews for partner demos.">
+        <TripRecapCard />
+      </CardGlass>
+    </div>
   );
 }
 

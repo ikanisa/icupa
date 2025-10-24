@@ -659,82 +659,138 @@
       payout_id: { type: string }
   rate_limit:
     calls_per_minute: 3
-- key: b2b.inventory
-  description: Serve curated search index fixtures for partner discovery flows (requires inventory.read scope).
-  endpoint: https://{project_ref}.supabase.co/functions/v1/b2b-inventory
-  method: GET
-  auth: b2b_api_key
-  input_schema: |
-    type: object
-    properties:
-      query: { type: string, description: Text search on name, city, region, and tags }
-      page: { type: integer, minimum: 1, default: 1 }
-      page_size: { type: integer, minimum: 1, maximum: 100, default: 20 }
-  output_schema: |
-    type: object
-    properties:
-      ok: { type: boolean }
-      page: { type: integer }
-      page_size: { type: integer }
-      total: { type: integer }
-      has_next_page: { type: boolean }
-      items:
-        type: array
-        items:
-          type: object
-          required: [id, name, location]
-          properties:
-            id: { type: string }
-            name: { type: string }
-            headline: { type: string }
-            location:
-              type: object
-              properties:
-                city: { type: string }
-                country: { type: string }
-                region: { type: string }
-            tags: { type: array, items: { type: string } }
-            from_price_cents: { type: integer }
-            currency: { type: string }
-  rate_limit:
-    calls_per_minute: 30
-- key: b2b.lead_intent
-  description: Capture partner lead intents with idempotent storage in travel.intents (requires leads.write scope).
-  endpoint: https://{project_ref}.supabase.co/functions/v1/b2b-lead-intent
+- key: notify.push_subscribe
+  description: Capture a Web Push subscription and tag segments for notifications.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/push-subscribe
   method: POST
-  auth: b2b_api_key
-  required:
-    - company_name
-    - email
+  auth: anon
   input_schema: |
     type: object
-    required: [company_name, email]
+    required: [endpoint, keys]
     properties:
-      company_name: { type: string, minLength: 1 }
-      contact_name: { type: string }
-      email: { type: string, format: email }
-      phone: { type: string }
-      party_size: { type: integer, minimum: 1 }
-      start_date: { type: string, format: date }
-      end_date: { type: string, format: date }
-      destinations: { type: array, items: { type: string } }
-      budget_min_cents: { type: integer, minimum: 0 }
-      budget_max_cents: { type: integer, minimum: 0 }
-      notes: { type: string, maxLength: 500 }
+      endpoint: { type: string }
+      keys:
+        type: object
+        required: [p256dh, auth]
+        properties:
+          p256dh: { type: string }
+          auth: { type: string }
+      tags: { type: array, items: { type: string } }
+      profile_id: { type: string }
   output_schema: |
     type: object
     properties:
       ok: { type: boolean }
-      idempotency_reused: { type: boolean }
-      intent:
-        type: object
-        properties:
-          id: { type: string }
-          company_name: { type: string }
-          email: { type: string }
-          status: { type: string }
-          created_at: { type: string, format: date-time }
-  idempotency:
-    header: Idempotency-Key
+      subscription_id: { type: string }
+      request_id: { type: string }
+  implementation_status: mock
   rate_limit:
-    calls_per_minute: 10
+    calls_per_minute: 240
+- key: notify.push_send
+  description: Send push notification payloads to tagged subscriptions with delivery telemetry.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/push-send
+  method: POST
+  auth: user
+  input_schema: |
+    type: object
+    required: [title, body]
+    properties:
+      title: { type: string }
+      body: { type: string }
+      audience:
+        oneOf:
+          - type: string
+          - type: array
+            items: { type: string }
+          - type: object
+            properties:
+              tags: { type: array, items: { type: string } }
+      data: { type: object }
+      dry_run: { type: boolean }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      deliveries: { type: array, items: { type: object } }
+      request_id: { type: string }
+  implementation_status: mock
+  rate_limit:
+    calls_per_minute: 120
+- key: support.sos_contacts
+  description: Fetch cached SOS contacts with offline fixtures and log follow-up actions.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/sos-contacts
+  method: GET
+  auth: anon
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      contacts: { type: array, items: { type: object } }
+      request_id: { type: string }
+  implementation_status: mock
+  rate_limit:
+    calls_per_minute: 120
+- key: support.sos_action
+  description: Record SOS follow-up actions (call, share, note) for analytics with fixtures.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/sos-contacts
+  method: POST
+  auth: anon
+  input_schema: |
+    type: object
+    required: [contact_id, action]
+    properties:
+      contact_id: { type: string }
+      action: { type: string }
+      note: { type: string }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      contact_id: { type: string }
+      action: { type: string }
+      request_id: { type: string }
+  implementation_status: mock
+  rate_limit:
+    calls_per_minute: 120
+- key: wallet.trip_recap
+  description: Generate a recap email/template preview for a completed itinerary.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/trip-recap
+  method: POST
+  auth: anon
+  input_schema: |
+    type: object
+    required: [itinerary_id]
+    properties:
+      itinerary_id: { type: string }
+      email: { type: string }
+      locale: { type: string }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      recap: { type: object }
+      request_id: { type: string }
+  implementation_status: mock
+  rate_limit:
+    calls_per_minute: 60
+- key: chat.voice_session
+  description: Start a concierge voice session with loopback transcript playback.
+  endpoint: https://{project_ref}.supabase.co/functions/v1/voice-session
+  method: POST
+  auth: anon
+  input_schema: |
+    type: object
+    properties:
+      itinerary_id: { type: string }
+      language: { type: string }
+      prompt: { type: string }
+      loopback: { type: boolean }
+  output_schema: |
+    type: object
+    properties:
+      ok: { type: boolean }
+      session: { type: object }
+      request_id: { type: string }
+  implementation_status: mock
+  rate_limit:
+    calls_per_minute: 180
