@@ -1,0 +1,58 @@
+[
+  {
+    "category": "threats_and_violence",
+    "action": "escalate",
+    "keywords": ["kill", "bomb", "attack", "shoot", "threat"],
+    "hints": ["threat", "violence", "self-harm"],
+    "description": "Direct threats of harm or requests encouraging violence require immediate escalation."
+  },
+  {
+    "category": "hate_harassment",
+    "action": "refuse",
+    "keywords": ["slur", "hate", "idiot", "harass"],
+    "hints": ["harassment", "hate"],
+    "description": "Targeted harassment or hate speech is refused and logged for review."
+  },
+  {
+    "category": "sexual_content",
+    "action": "refuse",
+    "keywords": ["explicit", "porn", "sexual", "nsfw"],
+    "hints": ["sexual"],
+    "description": "Sexual content unrelated to ecoTrips offerings is refused."
+  },
+  {
+    "category": "child_safety",
+    "action": "escalate",
+    "keywords": ["minor", "child", "underage"],
+    "hints": ["child", "minor"],
+    "description": "Any child exploitation signals must be escalated immediately."
+  },
+  {
+    "category": "self_harm",
+    "action": "escalate",
+    "keywords": ["suicide", "self-harm", "hurt myself"],
+    "hints": ["self-harm", "crisis"],
+    "description": "Self-harm admissions or instructions must be escalated and routed to crisis support."
+  },
+  {
+    "category": "dangerous_illegal",
+    "action": "refuse",
+    "keywords": ["hack", "fraud", "scam", "weapon"],
+    "hints": ["illegal", "dangerous"],
+    "description": "Illegal activity requests are refused and documented."
+  },
+  {
+    "category": "spam_fraud",
+    "action": "refuse",
+    "keywords": ["spam", "phish", "lottery"],
+    "hints": ["spam", "fraud"],
+    "description": "Fraudulent or spam-like content should be refused and logged."
+  },
+  {
+    "category": "misinformation",
+    "action": "escalate",
+    "keywords": ["hoax", "fake news", "outbreak"],
+    "hints": ["misinformation", "safety"],
+    "description": "Safety-impacting misinformation is escalated for fact checking."
+  }
+]

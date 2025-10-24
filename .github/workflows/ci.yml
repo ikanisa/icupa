@@ -78,6 +78,9 @@ jobs:
           echo "withObs wrappers detected: $actual"
           echo "Structured response log emitters: $response_logs"
 
+      - name: Map route safety warnings tests
+        run: npm run test:map-route
+
       - name: Supabase CLI version
         run: |
           SUPABASE_BIN=${SUPABASE_BIN:-$(command -v supabase || echo "$HOME/.supabase/bin/supabase")}

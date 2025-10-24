@@ -90,6 +90,13 @@ const descriptors = {
     input: CheckoutInput,
     output: z.object({ ok: z.boolean(), payment_intent_id: z.string().optional(), client_secret: z.string().optional(), ledger_entry_id: z.string().optional() }),
   },
+  "checkout.escalate": {
+    path: "/functions/v1/payment-escalate",
+    method: "POST",
+    auth: "user",
+    input: PaymentEscalationInput,
+    output: PaymentEscalationResponse,
+  },
   "groups.create": {
     path: "/functions/v1/groups-create-escrow",
     method: "POST",
@@ -110,6 +117,14 @@ const descriptors = {
     auth: "user",
     input: ContributionCreate,
     output: z.object({ ok: z.boolean(), contribution_id: z.string().uuid().optional() }),
+  },
+  "groups.suggest": {
+    path: "/functions/v1/groups-suggest",
+    method: "POST",
+    auth: "anon",
+    input: GroupSuggestionInput,
+    output: GroupSuggestionResponse,
+    cacheTtlMs: 30_000,
   },
   "permits.request": {
     path: "/functions/v1/permits-request",
@@ -236,6 +251,13 @@ const descriptors = {
       message: z.string().optional(),
     }),
   },
+  "affiliate.outbound": {
+    path: "/functions/v1/affiliate-outbound",
+    method: "POST",
+    auth: "user",
+    input: AffiliateOutboundInput,
+    output: AffiliateOutboundResult,
+  },
   "privacy.request": {
     path: "/functions/v1/privacy-request",
     method: "POST",
@@ -322,6 +344,14 @@ const descriptors = {
       bytes: z.number().optional(),
       sha256: z.string().optional(),
     }),
+  },
+  "search.places": {
+    path: "/functions/v1/search-places",
+    method: "POST",
+    auth: "anon",
+    input: SearchPlacesInput,
+    output: SearchPlacesResponse,
+    cacheTtlMs: 15_000,
   },
 } satisfies Record<string, FunctionDescriptor<z.ZodTypeAny, z.ZodTypeAny>>;
 
@@ -441,6 +471,8 @@ export function createEcoTripsFunctionClient(options: ClientOptions) {
 }
 
 export const functionDescriptors = descriptors;
+
+export * from "./mapRoute";
 
 function buildQueryString(input: unknown): string {
   if (!input || typeof input !== "object") {
