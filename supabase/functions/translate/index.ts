@@ -383,9 +383,13 @@ async function incrementHit(input: {
   const rows = await response.json();
   const row = Array.isArray(rows) && rows[0] ? rows[0] as TmRow : null;
   if (!row) {
-    const error = new Error("tm increment returned empty result");
-    (error as { code?: string }).code = ERROR_CODES.UNKNOWN;
-    throw error;
+    const objectRow = rows && typeof rows === "object" ? rows as TmRow : null;
+    if (!objectRow) {
+      const error = new Error("tm increment returned empty result");
+      (error as { code?: string }).code = ERROR_CODES.UNKNOWN;
+      throw error;
+    }
+    return { ...objectRow, persisted: true };
   }
   return { ...row, persisted: true };
 }
