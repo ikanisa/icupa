@@ -1,4 +1,14 @@
-import { CheckoutInput, ContributionCreate, EscrowCreate, InventorySearchInput, PermitRequest } from "@ecotrips/types";
+import {
+  CheckoutInput,
+  ContributionCreate,
+  EscrowCreate,
+  InventorySearchInput,
+  PermitRequest,
+  VoiceCallInitiateInput,
+  VoiceCallInitiateResponse,
+  VoiceCallSummarizeInput,
+  VoiceCallSummarizeResponse,
+} from "@ecotrips/types";
 import {
   DrSnapshotInput,
   GroupsOpsPayoutNowInput,
@@ -286,6 +296,20 @@ const descriptors = {
         )
         .optional(),
     }),
+  },
+  "voice.call.initiate": {
+    path: "/functions/v1/voice-call-initiate",
+    method: "POST",
+    auth: "user",
+    input: VoiceCallInitiateInput,
+    output: VoiceCallInitiateResponse,
+  },
+  "voice.call.summarize": {
+    path: "/functions/v1/voice-call-summarize",
+    method: "POST",
+    auth: "user",
+    input: VoiceCallSummarizeInput,
+    output: VoiceCallSummarizeResponse,
   },
   "dr.snapshot": {
     path: "/functions/v1/dr-snapshot",
