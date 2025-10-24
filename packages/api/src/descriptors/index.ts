@@ -9,9 +9,7 @@ import { permitsDescriptors } from "./permits";
 import { pricingDescriptors } from "./pricing";
 import { privacyDescriptors } from "./privacy";
 import { walletDescriptors } from "./wallet";
-import { supplierDescriptors } from "./supplier";
-import { flagsDescriptors } from "./flags";
-import { adminDescriptors } from "./admin";
+import { helpersDescriptors } from "./helpers";
 import type { DescriptorMap } from "../types";
 
 export const descriptors = {
@@ -27,9 +25,7 @@ export const descriptors = {
   ...loyaltyDescriptors,
   ...privacyDescriptors,
   ...drDescriptors,
-  ...supplierDescriptors,
-  ...flagsDescriptors,
-  ...adminDescriptors,
+  ...helpersDescriptors,
 } as const satisfies DescriptorMap;
 
 export type DescriptorKey = keyof typeof descriptors;

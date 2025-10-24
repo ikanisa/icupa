@@ -1,6 +1,7 @@
-import { CardGlass } from "@ecotrips/ui";
+import { CardGlass, ExplainPrice, buttonClassName } from "@ecotrips/ui";
 import { createEcoTripsFunctionClient } from "@ecotrips/api";
-import { InventorySearchInput } from "@ecotrips/types";
+import { InventorySearchInput, type PriceBreakdown } from "@ecotrips/types";
+import Link from "next/link";
 
 import { ResultsList } from "./ResultsList";
 
@@ -48,9 +49,42 @@ export async function generateMetadata({ searchParams }: { searchParams: RawSear
   });
 }
 
-export default async function ResultsPage({ searchParams }: { searchParams: RawSearchParams }) {
+async function loadPriceBreakdowns(optionIds: string[]): Promise<Map<string, PriceBreakdown>> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !anonKey || optionIds.length === 0) {
+    return new Map();
+  }
+
+  const client = createEcoTripsFunctionClient({
+    supabaseUrl,
+    anonKey,
+    getAccessToken: async () => null,
+  });
+
+  try {
+    const response = await client.call("helpers.price", { option_ids: optionIds });
+    if (!response.ok) {
+      return new Map();
+    }
+    const map = new Map<string, PriceBreakdown>();
+    for (const entry of response.breakdowns ?? []) {
+      map.set(entry.option_id, entry.breakdown);
+    }
+    return map;
+  } catch (error) {
+    console.error("helpers.price failed", error);
+    return new Map();
+  }
+}
+
+export default async function ResultsPage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
   const input = parseSearchParams(searchParams);
-  const results = await loadInventorySearch(searchParams);
+  const results = await loadResults(searchParams);
+  const optionIds = results.items
+    .map((item) => (typeof item.supplier_hotel_id === "string" ? item.supplier_hotel_id : null))
+    .filter((id): id is string => Boolean(id));
+  const breakdowns = await loadPriceBreakdowns(optionIds);
 
   const isOffline = !results.ok || results.cacheHit;
   const defaultCurrency = (results.items[0]?.currency ?? "USD").toUpperCase();
@@ -60,9 +94,61 @@ export default async function ResultsPage({ searchParams }: { searchParams: RawS
       <ResultsList
         title={`Top picks for ${input.destination}`}
         subtitle={`Dates ${input.startDate} → ${input.endDate} · party of ${input.party.adults}${input.party.children ? ` + ${input.party.children} children` : ""}`}
-        items={results.items as Array<{ id?: string; name?: string; supplier?: string; price_cents: number; currency?: string }>}
-        defaultCurrency={defaultCurrency}
-      />
+      >
+        {results.items.length === 0 ? (
+          <PlannerFeatureGate
+            debugLabel="results.empty"
+            fallback={
+              <p className="text-sm text-white/80">
+                No live inventory yet. Offline cache fixtures keep the experience responsive while ConciergeGuide monitors supplier
+                updates.
+              </p>
+            }
+          >
+            <p className="text-sm text-white/80">
+              No live inventory yet. Offline cache fixtures keep the experience responsive; PlannerCoPilot will notify once
+              suppliers respond.
+            </p>
+          </PlannerFeatureGate>
+        ) : (
+          <ul className="space-y-4">
+            {results.items.map((item, index) => {
+              const optionId = typeof item.supplier_hotel_id === "string" ? item.supplier_hotel_id : `option-${index}`;
+              const breakdown = breakdowns.get(optionId) ?? breakdowns.get("default");
+              const itinerarySlug = typeof item.id === "string" && item.id.length > 0 ? item.id : "draft";
+              return (
+                <li key={optionId} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-lg font-semibold">{item.name ?? "Itinerary option"}</h3>
+                      <p className="text-sm text-white/70">Supplier {item.supplier ?? "tbd"}</p>
+                    </div>
+                    <p className="text-base font-semibold text-sky-200">
+                      {item.currency ?? "USD"} {Math.round(item.price_cents / 100).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Link href={`/itinerary/${itinerarySlug}`} className={buttonClassName("glass")}>
+                      View itinerary
+                    </Link>
+                    <Link
+                      href={`/itinerary/${itinerarySlug}?action=quote`}
+                      className={buttonClassName("secondary")}
+                    >
+                      Request quote
+                    </Link>
+                  </div>
+                  {breakdown && (
+                    <div className="mt-4">
+                      <ExplainPrice breakdown={breakdown} headline="Fixture pricing" />
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </CardGlass>
       {isOffline && (
         <CardGlass title="Offline fallback" subtitle="Fixtures served within 3 seconds to maintain experience.">
           <p className="text-sm text-white/80">

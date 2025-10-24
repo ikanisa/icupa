@@ -2,14 +2,10 @@ import {
   CheckoutInput,
   ContributionCreate,
   EscrowCreate,
-  FxRateQuoteInput,
-  FxRateQuoteResult,
   InventorySearchInput,
-  LoyaltyGrantInput,
-  LoyaltyGrantResult,
   PermitRequest,
-  PricingApplyInput,
-  PricingApplyResult,
+  PriceBreakdownRequest,
+  PriceBreakdownResponse,
 } from "@ecotrips/types";
 import {
   DrSnapshotInput,
@@ -27,6 +23,8 @@ import {
   PIIScanResponse,
 } from "@ecotrips/types";
 import { z } from "zod";
+
+import type { InferOutput } from "./types";
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 
@@ -90,6 +88,14 @@ const descriptors = {
     input: z.object({ quoteId: z.string().min(1), locale: z.enum(["en", "rw"]).default("en") }),
     output: z.object({ ok: z.boolean(), quote: z.record(z.any()).optional() }),
     cacheTtlMs: 120_000,
+  },
+  "helpers.price": {
+    path: "/functions/v1/helpers-price",
+    method: "POST",
+    auth: "anon",
+    input: PriceBreakdownRequest,
+    output: PriceBreakdownResponse,
+    cacheTtlMs: 300_000,
   },
   "checkout.intent": {
     path: "/functions/v1/bff-checkout",
@@ -468,7 +474,10 @@ export class EcoTripsFunctionClient {
       }
 
       const parsed = await safeJson(response);
-      return descriptor.output ? descriptor.output.parse(parsed) : (parsed as never);
+      if (descriptor.output) {
+        return descriptor.output.parse(parsed) as InferOutput<FunctionMap[K]>;
+      }
+      return parsed as InferOutput<FunctionMap[K]>;
     } finally {
       clearTimeout(timeout);
     }

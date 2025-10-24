@@ -11,9 +11,7 @@ import { createPermitsClient, type PermitsClient } from "./permits";
 import { createPricingClient, type PricingClient } from "./pricing";
 import { createPrivacyClient, type PrivacyClient } from "./privacy";
 import { createWalletClient, type WalletClient } from "./wallet";
-import { createSupplierClient, type SupplierClient } from "./supplier";
-import { createFlagsClient, type FlagsClient } from "./flags";
-import { createAdminClient, type AdminClient } from "./admin";
+import { createHelpersClient, type HelpersClient } from "./helpers";
 
 export type DomainClients = {
   inventory: InventoryClient;
@@ -28,9 +26,7 @@ export type DomainClients = {
   loyalty: LoyaltyClient;
   privacy: PrivacyClient;
   dr: DisasterRecoveryClient;
-  supplier: SupplierClient;
-  flags: FlagsClient;
-  admin: AdminClient;
+  helpers: HelpersClient;
 };
 
 export function createDomainClients(client: FunctionCaller<FunctionMap>): DomainClients {
@@ -47,9 +43,7 @@ export function createDomainClients(client: FunctionCaller<FunctionMap>): Domain
     loyalty: createLoyaltyClient(client),
     privacy: createPrivacyClient(client),
     dr: createDisasterRecoveryClient(client),
-    supplier: createSupplierClient(client),
-    flags: createFlagsClient(client),
-    admin: createAdminClient(client),
+    helpers: createHelpersClient(client),
   };
 }
 
@@ -64,6 +58,4 @@ export * from "./permits";
 export * from "./pricing";
 export * from "./privacy";
 export * from "./wallet";
-export * from "./supplier";
-export * from "./flags";
-export * from "./admin";
+export * from "./helpers";
