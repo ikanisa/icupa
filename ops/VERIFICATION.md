@@ -21,6 +21,17 @@
 - `.github/workflows/db_dry_run.yml`
 - `.github/workflows/perf_smoke.yml`
 
+## Rollout Validation
+- `npm run test:map-route` (confirms safety-warning coverage fixtures stay in sync)
+- `deno fmt --check supabase/functions` (guard for accidental drift while promoting to production)
+- Verify Vercel deploy dashboards for both `@ecotrips/client` and `@ecotrips/admin` show green preview & production builds before cutover
+- Hit `/functions/v1/map-route/health` and confirm payload includes `ok: true` plus log stream contains `map.route.safety_warning.coverage`
+
+## Rollback Triggers
+- Vercel preview or production deployment fails for either app or shows stale commit hashes
+- `npm run test:map-route` or synthetics probe fails to cover all expected safety warnings
+- Observability stream stops emitting `map.route.safety_warning.coverage` events for new requests
+
 ## Notes
 - Client PWA offline caches itinerary JSON, tickets, and help contacts via `/sw.js`
 - Admin access gated by `sec.user_roles` (`ops` & `admin` roles)
