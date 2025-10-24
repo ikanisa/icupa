@@ -100,4 +100,54 @@ export type AdminDatabase = {
       };
     };
   };
+  b2b: {
+    Tables: {
+      api_keys: {
+        Row: {
+          id: string;
+          name: string;
+          description: string | null;
+          key_prefix: string;
+          key_hash: string;
+          status: string;
+          scopes: string[];
+          metadata: Record<string, unknown>;
+          created_by: string | null;
+          created_at: string;
+          revoked_at: string | null;
+          revoked_by: string | null;
+          revoked_reason: string | null;
+          last_used_at: string | null;
+          last_ip: string | null;
+          usage_count: number;
+        };
+      };
+    };
+  };
+  travel: {
+    Tables: {
+      intents: {
+        Row: {
+          id: string;
+          created_at: string;
+          updated_at: string;
+          api_key_id: string | null;
+          company_name: string;
+          contact_name: string | null;
+          email: string;
+          phone: string | null;
+          party_size: number | null;
+          start_date: string | null;
+          end_date: string | null;
+          destinations: string[];
+          budget_min_cents: number | null;
+          budget_max_cents: number | null;
+          notes: string | null;
+          idempotency_key: string;
+          raw_payload: Record<string, unknown>;
+          status: string;
+        };
+      };
+    };
+  };
 };

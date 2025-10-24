@@ -7,6 +7,8 @@ import {
   GroupSuggestionInput,
   GroupSuggestionResponse,
   InventorySearchInput,
+  SearchPlacesInput,
+  SearchPlacesResponse,
   PermitRequest,
 } from "@ecotrips/types";
 import {
@@ -324,6 +326,14 @@ const descriptors = {
       bytes: z.number().optional(),
       sha256: z.string().optional(),
     }),
+  },
+  "search.places": {
+    path: "/functions/v1/search-places",
+    method: "POST",
+    auth: "anon",
+    input: SearchPlacesInput,
+    output: SearchPlacesResponse,
+    cacheTtlMs: 15_000,
   },
 } satisfies Record<string, FunctionDescriptor<z.ZodTypeAny, z.ZodTypeAny>>;
 
