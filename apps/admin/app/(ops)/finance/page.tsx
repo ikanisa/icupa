@@ -8,6 +8,7 @@ import { logAdminAction } from "../../../lib/logging";
 
 import { InvoiceGenerateForm, type InvoiceFormState } from "./InvoiceGenerateForm";
 import { RefundForm, type RefundFormState } from "./RefundForm";
+import { PayoutAgingWidget } from "./PayoutAgingWidget";
 
 async function generateInvoiceAction(_: InvoiceFormState, formData: FormData): Promise<InvoiceFormState> {
   "use server";
@@ -124,43 +125,43 @@ async function submitRefundAction(_: RefundFormState, formData: FormData): Promi
 
 export default function FinancePage() {
   return (
-    <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-      <CardGlass title="Finance ledger" subtitle="Invoices, refunds, and payouts recorded with HITL guardrails.">
-        <div className="flex flex-col gap-3 text-sm text-white/80 lg:flex-row lg:items-start lg:justify-between">
-          <p className="max-w-2xl">
-            Generate invoices directly from ledger payments. Signed URLs are short-lived; store them in secure channels and
-            audit every action using structured logs.
+    <>
+      <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
+        <CardGlass title="Finance ledger" subtitle="Invoices, refunds, and payouts recorded with HITL guardrails.">
+          <p className="text-sm text-white/80">
+            Generate invoices directly from ledger payments. Signed URLs are short-lived; store them in secure channels and audit
+            every action using structured logs.
           </p>
-          <Button size="sm" variant="glass" asChild>
-            <Link href="/finance/incidents">Payment incidents board</Link>
-          </Button>
-        </div>
-        <InvoiceGenerateForm action={generateInvoiceAction} />
-        <div className="mt-6">
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white/60">Submit refund</h3>
-          <RefundForm action={submitRefundAction} />
-        </div>
-        <div className="rounded-2xl border border-white/10 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-            <div>
-              <p className="text-xs uppercase tracking-wide text-white/60">REF-104</p>
-              <p className="text-white/80">Stripe refund request</p>
-            </div>
-            <div className="text-right text-xs text-white/60">
-              <p>USD 860.00</p>
-              <p>Pending HITL approval</p>
-            </div>
+          <InvoiceGenerateForm action={generateInvoiceAction} />
+          <div className="mt-6">
+            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-white/60">Submit refund</h3>
+            <RefundForm action={submitRefundAction} />
           </div>
-          <p className="mt-3 text-xs text-white/60">Ledger entry append ensures audit trail and dual control.</p>
-        </div>
-      </CardGlass>
-      <CardGlass title="Guardrails" subtitle="FinOps approvals require dual control and observability.">
-        <ul className="space-y-2 text-sm text-white/80">
-          <li>• payments-refund edge function logs structured telemetry with request IDs.</li>
-          <li>• fin-ledger-append enforces allowed entry types and idempotency.</li>
-          <li>• fin-invoice-generate writes signed URLs to Storage invoices/ bucket.</li>
-        </ul>
-      </CardGlass>
-    </div>
+          <div className="rounded-2xl border border-white/10 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-white/60">REF-104</p>
+                <p className="text-white/80">Stripe refund request</p>
+              </div>
+              <div className="text-right text-xs text-white/60">
+                <p>USD 860.00</p>
+                <p>Pending HITL approval</p>
+              </div>
+            </div>
+            <p className="mt-3 text-xs text-white/60">Ledger entry append ensures audit trail and dual control.</p>
+          </div>
+        </CardGlass>
+        <CardGlass title="Guardrails" subtitle="FinOps approvals require dual control and observability.">
+          <ul className="space-y-2 text-sm text-white/80">
+            <li>• payments-refund edge function logs structured telemetry with request IDs.</li>
+            <li>• fin-ledger-append enforces allowed entry types and idempotency.</li>
+            <li>• fin-invoice-generate writes signed URLs to Storage invoices/ bucket.</li>
+          </ul>
+        </CardGlass>
+      </div>
+      <div className="mt-6">
+        <PayoutAgingWidget />
+      </div>
+    </>
   );
 }

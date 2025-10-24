@@ -18,19 +18,19 @@ export function CardGlass({
   return (
     <section
       className={clsx(
-        "relative overflow-hidden rounded-3xl border border-[var(--eco-glass-border)] bg-[var(--eco-glass-bg)] p-5 text-white shadow-[var(--eco-glass-shadow)] backdrop-blur-[var(--eco-glass-blur)]",
+        "relative overflow-hidden rounded-3xl border border-glass-border bg-glass p-5 text-surface-foreground shadow-[var(--eco-glass-shadow)] backdrop-blur-glass",
         className,
       )}
       {...props}
     >
       <div className="flex items-start justify-between gap-4">
         <div>
-          {title && <h2 className="text-lg font-semibold tracking-tight">{title}</h2>}
-          {subtitle && <p className="mt-1 text-sm text-slate-200/80">{subtitle}</p>}
+          {title && <h2 className="text-lg font-semibold tracking-tight text-brand-foreground/90">{title}</h2>}
+          {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
         </div>
         {actions && <div className="shrink-0">{actions}</div>}
       </div>
-      <div className="mt-4 space-y-3 text-sm text-slate-100/90">{children}</div>
+      <div className="mt-4 space-y-3 text-sm text-surface-foreground/90">{children}</div>
     </section>
   );
 }

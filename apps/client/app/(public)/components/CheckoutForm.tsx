@@ -1,30 +1,167 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button, Toast } from "@ecotrips/ui";
-import { CheckoutInput, type PaymentEscalationAction, type PaymentEscalationResponse } from "@ecotrips/types";
+import { CheckoutInput } from "@ecotrips/types";
 import { createEcoTripsFunctionClient } from "@ecotrips/api";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import type { Session } from "@supabase/supabase-js";
 
-const clientPromise = (async () => {
-  if (typeof window === "undefined") return null;
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !anonKey) return null;
-  return createEcoTripsFunctionClient({
-    supabaseUrl,
-    anonKey,
-    getAccessToken: async () => null,
-  });
-})();
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const ALLOW_ANON_CHECKOUT = process.env.NEXT_PUBLIC_CHECKOUT_ALLOW_ANON === "1";
+
+type ToastState = { id: string; title: string; description?: string } | null;
+
+type BlockingMessageProps = { title: string; description: string };
+
+function BlockingMessage({ title, description }: BlockingMessageProps) {
+  return (
+    <div className="space-y-2 rounded-2xl border border-red-500/40 bg-red-500/10 p-6 text-sm text-red-50">
+      <p className="font-semibold text-red-100">{title}</p>
+      <p className="text-red-200">{description}</p>
+    </div>
+  );
+}
 
 export function CheckoutForm({ itineraryId }: { itineraryId: string }) {
   const [amount, setAmount] = useState(182000);
   const [currency, setCurrency] = useState("USD");
   const [intent, setIntent] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ id: string; title: string; description?: string } | null>(null);
-  const [escalation, setEscalation] = useState<PaymentEscalationResponse | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [actionBusy, setActionBusy] = useState<string | null>(null);
+  const [toast, setToast] = useState<ToastState>(null);
+  const [pending, setPending] = useState(false);
+  const [sessionReady, setSessionReady] = useState(false);
+  const [sessionAvailable, setSessionAvailable] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(
+    SUPABASE_URL && SUPABASE_ANON_KEY
+      ? null
+      : "Checkout unavailable. Configure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.",
+  );
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      setSessionReady(true);
+      setSessionAvailable(false);
+      return;
+    }
+
+    const supabase = createClientComponentClient({
+      supabaseUrl: SUPABASE_URL,
+      supabaseKey: SUPABASE_ANON_KEY,
+    });
+
+    let mounted = true;
+
+    const syncSession = (session: Session | null) => {
+      if (!mounted) return;
+      const hasSession = Boolean(session);
+      setSessionAvailable(hasSession);
+      setAccessToken(session?.access_token ?? null);
+      if (!hasSession && !ALLOW_ANON_CHECKOUT) {
+        setAuthError("Sign in to continue checkout.");
+      } else {
+        setAuthError(null);
+      }
+      setSessionReady(true);
+    };
+
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (!mounted) return;
+      if (error) {
+        setAuthError(`Unable to load session: ${error.message}`);
+        setSessionReady(true);
+        setSessionAvailable(false);
+        return;
+      }
+      syncSession(data.session ?? null);
+    });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      syncSession(session);
+    });
+
+    return () => {
+      mounted = false;
+      authListener?.subscription.unsubscribe();
+    };
+  }, []);
+
+  const client = useMemo(() => {
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
+    return createEcoTripsFunctionClient({
+      supabaseUrl: SUPABASE_URL,
+      anonKey: SUPABASE_ANON_KEY,
+      getAccessToken: async () => accessToken,
+    });
+  }, [accessToken]);
+
+  const interpretError = (error: unknown): ToastState => {
+    const fallback: ToastState = {
+      id: "checkout_error",
+      title: "Checkout failed",
+      description: "An unexpected error occurred while creating the payment intent.",
+    };
+
+    const message = error instanceof Error ? error.message : String(error ?? "");
+    const jsonStart = message.indexOf("{");
+    let parsed: Record<string, unknown> | null = null;
+    if (jsonStart >= 0) {
+      try {
+        parsed = JSON.parse(message.slice(jsonStart));
+      } catch (_err) {
+        parsed = null;
+      }
+    }
+
+    if (parsed && Array.isArray(parsed.errors) && parsed.errors.length > 0) {
+      const description = parsed.errors.map((item) => String(item)).join("\n");
+      return {
+        id: "validation",
+        title: "Fix checkout inputs",
+        description,
+      };
+    }
+
+    if (parsed && typeof parsed.error === "string" && parsed.error === "stripe_unavailable") {
+      const requestId = typeof parsed.request_id === "string" ? parsed.request_id : null;
+      const fallbackMode = typeof parsed.fallback_mode === "string" ? parsed.fallback_mode : null;
+      const reason = typeof parsed.message === "string"
+        ? parsed.message
+        : "Stripe temporarily unavailable.";
+      const suffix = [
+        requestId ? `Request ${requestId}` : null,
+        fallbackMode ? `mode ${fallbackMode}` : null,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      return {
+        id: "stripe_unavailable",
+        title: "Stripe unavailable",
+        description: suffix ? `${reason} (${suffix}).` : reason,
+      };
+    }
+
+    const normalized = message.toLowerCase();
+    if (normalized.includes("23505") || normalized.includes("duplicate key") || normalized.includes("idempotency")) {
+      return {
+        id: "idempotency_conflict",
+        title: "Payment already initialized",
+        description:
+          "An existing payment intent already exists for this itinerary. Refresh to reuse it or adjust the idempotency key.",
+      };
+    }
+
+    if (parsed && typeof parsed.message === "string" && parsed.message.toLowerCase().includes("idempotency")) {
+      return {
+        id: "idempotency_conflict",
+        title: "Payment already initialized",
+        description: parsed.message,
+      };
+    }
+
+    return fallback;
+  };
 
   const baseIdempotencyKey = useMemo(() => `intent-${itineraryId}`, [itineraryId]);
 
@@ -80,13 +217,22 @@ export function CheckoutForm({ itineraryId }: { itineraryId: string }) {
       idempotencyKey: overrides?.idempotencyKey ?? baseIdempotencyKey,
     });
     if (!parsed.success) {
-      setToast({ id: "validation", title: "Fix checkout inputs", description: "Amount and currency required." });
-      return false;
+      const details = parsed.error.issues.map((issue) => issue.message).join("\n");
+      setToast({
+        id: "validation",
+        title: "Fix checkout inputs",
+        description: details || "Amount and currency required.",
+      });
+      return;
     }
-    const client = await clientPromise;
+
     if (!client) {
-      setToast({ id: "offline", title: "Offline mode", description: "Showing ledger fixtures until auth is granted." });
-      return false;
+      setToast({
+        id: "offline",
+        title: "Checkout unavailable",
+        description: "Supabase client unavailable. Check environment configuration and authentication state.",
+      });
+      return;
     }
 
     try {
@@ -106,71 +252,47 @@ export function CheckoutForm({ itineraryId }: { itineraryId: string }) {
       return true;
     } catch (error) {
       console.error(error);
-      setIntent(null);
-      await resolveEscalation(client, parsed.data, error);
-      return false;
+      setToast(interpretError(error));
     } finally {
-      setIsSubmitting(false);
+      setPending(false);
     }
   };
 
-  const statusColors: Record<string, string> = {
-    pass: "bg-emerald-400",
-    warn: "bg-amber-400",
-    fail: "bg-rose-500",
-  };
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    return (
+      <BlockingMessage
+        title="Supabase configuration missing"
+        description="Checkout requires NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to be set in the environment."
+      />
+    );
+  }
 
-  const formatTimestamp = (value?: string) => {
-    if (!value) return null;
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return null;
-    return date.toLocaleString(undefined, { hour12: false });
-  };
+  if (!sessionReady) {
+    return (
+      <div className="space-y-2 rounded-2xl border border-white/15 bg-white/5 p-6 text-sm text-white/70">
+        <p className="font-semibold">Preparing checkout…</p>
+        <p>Validating Supabase session before enabling payment intents.</p>
+      </div>
+    );
+  }
 
-  const handleAction = async (action: PaymentEscalationAction) => {
-    if (action.cta_type === "retry_intent") {
-      setActionBusy(action.id);
-      try {
-        await submit({ idempotencyKey: action.idempotency_hint ?? baseIdempotencyKey });
-      } finally {
-        setActionBusy(null);
-      }
-      return;
-    }
-
-    if (action.cta_type === "open_url" && action.href) {
-      if (action.href.startsWith("http")) {
-        window.open(action.href, "_blank", "noopener");
-      } else {
-        window.location.href = action.href;
-      }
-      return;
-    }
-
-    if (action.cta_type === "copy_text" && action.text) {
-      try {
-        await navigator.clipboard?.writeText(action.text);
-        setToast({ id: `copy-${action.id}`, title: "Copied", description: "Checklist copied to clipboard." });
-      } catch (copyError) {
-        console.error("clipboard", copyError);
-        setToast({ id: `copy-${action.id}`, title: "Copy failed", description: action.text });
-      }
-      return;
-    }
-
-    if (action.cta_type === "contact_ops") {
-      const description = action.contact_channel
-        ? `Ping ${action.contact_channel} with the latest request ID.`
-        : "Notify the finance duty manager.";
-      setToast({ id: action.id, title: "Escalate to ops", description });
-      if (action.contact_channel?.startsWith("http")) {
-        window.open(action.contact_channel, "_blank", "noopener");
-      }
-    }
-  };
+  if (!ALLOW_ANON_CHECKOUT && !sessionAvailable) {
+    return (
+      <BlockingMessage
+        title="Sign in required"
+        description={authError ?? "Authenticate before creating a payment intent."}
+      />
+    );
+  }
 
   return (
     <div className="space-y-4">
+      {authError && ALLOW_ANON_CHECKOUT && (
+        <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-100">
+          <p className="font-semibold">Authentication unavailable</p>
+          <p className="text-amber-200">{authError}</p>
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-4 text-sm">
         <label className="flex flex-col gap-2">
           <span>Amount (cents)</span>
@@ -190,68 +312,10 @@ export function CheckoutForm({ itineraryId }: { itineraryId: string }) {
           />
         </label>
       </div>
-      <Button fullWidth onClick={() => submit()} disabled={isSubmitting}>
-        {isSubmitting ? "Creating intent…" : "Create payment intent"}
+      <Button fullWidth disabled={pending} onClick={submit}>
+        {pending ? "Creating payment intent…" : "Create payment intent"}
       </Button>
-      {intent && <p className="text-sm text-sky-200">Payment intent {intent}</p>}
-      {escalation && (
-        <div className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/80">
-          <div>
-            <p className="text-base font-semibold text-white">{escalation.headline}</p>
-            <p className="mt-1 text-xs text-white/70">{escalation.summary}</p>
-          </div>
-          <div className="space-y-3">
-            {escalation.next_actions.map((action) => (
-              <div key={action.id} className="rounded-xl border border-white/10 bg-slate-950/40 p-3">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-white">{action.title}</p>
-                    <p className="mt-1 text-xs text-white/70">{action.description}</p>
-                    {action.wait_seconds && (
-                      <p className="mt-1 text-[11px] uppercase tracking-wide text-white/40">
-                        Wait {action.wait_seconds}s before executing.
-                      </p>
-                    )}
-                    {action.idempotency_hint && (
-                      <p className="mt-1 text-[11px] uppercase tracking-wide text-white/40">
-                        Idempotency {action.idempotency_hint}
-                      </p>
-                    )}
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="glass"
-                    onClick={() => handleAction(action)}
-                    disabled={isSubmitting || actionBusy === action.id}
-                  >
-                    {actionBusy === action.id ? "Working…" : action.cta_label}
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-white/60">Health checks</p>
-            <ul className="mt-2 space-y-3 text-sm">
-              {escalation.health_checks.map((check) => {
-                const timestamp = formatTimestamp(check.last_checked);
-                return (
-                  <li key={check.id} className="flex items-start gap-3">
-                    <span className={`mt-1 h-2.5 w-2.5 rounded-full ${statusColors[check.status] ?? statusColors.pass}`}></span>
-                    <div>
-                      <p className="text-sm font-medium text-white">{check.name}</p>
-                      <p className="text-xs text-white/70">{check.detail}</p>
-                      {timestamp && (
-                        <p className="text-[10px] uppercase tracking-wide text-white/40">Checked {timestamp}</p>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        </div>
-      )}
+      {checkoutIntent && <p className="text-sm text-sky-200">Payment intent {checkoutIntent}</p>}
       <div className="fixed bottom-24 left-1/2 z-50 w-full max-w-sm -translate-x-1/2">
         {toast && <Toast id={toast.id} title={toast.title} description={toast.description} onDismiss={() => setToast(null)} />}
       </div>

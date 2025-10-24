@@ -4,12 +4,12 @@ import {
   CheckoutInput,
   ContributionCreate,
   EscrowCreate,
-  GroupSuggestionInput,
-  GroupSuggestionResponse,
   InventorySearchInput,
-  PaymentEscalationInput,
-  PaymentEscalationResponse,
   PermitRequest,
+  VoiceCallInitiateInput,
+  VoiceCallInitiateResponse,
+  VoiceCallSummarizeInput,
+  VoiceCallSummarizeResponse,
 } from "@ecotrips/types";
 import {
   DrSnapshotInput,
@@ -321,6 +321,20 @@ const descriptors = {
         .optional(),
     }),
   },
+  "voice.call.initiate": {
+    path: "/functions/v1/voice-call-initiate",
+    method: "POST",
+    auth: "user",
+    input: VoiceCallInitiateInput,
+    output: VoiceCallInitiateResponse,
+  },
+  "voice.call.summarize": {
+    path: "/functions/v1/voice-call-summarize",
+    method: "POST",
+    auth: "user",
+    input: VoiceCallSummarizeInput,
+    output: VoiceCallSummarizeResponse,
+  },
   "dr.snapshot": {
     path: "/functions/v1/dr-snapshot",
     method: "POST",
@@ -451,6 +465,8 @@ export function createEcoTripsFunctionClient(options: ClientOptions) {
 }
 
 export const functionDescriptors = descriptors;
+
+export * from "./mapRoute";
 
 function buildQueryString(input: unknown): string {
   if (!input || typeof input !== "object") {

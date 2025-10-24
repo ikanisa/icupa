@@ -180,6 +180,7 @@ const handler = withObs(async (req) => {
       amountCents,
       currency,
       idempotencyKey,
+      { requestId },
     );
 
     if (!intentResult.ok) {
@@ -200,12 +201,16 @@ const handler = withObs(async (req) => {
           request_id: requestId,
           fallback_mode: intentResult.mode,
           message: intentResult.reason,
+          fallback_reason: intentResult.fallbackReason ?? intentResult.reason,
         },
         { status: 503 },
       );
     }
 
     const intent = intentResult.intent;
+    const fallbackReason = "fallbackReason" in intentResult
+      ? intentResult.fallbackReason
+      : undefined;
     await updatePaymentRecord(paymentId, intent);
 
     await appendLedgerEntry({
@@ -227,6 +232,7 @@ const handler = withObs(async (req) => {
       ok: true,
       payment_id: paymentId,
       payment_intent: intent.id,
+      payment_intent_id: intent.id,
       idempotency: idempotencyKey,
       request_id: requestId,
       provider_status: intent.status,
@@ -237,6 +243,9 @@ const handler = withObs(async (req) => {
 
     if (intent.mode === "mock") {
       responseBody.fallback = true;
+    }
+    if (fallbackReason) {
+      responseBody.fallback_reason = fallbackReason;
     }
 
     return jsonResponse(responseBody);
@@ -252,7 +261,9 @@ const handler = withObs(async (req) => {
   }
 }, { fn: "bff-checkout", defaultErrorCode: ERROR_CODES.UNKNOWN });
 
-serve(handler);
+if (import.meta.main) {
+  serve(handler);
+}
 
 async function createPaymentIntent(
   paymentId: string,
@@ -260,9 +271,14 @@ async function createPaymentIntent(
   amountCents: number,
   currency: string,
   idempotencyKey: string,
+  options: { requestId?: string } = {},
 ): Promise<
-  | { ok: true; intent: { id: string; client_secret?: string; status: string; mode: string } }
-  | { ok: false; reason: string; mode: "mock" }
+  | {
+    ok: true;
+    intent: { id: string; client_secret?: string; status: string; mode: string };
+    fallbackReason?: string;
+  }
+  | { ok: false; reason: string; mode: "mock"; fallbackReason?: string }
 > {
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
     throw new Error("Supabase configuration missing");
@@ -270,6 +286,7 @@ async function createPaymentIntent(
 
   let useMock = MOCK_STRIPE_MODE;
   let fallbackReason: string | null = null;
+  const { requestId } = options;
 
   const headers: Record<string, string> = {
     "content-type": "application/x-www-form-urlencoded",
@@ -316,19 +333,52 @@ async function createPaymentIntent(
       };
     } catch (error) {
       fallbackReason = safeErrorMessage(error);
-      await recordStripeFallback("create_payment_intent_error", error, { strict: STRICT_STRIPE_MODE });
+      console.error(
+        JSON.stringify({
+          level: "ERROR",
+          event: "payments.stripe.live_error",
+          fn: "bff-checkout",
+          requestId,
+          message: fallbackReason,
+        }),
+      );
       useMock = true;
     }
   }
 
   if (useMock) {
     if (STRICT_STRIPE_MODE) {
-      const reason =
+      const reasonMessage =
         fallbackReason ?? "Stripe mock mode is disallowed while STRIPE_REQUIRE_LIVE=1 or production deployment";
-      return { ok: false, reason, mode: "mock" };
+      await recordStripeFallback("strict_mode_block", reasonMessage, {
+        strict: true,
+        paymentId,
+        itineraryId,
+        amountCents,
+        currency,
+        idempotencyKey,
+        requestId,
+        phase: "stripe.strict_block",
+        fallbackMode: "blocked",
+        severity: "critical",
+      });
+      return { ok: false, reason: reasonMessage, mode: "mock", fallbackReason: reasonMessage };
     }
 
     const mockId = `pi_mock_${paymentId}`;
+    const reasonMessage = fallbackReason ?? "Stripe mock mode engaged for checkout intent.";
+    await recordStripeFallback("mock_mode_intent", reasonMessage, {
+      strict: false,
+      paymentId,
+      itineraryId,
+      amountCents,
+      currency,
+      idempotencyKey,
+      requestId,
+      phase: "stripe.mock_intent",
+      fallbackMode: "mock",
+      severity: fallbackReason ? "error" : "warning",
+    });
     return {
       ok: true,
       intent: {
@@ -337,6 +387,7 @@ async function createPaymentIntent(
         status: "requires_confirmation",
         mode: "mock",
       },
+      fallbackReason: reasonMessage,
     };
   }
 
@@ -466,16 +517,60 @@ async function incrementMetric(name: string, delta = 1) {
   }
 }
 
-async function recordStripeFallback(reason: string, error: unknown, opts: { strict?: boolean } = {}) {
+type StripeFallbackOptions = {
+  strict?: boolean;
+  paymentId?: string;
+  itineraryId?: string;
+  amountCents?: number;
+  currency?: string;
+  idempotencyKey?: string;
+  requestId?: string;
+  phase?: string;
+  fallbackMode?: "mock" | "blocked" | "live";
+  severity?: "critical" | "error" | "warning" | "info";
+};
+
+async function recordStripeFallback(
+  reason: string,
+  error: unknown,
+  opts: StripeFallbackOptions = {},
+) {
   const message = safeErrorMessage(error);
+  const timestamp = new Date().toISOString();
+  const fallbackMode = opts.fallbackMode ?? (opts.strict ? "blocked" : "mock");
+  const severity = opts.severity ?? (opts.strict ? "critical" : "warning");
+  const level = severity === "critical"
+    ? "CRITICAL"
+    : severity === "error"
+    ? "ERROR"
+    : severity === "warning"
+    ? "WARN"
+    : "INFO";
   const payload = {
-    level: "ERROR",
-    event: "payments.stripe.fallback",
+    level,
+    event: "payments.stripe.degradation",
     fn: "bff-checkout",
     reason,
     strict: opts.strict ?? false,
     message,
-    timestamp: new Date().toISOString(),
+    timestamp,
+    context: {
+      paymentId: opts.paymentId,
+      itineraryId: opts.itineraryId,
+      amountCents: opts.amountCents,
+      currency: opts.currency,
+      idempotencyKey: opts.idempotencyKey,
+      requestId: opts.requestId,
+      phase: opts.phase ?? "stripe.create_intent",
+      fallbackMode,
+      strictMode: opts.strict ?? false,
+    },
+    alert: {
+      severity,
+      dedupeKey: opts.idempotencyKey ?? opts.paymentId ?? reason,
+      tags: ["stripe", "checkout", opts.strict ? "strict-mode" : "fallback"],
+      triggeredAt: timestamp,
+    },
   };
   console.error(JSON.stringify(payload));
 
@@ -490,7 +585,7 @@ async function recordStripeFallback(reason: string, error: unknown, opts: { stri
         console.error(
           JSON.stringify({
             ...payload,
-            event: "payments.stripe.fallback_webhook_failed",
+            event: "payments.stripe.degradation_webhook_failed",
             status: response.status,
           }),
         );
@@ -499,7 +594,7 @@ async function recordStripeFallback(reason: string, error: unknown, opts: { stri
       console.error(
         JSON.stringify({
           ...payload,
-          event: "payments.stripe.fallback_webhook_error",
+          event: "payments.stripe.degradation_webhook_error",
           message: safeErrorMessage(hookError),
         }),
       );
@@ -509,6 +604,27 @@ async function recordStripeFallback(reason: string, error: unknown, opts: { stri
   await incrementMetric("payments.stripe.mock_fallback");
   await incrementMetric(`payments.stripe.fallback.${reason}`);
 }
+
+export const __test__ = {
+  createPaymentIntent: (
+    args: {
+      paymentId: string;
+      itineraryId: string;
+      amountCents: number;
+      currency: string;
+      idempotencyKey: string;
+      requestId?: string;
+    },
+  ) =>
+    createPaymentIntent(
+      args.paymentId,
+      args.itineraryId,
+      args.amountCents,
+      args.currency,
+      args.idempotencyKey,
+      { requestId: args.requestId },
+    ),
+};
 
 function safeErrorMessage(error: unknown): string {
   if (!error) return "";
