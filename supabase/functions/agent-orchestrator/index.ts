@@ -1106,6 +1106,12 @@ function parseRiskMetadata(metadata: Record<string, unknown>): {
         const trimmed = value.trim();
         if (!trimmed) continue;
         const lowerValue = trimmed.toLowerCase();
+        const numericValue = Number(trimmed);
+        if (!Number.isNaN(numericValue) && RISK_SCORE_KEYS.has(lowerKey)) {
+          if (numericValue >= 0.8) {
+            flagged = true;
+          }
+        }
         if (RISK_FLAG_STRING_VALUES.has(lowerValue)) {
           flagged = true;
         }
