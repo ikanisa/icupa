@@ -6,6 +6,8 @@ export { InventoryManagerPanel } from "@/components/merchant/InventoryManagerPan
 export { PromoBuilderPanel } from "@/components/merchant/PromoBuilderPanel";
 export { useMerchantProfile } from "@/hooks/useMerchantProfile";
 export { useMerchantLocations } from "@/hooks/useMerchantLocations";
+export { MerchantPortalPage } from "./portal";
+export { MerchantReceiptsPage, useMerchantReceipts } from "./receipts";
 export {
   useMenuIngestions,
   useMenuIngestionDetail,

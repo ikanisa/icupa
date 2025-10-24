@@ -26,8 +26,14 @@ The `specs` folder is pre-seeded with placeholder suites that exercise the diner
 
 2. Set the base URL. Playwright reads the deployment under test from the `PLAYWRIGHT_BASE_URL` environment variable and falls back to the local dev server when unset.
 
+   We standardise on the dedicated staging domain `https://staging.icupa.dev`, which always tracks the latest successful `main` deployment on Vercel. Override the variable locally only when validating an alternate preview build (for example, a canary branch or hotfix Vercel preview). Otherwise, omit the override and allow the config to spin up the Vite dev server automatically.
+
    ```sh
-   export PLAYWRIGHT_BASE_URL="http://localhost:5173"
+   # Use staging for smoke tests against the shared preview environment
+   export PLAYWRIGHT_BASE_URL="https://staging.icupa.dev"
+
+   # Or point at a one-off preview deployment when debugging regressions
+   export PLAYWRIGHT_BASE_URL="https://icupa-git-fix-billing.vercel.app"
    ```
 
 3. Execute the suites (this command auto-starts the Vite dev server when `PLAYWRIGHT_BASE_URL` is unset):
@@ -40,7 +46,9 @@ Reports and traces are written to `artifacts/phase10/playwright` to simplify CI 
 
 ## CI integration
 
-The GitHub Actions workflow includes a `playwright` job that runs automatically whenever the `PLAYWRIGHT_BASE_URL` secret is populated. The job installs browsers with `npx playwright install --with-deps` and uploads the trace archive as an artifact named `phase10-playwright`. Vendors only need to provide the suite implementations.
+The GitHub Actions workflow includes a `playwright` job that runs automatically whenever the `PLAYWRIGHT_BASE_URL` secret is populated. We publish the `https://staging.icupa.dev` URL as an organisation secret so CI smoke tests always exercise the canonical staging build without booting a local dev server. The `verify-full` workflow injects the same secret before running `npm run verify:full`, so the main CI suite shares the staging baseline but still falls back to the local dev server when the secret is absent (e.g., in forks). When contributors need to validate a different target (e.g., a preview deployment tied to their pull request) they should configure a workflow dispatch with an explicit override instead of rotating the secret.
+
+The job installs browsers with `npx playwright install --with-deps` and uploads the trace archive as an artifact named `phase10-playwright`. Vendors only need to provide the suite implementations.
 
 ## Accessibility scans
 

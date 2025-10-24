@@ -1,7 +1,7 @@
-import { AdminShell } from "@/components/admin/AdminShell";
+import { AdminConsolePage } from "@/modules/admin/console";
 
 const AdminConsole = () => {
-  return <AdminShell />;
+  return <AdminConsolePage />;
 };
 
 export default AdminConsole;
