@@ -136,3 +136,44 @@ export const SupplierSlaForecastResponse = z.object({
 });
 
 export type SupplierSlaForecastResponse = z.infer<typeof SupplierSlaForecastResponse>;
+
+export const RefundPolicySummaryClause = z.object({
+  title: z.string(),
+  description: z.string().optional(),
+  window_hours: z.number().int().nonnegative().optional(),
+  penalty_cents: z.number().int().nonnegative().optional(),
+  currency: z.string().optional(),
+});
+
+export type RefundPolicySummaryClause = z.infer<typeof RefundPolicySummaryClause>;
+
+export const RefundPolicySummary = z.object({
+  headline: z.string(),
+  refundable: z.boolean().optional(),
+  summary: z.array(z.string()).default([]),
+  clauses: z.array(RefundPolicySummaryClause).default([]),
+  notes: z.array(z.string()).default([]),
+  source: z.string().optional(),
+  updated_at: z.string().optional(),
+});
+
+export type RefundPolicySummary = z.infer<typeof RefundPolicySummary>;
+
+export const RefundPolicySummarizeInput = z.object({
+  itinerary_id: z.string().uuid().optional(),
+  booking_id: z.string().optional(),
+  supplier_id: z.string().optional(),
+  product_code: z.string().optional(),
+  locale: z.string().min(2).default("en"),
+});
+
+export type RefundPolicySummarizeInput = z.infer<typeof RefundPolicySummarizeInput>;
+
+export const RefundPolicySummarizeResponse = z.object({
+  ok: z.boolean(),
+  request_id: z.string().optional(),
+  policy: RefundPolicySummary.optional(),
+  message: z.string().optional(),
+});
+
+export type RefundPolicySummarizeResponse = z.infer<typeof RefundPolicySummarizeResponse>;
