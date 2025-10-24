@@ -14,15 +14,15 @@ const optionalEnvSchema = z.object({
 const shouldSkipValidation = process.env.SKIP_ENV_VALIDATION === "true";
 const isNodeProduction = process.env.NODE_ENV === "production";
 const isRunningOnVercel = process.env.VERCEL === "1";
-const vercelEnvironment = process.env.NODE_ENV ?? "development";
-const isVercelProduction = vercelEnvironment === "production";
+const nodeEnv = process.env.NODE_ENV ?? "development";
+const isProduction = (process.env.NODE_ENV ?? "development") === "production";
 const isCiEnvironment =
   process.env.CI === "true" || process.env.CI === "1" || process.env.CONTINUOUS_INTEGRATION === "true";
 const isLocalEnvironment = !isRunningOnVercel;
 
 if (
   shouldSkipValidation &&
-  (isVercelProduction || (isRunningOnVercel && isNodeProduction))
+  (isProduction || (isRunningOnVercel && isNodeProduction))
 ) {
   throw new Error(
     "SKIP_ENV_VALIDATION cannot be used when deploying the production runtime.",
@@ -38,7 +38,7 @@ if (shouldSkipValidation && !(isCiEnvironment || isLocalEnvironment)) {
 const isFallbackAllowed =
   shouldSkipValidation &&
   (isCiEnvironment || isLocalEnvironment) &&
-  !(isVercelProduction || (isRunningOnVercel && isNodeProduction));
+  !(isProduction || (isRunningOnVercel && isNodeProduction));
 
 const fallbackServiceEnv = isFallbackAllowed
   ? supabaseServiceEnvSchema.parse({
