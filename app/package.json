@@ -10,26 +10,37 @@
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
-    "lint": "next lint",
+    "pretest": "npx playwright install --with-deps chromium firefox",
+    "lint": "node ./scripts/run-next-lint.mjs",
+    "typecheck": "tsc --noEmit",
     "test": "playwright test",
     "check": "npm run lint && npm run test"
   },
   "dependencies": {
+    "@ecotrips/config": "file:../packages/config",
+    "@supabase/supabase-js": "2.45.4",
+    "@upstash/ratelimit": "2.0.6",
+    "@upstash/redis": "1.35.6",
+    "next": "15.5.3",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "next": "15.5.3",
-    "@supabase/supabase-js": "2.45.4",
     "zod": "3.23.8"
   },
   "devDependencies": {
-    "typescript": "^5",
+    "@ecotrips/eslint-config": "file:../packages/eslint-config",
+    "@ecotrips/prettier-config": "file:../packages/prettier-config",
+    "@eslint/config-array": "^0.21.1",
+    "@eslint/plugin-kit": "^0.2.8",
+    "@humanwhocodes/retry": "^0.4.3",
+    "@playwright/test": "1.51.1",
+    "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@tailwindcss/postcss": "^4",
-    "tailwindcss": "^4",
-    "eslint": "^9.13.0",
+    "eslint": "^8.57.0",
     "eslint-config-next": "15.5.3",
-    "@playwright/test": "1.51.1"
-  }
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  },
+  "prettier": "@ecotrips/prettier-config"
 }

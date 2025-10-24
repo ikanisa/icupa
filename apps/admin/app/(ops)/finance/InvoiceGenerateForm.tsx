@@ -1,65 +1,52 @@
 "use client";
 
-import { useFormState, useFormStatus } from "react-dom";
-import { buttonClassName, Toast } from "@ecotrips/ui";
+import { AdminActionForm, type AdminActionField, type AdminActionState, Toast } from "@ecotrips/ui";
 
-type InvoiceFormState = {
-  status: "idle" | "success" | "error" | "offline";
-  message?: string;
+export type InvoiceFormState = AdminActionState & {
   number?: string;
   signedUrl?: string;
 };
 
 const initialState: InvoiceFormState = { status: "idle" };
 
+const fields: AdminActionField[] = [
+  { name: "paymentId", label: "Payment ID", placeholder: "payment UUID" },
+  {
+    name: "kind",
+    label: "Kind",
+    type: "select",
+    defaultValue: "invoice",
+    options: [
+      { value: "invoice", label: "Invoice" },
+      { value: "credit_note", label: "Credit note" },
+    ],
+  },
+  { name: "itineraryId", label: "Itinerary ID (optional)", placeholder: "itinerary UUID" },
+];
+
 type InvoiceGenerateFormProps = {
   action: (state: InvoiceFormState, formData: FormData) => Promise<InvoiceFormState>;
 };
 
 export function InvoiceGenerateForm({ action }: InvoiceGenerateFormProps) {
-  const [state, formAction] = useFormState(action, initialState);
-  const { pending } = useFormStatus();
-
   return (
-    <div className="space-y-3">
-      <form action={formAction} className="space-y-3">
-        <label className="flex flex-col gap-2 text-sm">
-          <span>Payment ID</span>
-          <input
-            name="paymentId"
-            placeholder="payment UUID"
-            className="rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-sky-400"
-          />
-        </label>
-        <label className="flex flex-col gap-2 text-sm">
-          <span>Kind</span>
-          <select
-            name="kind"
-            defaultValue="invoice"
-            className="rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-sky-400"
-          >
-            <option value="invoice">Invoice</option>
-            <option value="credit_note">Credit note</option>
-          </select>
-        </label>
-        <label className="flex flex-col gap-2 text-sm">
-          <span>Itinerary ID (optional)</span>
-          <input
-            name="itineraryId"
-            placeholder="itinerary UUID"
-            className="rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-sky-400"
-          />
-        </label>
-        <button type="submit" className={buttonClassName("glass")} disabled={pending}>
-          {pending ? "Generating…" : "Generate invoice"}
-        </button>
-      </form>
-      <InvoiceStatus state={state} />
-    </div>
+    <AdminActionForm
+      action={action}
+      initialState={initialState}
+      submitLabel="Generate invoice"
+      pendingLabel="Generating…"
+      fields={fields}
+      renderStatus={(state) => <InvoiceStatus state={state} />}
+      toastId="finance-invoice"
+      successTitle="Invoice ready"
+      errorTitle="Invoice failed"
+    />
   );
 }
 
-type InvoiceStatusProps = { state: InvoiceFormState };
+type InvoiceStatusProps = {
+  state: InvoiceFormState;
+};
 
 function InvoiceStatus({ state }: InvoiceStatusProps) {
   if (state.status === "idle") return null;
@@ -72,12 +59,12 @@ function InvoiceStatus({ state }: InvoiceStatusProps) {
         : state.message
       : state.message ?? "Check withObs logs for details.";
 
-  return (
-    <Toast
-      id={`finance-invoice-${tone}`}
-      title={state.status === "success" ? `Invoice ${state.number ?? "ready"}` : state.status === "offline" ? "Auth required" : "Invoice failed"}
-      description={description}
-      onDismiss={() => undefined}
-    />
-  );
+  const title =
+    state.status === "success"
+      ? `Invoice ${state.number ?? "ready"}`
+      : state.status === "offline"
+        ? "Auth required"
+        : "Invoice failed";
+
+  return <Toast id={`finance-invoice-${tone}`} title={title} description={description} onDismiss={() => undefined} />;
 }

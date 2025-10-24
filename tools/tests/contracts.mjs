@@ -87,6 +87,9 @@ async function main() {
     () => requireHealth("stripe-webhook"),
     () => requireHealth("wa-send"),
     () => requireHealth("metrics-incr"),
+    () => requireHealth("groups-create-escrow"),
+    () => requireHealth("groups-contribute"),
+    () => requireHealth("groups-join"),
   ];
 
   for (const check of checks) {

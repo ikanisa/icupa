@@ -3,6 +3,7 @@ import { CardGlass } from "@ecotrips/ui";
 import { createPageMetadata } from "../../../lib/seo/metadata";
 import { PublicPage } from "../components/PublicPage";
 import { SearchForm } from "../components/SearchForm";
+import { PlannerFeatureGate } from "../components/PlannerFeatureGate";
 
 export const metadata = createPageMetadata({
   title: "Search",

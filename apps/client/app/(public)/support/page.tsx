@@ -1,4 +1,5 @@
 import { CardGlass, buttonClassName } from "@ecotrips/ui";
+import { OptionCard } from "../components/OptionCard";
 
 import { createPageMetadata } from "../../../lib/seo/metadata";
 import { PublicPage } from "../components/PublicPage";

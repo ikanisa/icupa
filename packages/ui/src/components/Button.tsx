@@ -2,6 +2,7 @@
 
 import { forwardRef } from "react";
 import type * as React from "react";
+import type { ComponentType } from "react";
 import { Slot } from "@radix-ui/react-slot";
 
 import { buttonClassName, type ButtonVariant } from "../styles/button";
@@ -17,13 +18,14 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = "primary", fullWidth, asChild, children, type, ...props }, ref) => {
     const classNameComputed = buttonClassName(variant, fullWidth, className);
     const childNodes = children as unknown as React.ReactNode;
+    const SlotPrimitive = Slot as unknown as ComponentType<any>;
 
     if (asChild) {
       return (
-        <Slot className={classNameComputed} {...props}>
+        <SlotPrimitive className={classNameComputed} {...props}>
           {/* @ts-ignore: workspace-linked react types disagree but runtime is correct */}
           {childNodes}
-        </Slot>
+        </SlotPrimitive>
       );
     }
 

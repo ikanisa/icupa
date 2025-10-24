@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@ecotrips/ui";
+import { Button, useFeatureFlag } from "@ecotrips/ui";
 import { InventorySearchInput } from "@ecotrips/types";
 
 import { useAppStore } from "../../../lib/state/appStore";
@@ -19,6 +19,7 @@ export function SearchForm() {
   const setSearchResults = useAppStore((state) => state.setSearchResults);
 
   const submit = () => {
+    setError(null);
     const result = InventorySearchInput.safeParse({
       destination,
       startDate: startDate || new Date().toISOString().slice(0, 10),
@@ -41,17 +42,60 @@ export function SearchForm() {
     setSearchInput(result.data);
     setSearchResults(null);
     router.push(`/results?${params.toString()}`);
+    track("search_submitted", {
+      destination: result.data.destination,
+      startDate: result.data.startDate,
+      endDate: result.data.endDate,
+      adults: result.data.party.adults,
+      children: result.data.party.children ?? 0,
+    });
   };
+
+  const renderSuggestionChips = (
+    <div className="flex flex-wrap gap-2">
+      {suggestions.map((suggestion) => (
+        <button
+          key={suggestion.value}
+          type="button"
+          onClick={() => {
+            setDestination(suggestion.value);
+            track("suggestion_chip_selected", { destination: suggestion.value });
+          }}
+          className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-medium text-white/80 transition-colors hover:border-sky-300 hover:text-white"
+        >
+          {suggestion.label}
+        </button>
+      ))}
+    </div>
+  );
 
   return (
     <div className="space-y-4">
+      {chipsTop && (
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-white/70">
+          <p className="mb-2 font-semibold text-white">Popular intents</p>
+          {renderSuggestionChips}
+        </div>
+      )}
       <label className="flex flex-col gap-2 text-sm">
         <span>Destination</span>
         <input
           value={destination}
           onChange={(event) => setDestination(event.target.value)}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
           className="rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-sky-400"
           placeholder="Akagera, Nyungwe, Kigali..."
+        />
+        <SearchSuggestions
+          query={destination}
+          items={suggestions.items}
+          status={suggestions.status}
+          fallback={suggestions.fallback}
+          source={suggestions.source}
+          error={suggestions.error}
+          visible={isFocused}
+          onSelect={onSuggestionSelect}
         />
       </label>
       <div className="grid grid-cols-2 gap-4 text-sm">
@@ -97,6 +141,12 @@ export function SearchForm() {
         </label>
       </div>
       {error && <p className="text-sm text-rose-200">{error}</p>}
+      {!chipsTop && (
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-white/70">
+          <p className="mb-2 font-semibold text-white">Popular intents</p>
+          {renderSuggestionChips}
+        </div>
+      )}
       <Button fullWidth onClick={submit}>
         Search inventory
       </Button>

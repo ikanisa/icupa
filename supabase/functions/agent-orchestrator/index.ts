@@ -1,5 +1,9 @@
 import { getRequestId, healthResponse, withObs } from "../_obs/withObs.ts";
 import { ERROR_CODES } from "../_obs/constants.ts";
+import {
+  AgentToolSpanTelemetryOptions,
+  buildAgentToolSpanPayload,
+} from "../_shared/agentObservability.ts";
 
 interface ToolDefinition {
   key: string;
@@ -30,6 +34,31 @@ interface RequestPayload {
   tool_call?: ToolCallInput;
   dry_run?: boolean;
   messages?: ConversationMessage[];
+}
+
+type ModerationAction = "allow" | "refuse" | "escalate";
+
+interface ModerationCandidate {
+  index: number;
+  role: string;
+  content: string;
+  metadata?: Record<string, unknown>;
+  hints: string[];
+  flaggedReason?: string;
+}
+
+interface ModerationDecisionRecord {
+  message_index: number;
+  action: ModerationAction;
+  category: string;
+  reason?: string;
+  matched?: Record<string, unknown>;
+}
+
+interface ModerationSummary {
+  action: ModerationAction;
+  category: string;
+  decisions: ModerationDecisionRecord[];
 }
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
@@ -527,6 +556,7 @@ const handler = withObs(async (req) => {
 
   const dryRun = Boolean(payload.dry_run);
   let sessionId = payload.session_id ?? null;
+  let moderationSummary: ModerationSummary | null = null;
 
   try {
     if (sessionId) {
@@ -572,6 +602,52 @@ const handler = withObs(async (req) => {
     }
   }
 
+  const riskyCandidates = extractRiskyModerationCandidates(shortTermMessages);
+  if (riskyCandidates.length > 0) {
+    try {
+      moderationSummary = await requestModerationDecision(
+        riskyCandidates,
+        agentKey,
+        requestId,
+      );
+
+      if (sessionId) {
+        await insertEvent(
+          sessionId,
+          "AUDIT",
+          "agent.moderation",
+          createModerationAuditPayload(agentKey, riskyCandidates, moderationSummary),
+        );
+      }
+    } catch (error) {
+      return jsonResponse({
+        ok: false,
+        error: `moderation error: ${(error as Error).message}`,
+      }, 502);
+    }
+  }
+
+  if (moderationSummary && moderationSummary.action !== "allow") {
+    const responsePayload: Record<string, unknown> = {
+      ok: false,
+      session_id: sessionId,
+      next: "moderation_review",
+      request_id: requestId,
+      moderation: {
+        action: moderationSummary.action,
+        category: moderationSummary.category,
+        decisions: moderationSummary.decisions.map((decision) => ({
+          message_index: decision.message_index,
+          action: decision.action,
+          category: decision.category,
+          reason: decision.reason,
+        })),
+      },
+    };
+
+    return jsonResponse(responsePayload, 200);
+  }
+
   const toolRequestId = crypto.randomUUID();
   let plannedTool: Record<string, unknown> | undefined;
   let toolResult: Record<string, unknown> | undefined;
@@ -588,6 +664,7 @@ const handler = withObs(async (req) => {
     };
 
     if (!dryRun) {
+      const spanStartMs = Date.now();
       try {
         toolResult = await executeTool(
           toolDef,
@@ -595,7 +672,54 @@ const handler = withObs(async (req) => {
           toolInput ?? {},
           toolRequestId,
         );
+        if (sessionId) {
+          const spanDurationMs = Math.max(0, Date.now() - spanStartMs);
+          const toolStatus = (toolResult as { status?: unknown }).status;
+          const toolBody = (toolResult as { body?: unknown }).body;
+          const spanStatus =
+            typeof toolStatus === "number"
+              ? toolStatus
+              : Number(toolStatus ?? NaN);
+          const spanOk = Number.isFinite(spanStatus)
+            ? spanStatus >= 200 && spanStatus < 400
+            : true;
+          await emitToolSpanEvent(
+            sessionId,
+            {
+              agentKey,
+              toolKey: toolDef.key,
+              requestId: toolRequestId,
+              startMs: spanStartMs,
+              durationMs: spanDurationMs,
+              ok: spanOk,
+              status: toolStatus,
+              requestPayload: toolInput ?? {},
+              responsePayload: toolBody,
+              ...(spanOk
+                ? {}
+                : {
+                    error: toolBody,
+                  }),
+            },
+          );
+        }
       } catch (error) {
+        const spanDurationMs = Math.max(0, Date.now() - spanStartMs);
+        if (sessionId) {
+          await emitToolSpanEvent(
+            sessionId,
+            {
+              agentKey,
+              toolKey: toolDef.key,
+              requestId: toolRequestId,
+              startMs: spanStartMs,
+              durationMs: spanDurationMs,
+              ok: false,
+              requestPayload: toolInput ?? {},
+              error,
+            },
+          );
+        }
         return jsonResponse({
           ok: false,
           error: `tool execution failed: ${(error as Error).message}`,
@@ -642,10 +766,39 @@ const handler = withObs(async (req) => {
     responsePayload.tool_result = toolResult;
   }
 
+  if (moderationSummary) {
+    responsePayload.moderation = {
+      action: moderationSummary.action,
+      category: moderationSummary.category,
+      decisions: moderationSummary.decisions.map((decision) => ({
+        message_index: decision.message_index,
+        action: decision.action,
+        category: decision.category,
+        reason: decision.reason,
+      })),
+    };
+  }
+
   return jsonResponse(responsePayload, 200);
 }, { fn: "agent-orchestrator", defaultErrorCode: ERROR_CODES.UNKNOWN });
 
 Deno.serve(handler);
+
+async function emitToolSpanEvent(
+  sessionId: string,
+  options: AgentToolSpanTelemetryOptions,
+): Promise<void> {
+  try {
+    const payload = await buildAgentToolSpanPayload(options);
+    await insertEvent(sessionId, "INFO", "agent.tool_span", payload);
+  } catch (error) {
+    console.error("agent.tool_span", {
+      error,
+      sessionId,
+      tool: options.toolKey,
+    });
+  }
+}
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -903,6 +1056,332 @@ function hasValue(input: Record<string, unknown>, path: string): boolean {
     current = (current as Record<string, unknown>)[segment];
   }
   return current !== undefined && current !== null;
+}
+
+const RISK_FLAG_BOOLEAN_KEYS = new Set<string>([
+  "flagged",
+  "risk_flag",
+  "moderation_flag",
+  "unsafe",
+  "blocked",
+  "risky",
+]);
+
+const RISK_FLAG_STRING_VALUES = new Set<string>([
+  "block",
+  "blocked",
+  "escalate",
+  "refuse",
+  "unsafe",
+  "risky",
+  "deny",
+  "high",
+  "critical",
+]);
+
+const RISK_HINT_KEYS = new Set<string>([
+  "category",
+  "categories",
+  "subcategory",
+  "label",
+  "tag",
+  "type",
+  "policy",
+  "classification",
+  "threat",
+  "abuse",
+  "risk",
+  "topic",
+]);
+
+const RISK_HINT_VALUES = new Set<string>([
+  "threat",
+  "violence",
+  "harassment",
+  "hate",
+  "sexual",
+  "child",
+  "self-harm",
+  "crisis",
+  "illegal",
+  "dangerous",
+  "spam",
+  "fraud",
+  "misinformation",
+  "safety",
+]);
+
+const RISK_REASON_KEYS = new Set<string>([
+  "reason",
+  "note",
+  "explanation",
+  "comment",
+  "message",
+]);
+
+const RISK_SCORE_KEYS = new Set<string>([
+  "score",
+  "probability",
+  "confidence",
+  "likelihood",
+]);
+
+function extractRiskyModerationCandidates(
+  messages: ConversationMessage[],
+): ModerationCandidate[] {
+  const candidates: ModerationCandidate[] = [];
+  messages.forEach((message, index) => {
+    if (!message.metadata) {
+      return;
+    }
+
+    const signal = parseRiskMetadata(message.metadata);
+    if (!signal.flagged) {
+      return;
+    }
+
+    candidates.push({
+      index,
+      role: message.role,
+      content: message.content,
+      metadata: message.metadata,
+      hints: signal.hints,
+      flaggedReason: signal.reason,
+    });
+  });
+  return candidates;
+}
+
+function parseRiskMetadata(metadata: Record<string, unknown>): {
+  flagged: boolean;
+  hints: string[];
+  reason?: string;
+} {
+  const hints: string[] = [];
+  let flagged = false;
+  let reason: string | undefined;
+  const stack: Record<string, unknown>[] = [metadata];
+
+  while (stack.length > 0) {
+    const current = stack.pop()!;
+    for (const [key, value] of Object.entries(current)) {
+      const lowerKey = key.toLowerCase();
+      if (typeof value === "boolean") {
+        if (value && RISK_FLAG_BOOLEAN_KEYS.has(lowerKey)) {
+          flagged = true;
+        }
+      } else if (typeof value === "string") {
+        const trimmed = value.trim();
+        if (!trimmed) continue;
+        const lowerValue = trimmed.toLowerCase();
+        const numericValue = Number(trimmed);
+        if (!Number.isNaN(numericValue) && RISK_SCORE_KEYS.has(lowerKey)) {
+          if (numericValue >= 0.8) {
+            flagged = true;
+          }
+        }
+        if (RISK_FLAG_STRING_VALUES.has(lowerValue)) {
+          flagged = true;
+        }
+        if (RISK_HINT_KEYS.has(lowerKey) || RISK_HINT_VALUES.has(lowerValue)) {
+          hints.push(lowerValue);
+        }
+        if (!reason && RISK_REASON_KEYS.has(lowerKey)) {
+          reason = trimmed;
+        }
+      } else if (typeof value === "number") {
+        if (value >= 0.8 && RISK_SCORE_KEYS.has(lowerKey)) {
+          flagged = true;
+        }
+      } else if (Array.isArray(value)) {
+        for (const item of value) {
+          if (typeof item === "string" && item.trim()) {
+            hints.push(item.trim().toLowerCase());
+          } else if (
+            item &&
+            typeof item === "object" &&
+            !Array.isArray(item)
+          ) {
+            stack.push(item as Record<string, unknown>);
+          }
+        }
+      } else if (value && typeof value === "object") {
+        stack.push(value as Record<string, unknown>);
+      }
+    }
+  }
+
+  const uniqueHints = Array.from(new Set(
+    hints.filter((hint) => typeof hint === "string" && hint.length > 0),
+  ));
+  return { flagged, hints: uniqueHints, reason };
+}
+
+async function requestModerationDecision(
+  candidates: ModerationCandidate[],
+  agentKey: string,
+  requestId: string,
+): Promise<ModerationSummary> {
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/moderate`, {
+    method: "POST",
+    headers: {
+      ...serviceHeaders(),
+      "content-type": "application/json",
+      "x-request-id": requestId,
+      "x-agent-key": agentKey,
+    },
+    body: JSON.stringify({
+      agent: agentKey,
+      request_id: requestId,
+      messages: candidates.map((candidate) => ({
+        role: candidate.role,
+        content: candidate.content,
+        metadata: candidate.metadata ?? {},
+        hints: candidate.hints,
+        flagged: true,
+        flagged_reason: candidate.flaggedReason,
+      })),
+    }),
+  });
+
+  const text = await response.text();
+  if (!response.ok) {
+    const message = text || `moderate responded with ${response.status}`;
+    throw new Error(message);
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = text ? JSON.parse(text) : {};
+  } catch (_error) {
+    throw new Error("moderate returned invalid JSON");
+  }
+
+  return normalizeModerationResponse(parsed);
+}
+
+function normalizeModerationResponse(payload: unknown): ModerationSummary {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return { action: "escalate", category: "unknown", decisions: [] };
+  }
+
+  const record = payload as Record<string, unknown>;
+  const rawDecisions = Array.isArray(record.decisions)
+    ? record.decisions
+    : [];
+
+  const decisions: ModerationDecisionRecord[] = [];
+  for (const item of rawDecisions) {
+    const normalized = normalizeModerationDecision(item);
+    if (normalized) {
+      decisions.push(normalized);
+    }
+  }
+
+  return {
+    action: ensureModerationAction(record.action),
+    category: typeof record.category === "string" && record.category.trim()
+      ? record.category
+      : "unknown",
+    decisions,
+  };
+}
+
+function normalizeModerationDecision(
+  decision: unknown,
+): ModerationDecisionRecord | null {
+  if (!decision || typeof decision !== "object" || Array.isArray(decision)) {
+    return null;
+  }
+
+  const record = decision as Record<string, unknown>;
+  const indexCandidate = record.message_index ?? record.index ?? record.position;
+  const numericIndex = typeof indexCandidate === "number"
+    ? indexCandidate
+    : Number(indexCandidate);
+
+  if (!Number.isFinite(numericIndex)) {
+    return null;
+  }
+
+  const message_index = Math.max(0, Math.floor(Number(numericIndex)));
+  const category = typeof record.category === "string" && record.category.trim()
+    ? record.category
+    : "unknown";
+  const reason = typeof record.reason === "string" && record.reason.trim()
+    ? record.reason
+    : undefined;
+
+  let matched: Record<string, unknown> | undefined;
+  if (
+    record.matched &&
+    typeof record.matched === "object" &&
+    record.matched !== null &&
+    !Array.isArray(record.matched)
+  ) {
+    matched = record.matched as Record<string, unknown>;
+  }
+
+  return {
+    message_index,
+    action: ensureModerationAction(record.action),
+    category,
+    reason,
+    matched,
+  };
+}
+
+function ensureModerationAction(value: unknown): ModerationAction {
+  if (value === "allow" || value === "refuse" || value === "escalate") {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.toLowerCase();
+    if (normalized === "allow" || normalized === "refuse") {
+      return normalized as ModerationAction;
+    }
+    if (normalized === "escalate" || normalized === "review") {
+      return "escalate";
+    }
+    if (normalized === "block" || normalized === "deny") {
+      return "refuse";
+    }
+  }
+
+  return "escalate";
+}
+
+function createModerationAuditPayload(
+  agentKey: string,
+  candidates: ModerationCandidate[],
+  summary: ModerationSummary,
+): Record<string, unknown> {
+  return {
+    agent: agentKey,
+    source: "moderate",
+    action: summary.action,
+    category: summary.category,
+    decisions: summary.decisions.map((decision) => ({
+      message_index: decision.message_index,
+      action: decision.action,
+      category: decision.category,
+      reason: decision.reason,
+    })),
+    flagged_messages: candidates.map((candidate) => ({
+      message_index: candidate.index,
+      role: candidate.role,
+      hints: candidate.hints,
+      excerpt: truncateForAudit(candidate.content),
+    })),
+  };
+}
+
+function truncateForAudit(text: string, limit = 160): string {
+  if (text.length <= limit) {
+    return text;
+  }
+  return `${text.slice(0, limit)}…`;
 }
 
 async function executeTool(

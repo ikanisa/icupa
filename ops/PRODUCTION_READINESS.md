@@ -55,6 +55,20 @@ Use this checklist before promoting ecoTrips to a production environment. The va
 - A rollback plan is written (re-deploy previous Supabase edge version and Next.js build) and on-call responders know escalation paths.
 - CI is running with network access re-enabled so dependency and migration regressions are caught before deploy.
 
+## Branch Protection Requirements
+- Protect `main` with status checks that execute `scripts/check-branch-readiness.sh` (lint, tests, and builds) and block merges
+  until they pass.
+- Require successful Vercel preview deployments for every pull request targeting `main`.
+- Enforce fast-forward merges only so the release history stays linear and auditable.
+- Keep at least one approved review before merging to `main`, even when the author has admin access.
+
 Keep this checklist alongside the runbooks and update it whenever new external integrations are added.
 
 - Run `npm run guard:live` before promoting builds to verify Supabase credentials and confirm offline toggles are disabled.
+
+## Release Checklist
+1. **Environment sync** – Confirm all variables in the tables above are present in Vercel (preview, staging, production) and Supabase. Capture the export in `ops/DEPLOYMENT_LOG.md`.
+2. **Database migrations** – Review pending migrations with `supabase migration list`. Apply using the blue/green workflow in `ops/BLUE_GREEN_SUPABASE.md` and record hashes.
+3. **Test suites** – Ensure GitHub Actions CI, `scripts/vercel-preflight.mjs`, and `scripts/synthetics/run-smoke.mjs` are green for the release branch.
+4. **Deployment confirmation** – Promote preview → staging → production following `ops/DEPLOYMENT_PIPELINES.md`. Attach links to smoke dashboards and final Vercel deploy URL.
+5. **Tag & notes** – Create an annotated git tag (`git tag -a vX.Y.Z -m "release"`) and include the filled checklist in the release notes.

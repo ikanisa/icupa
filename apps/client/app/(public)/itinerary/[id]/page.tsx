@@ -46,9 +46,18 @@ export default async function ItineraryPage({ params }: { params: { id: string }
           </p>
         )}
       </CardGlass>
-      <CardGlass title="Trip rhythm" subtitle="PlannerCoPilot ensures daylight transfers and safety.">
-        <Stepper steps={steps} />
-      </CardGlass>
+      <PlannerFeatureGate
+        debugLabel="itinerary.rhythm"
+        fallback={
+          <CardGlass title="Trip rhythm" subtitle="ConciergeGuide ensures daylight transfers and safety.">
+            <Stepper steps={steps} />
+          </CardGlass>
+        }
+      >
+        <CardGlass title="Trip rhythm" subtitle="PlannerCoPilot ensures daylight transfers and safety.">
+          <Stepper steps={steps} />
+        </CardGlass>
+      </PlannerFeatureGate>
       <CardGlass title="Group planning" subtitle="Spin up split-pay escrows and WhatsApp invites.">
         <div className="flex flex-wrap gap-3">
           <Link href={`/group/${params.id}`} className={buttonClassName()}>

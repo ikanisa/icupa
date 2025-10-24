@@ -8,6 +8,10 @@
     ".": "./src/index.ts",
     "./translations": "./src/translations/index.ts"
   },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test"
+  },
   "dependencies": {
     "intl-messageformat": "10.5.14"
   },

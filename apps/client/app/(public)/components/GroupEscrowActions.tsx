@@ -150,7 +150,12 @@ export function GroupEscrowActions({ itineraryId }: GroupEscrowActionsProps) {
             />
           </label>
         </div>
-        <Button disabled={pendingCreate} onClick={() => startCreate(createEscrow)}>
+        <Button
+          disabled={pendingCreate}
+          onClick={() => startCreate(() => {
+            void createEscrow();
+          })}
+        >
           {pendingCreate ? "Creating escrow…" : "Create escrow"}
         </Button>
       </div>
@@ -185,7 +190,12 @@ export function GroupEscrowActions({ itineraryId }: GroupEscrowActionsProps) {
             />
           </label>
         </div>
-        <Button disabled={pendingContribute} onClick={() => startContribute(contribute)}>
+        <Button
+          disabled={pendingContribute}
+          onClick={() => startContribute(() => {
+            void contribute();
+          })}
+        >
           {pendingContribute ? "Logging contribution…" : "Log contribution"}
         </Button>
       </div>

@@ -1,16 +1,19 @@
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
-const SERVICE_ROLE_KEY =
-  Deno.env.get("SUPABASE_SERVICE_ROLE") ??
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+import { getSupabaseServiceConfig, optionalEnv, requireEnv } from "./env.ts";
 
-const WA_OFFLINE = Deno.env.get("WA_OFFLINE") === "1";
-const WA_GRAPH_BASE = Deno.env.get("WA_GRAPH_BASE") ?? "https://graph.facebook.com/v20.0";
-const WA_ACCESS_TOKEN = Deno.env.get("WA_ACCESS_TOKEN") ?? "";
-const WA_PHONE_ID = Deno.env.get("WA_PHONE_ID") ?? "";
+const { url: SUPABASE_URL, serviceRoleKey: SERVICE_ROLE_KEY } =
+  getSupabaseServiceConfig({ feature: "whatsapp" });
 
-if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
-  throw new Error("Supabase configuration missing for WhatsApp helpers");
-}
+const WA_OFFLINE = optionalEnv("WA_OFFLINE") === "1";
+const WA_GRAPH_BASE = optionalEnv("WA_GRAPH_BASE") ??
+  "https://graph.facebook.com/v20.0";
+const WA_ACCESS_TOKEN = requireEnv("WA_ACCESS_TOKEN", {
+  allowEmpty: true,
+  context: "whatsapp",
+});
+const WA_PHONE_ID = requireEnv("WA_PHONE_ID", {
+  allowEmpty: true,
+  context: "whatsapp",
+});
 
 export interface StoreMessageInput {
   userWa: string;
