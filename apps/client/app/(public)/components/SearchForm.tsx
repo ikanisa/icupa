@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@ecotrips/ui";
+import { Button, useFeatureFlag } from "@ecotrips/ui";
 import { InventorySearchInput } from "@ecotrips/types";
+
+import { useAnalytics } from "./useAnalytics";
 
 export function SearchForm() {
   const router = useRouter();
@@ -13,6 +15,24 @@ export function SearchForm() {
   const [adults, setAdults] = useState(2);
   const [children, setChildren] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const { track } = useAnalytics();
+  const chipsTop = useFeatureFlag("client.suggestion_chips.top");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!sessionStorage.getItem("ecotrips_session")) {
+      sessionStorage.setItem("ecotrips_session", crypto.randomUUID());
+    }
+  }, []);
+
+  const suggestions = useMemo(
+    () => [
+      { label: "Akagera safari", value: "Akagera" },
+      { label: "Nyungwe canopy", value: "Nyungwe" },
+      { label: "Lake Kivu retreat", value: "Lake Kivu" },
+    ],
+    [],
+  );
 
   const submit = () => {
     const result = InventorySearchInput.safeParse({
@@ -35,10 +55,41 @@ export function SearchForm() {
       children: String(result.data.party.children ?? 0),
     });
     router.push(`/results?${params.toString()}`);
+    track("search_submitted", {
+      destination: result.data.destination,
+      startDate: result.data.startDate,
+      endDate: result.data.endDate,
+      adults: result.data.party.adults,
+      children: result.data.party.children ?? 0,
+    });
   };
+
+  const renderSuggestionChips = (
+    <div className="flex flex-wrap gap-2">
+      {suggestions.map((suggestion) => (
+        <button
+          key={suggestion.value}
+          type="button"
+          onClick={() => {
+            setDestination(suggestion.value);
+            track("suggestion_chip_selected", { destination: suggestion.value });
+          }}
+          className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-medium text-white/80 transition-colors hover:border-sky-300 hover:text-white"
+        >
+          {suggestion.label}
+        </button>
+      ))}
+    </div>
+  );
 
   return (
     <div className="space-y-4">
+      {chipsTop && (
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-white/70">
+          <p className="mb-2 font-semibold text-white">Popular intents</p>
+          {renderSuggestionChips}
+        </div>
+      )}
       <label className="flex flex-col gap-2 text-sm">
         <span>Destination</span>
         <input
@@ -91,6 +142,12 @@ export function SearchForm() {
         </label>
       </div>
       {error && <p className="text-sm text-rose-200">{error}</p>}
+      {!chipsTop && (
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-xs text-white/70">
+          <p className="mb-2 font-semibold text-white">Popular intents</p>
+          {renderSuggestionChips}
+        </div>
+      )}
       <Button fullWidth onClick={submit}>
         Search inventory
       </Button>

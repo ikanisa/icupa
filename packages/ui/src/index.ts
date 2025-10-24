@@ -8,6 +8,12 @@ export { AdminActionForm } from "./components/AdminActionForm";
 export { AdminDataTable } from "./components/AdminDataTable";
 export type { ComponentPropsWithoutRef } from "react";
 export { buttonClassName } from "./styles/button";
+export {
+  FeatureFlagsProvider,
+  useFeatureFlag,
+  useFeatureFlags,
+} from "./featureFlags";
+export type { FeatureFlagKey } from "./featureFlags";
 
 export type { BottomNavItem } from "./components/BottomNavDock";
 export type {

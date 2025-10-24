@@ -26,7 +26,8 @@
     "@ecotrips/api": "file:../../packages/api",
     "@ecotrips/types": "file:../../packages/types",
     "@ecotrips/i18n": "file:../../packages/i18n",
-    "@ecotrips/supabase": "file:../../packages/supabase"
+    "@ecotrips/supabase": "file:../../packages/supabase",
+    "clsx": "2.1.1"
   },
   "devDependencies": {
     "@types/node": "20.11.30",
