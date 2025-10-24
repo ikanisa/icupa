@@ -79,16 +79,16 @@ function toReport(metric: Metric, sampleRate: number): ReportableMetric {
  * Captures Web Vitals and dispatches them via {@link emitClientEvent}.
  */
 export function usePerformanceMetrics(options?: PerformanceMetricsOptions): void {
-  const { endpoint, onReport, sampleRate: rawSampleRate = 1 } = options ?? {};
-
-  const sampleRate = useMemo(() => {
-    return Math.min(1, Math.max(0, rawSampleRate));
-  }, [rawSampleRate]);
+  const endpoint = options?.endpoint;
+  const onReport = options?.onReport;
+  const providedSampleRate = options?.sampleRate;
 
   useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
+
+    const sampleRate = Math.min(1, Math.max(0, providedSampleRate ?? 1));
     const shouldSample = sampleRate === 1 || Math.random() < sampleRate;
 
     if (!shouldSample) {
@@ -112,6 +112,6 @@ export function usePerformanceMetrics(options?: PerformanceMetricsOptions): void
     onINP(report);
     onLCP(report, { reportAllChanges: true });
     onTTFB(report);
-  }, [endpoint, onReport, sampleRate]);
+  }, [endpoint, onReport, providedSampleRate]);
 }
 
