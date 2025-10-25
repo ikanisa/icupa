@@ -27,7 +27,7 @@ Escalate to the AI Platform lead if outages exceed 15 minutes or if OpenAI cost 
 3. Run smoke tests:
    * `curl -H "Authorization: Bearer <token>" https://agents.icupa.dev/health`
    * `npm run smoke:agents` (future automation TBD)
-4. Post deployment summary in `#deployments` with image digest, vector store versions, and Vercel environment sync confirmation.
+4. Post deployment summary in `#deployments` with image digest, vector store versions, and environment sync confirmation.
 
 ## Rollback
 
@@ -48,7 +48,7 @@ Escalate to the AI Platform lead if outages exceed 15 minutes or if OpenAI cost 
 ## Secrets Rotation
 
 * Rotate OpenAI API keys quarterly. Update `agents-service.env` and redeploy.
-* Rotate Supabase service-role key quarterly. Update both agents service and Vercel (Edge Functions) secrets.
+* Rotate Supabase service-role key quarterly. Update both agents service and Edge Function secrets.
 * Rotate OAuth client secret annually or on compromise.
 * Update OTLP exporter token when Grafana Cloud token rotates.
 

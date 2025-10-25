@@ -35,7 +35,6 @@ artifacts/phase10/**
 
 # cleanup backup artifacts
 *.bak
-*.before-vercel-scrub
 apps/ecotrips/app/src/env.ts.backup-before-nodeenv
 
 # ignore nodeenv backups

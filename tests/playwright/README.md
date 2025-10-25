@@ -26,14 +26,14 @@ The `specs` folder is pre-seeded with placeholder suites that exercise the diner
 
 2. Set the base URL. Playwright reads the deployment under test from the `PLAYWRIGHT_BASE_URL` environment variable and falls back to the local dev server when unset.
 
-   We standardise on the dedicated staging domain `https://staging.icupa.dev`, which always tracks the latest successful `main` deployment on Vercel. Override the variable locally only when validating an alternate preview build (for example, a canary branch or hotfix Vercel preview). Otherwise, omit the override and allow the config to spin up the Vite dev server automatically.
+   We standardise on the dedicated staging domain `https://staging.icupa.dev`, which always tracks the latest successful `main` deployment. Override the variable locally only when validating an alternate preview build (for example, a canary branch or hotfix preview). Otherwise, omit the override and allow the config to spin up the Vite dev server automatically.
 
    ```sh
    # Use staging for smoke tests against the shared preview environment
    export PLAYWRIGHT_BASE_URL="https://staging.icupa.dev"
 
    # Or point at a one-off preview deployment when debugging regressions
-   export PLAYWRIGHT_BASE_URL="https://icupa-git-fix-billing.vercel.app"
+   export PLAYWRIGHT_BASE_URL="https://preview.icupa.dev/my-feature"
    ```
 
 3. Execute the suites (this command auto-starts the Vite dev server when `PLAYWRIGHT_BASE_URL` is unset):

@@ -46,8 +46,6 @@ APP_BASE_URL,Server (release checklist),Runtime,no,http://localhost:5173,Base UR
 AGENTS_BASE_URL,Server/Client (release checklist/tests),Runtime,conditional,,Base URL for agents endpoints in CLI tools and tests.
 SUPABASE_FUNCTIONS_URL,Server (release checklist),Runtime,no,,Optional override for Supabase functions base.
 CHECKLIST_ALLOW_SKIP,Server (release checklist),Runtime,no,true,Controls if optional checklist steps can be skipped.
-VERCEL_REGION,Server (build scripts),Runtime,no,,Used to warn when Vercel deployment region mismatches config.
-VERCEL_AUTOMATION_BYPASS_SECRET,Server (CI/CD),Runtime,conditional,,Required when Deployment Protection is active.
 PLAYWRIGHT_BASE_URL,Server (tests),Runtime,no,https://staging.icupa.dev,Base URL for Playwright e2e tests (fallback to local server when unset).
 AGENTS_TENANT_ID,Server (tests),Runtime,conditional,,Tenant identifier for agents smoke tests.
 AGENTS_LOCATION_ID,Server (tests),Runtime,conditional,,Location identifier for agents smoke tests.
@@ -56,4 +54,3 @@ NEXT_PUBLIC_RUNBOOKS_BASE_URL,Client (Vite admin components),Runtime,no,https://
 NEXT_PUBLIC_GRAFANA_URL,Client (Vite admin components),Runtime,no,https://grafana.icupa.dev,Grafana dashboard link.
 NEXT_PUBLIC_JAEGER_URL,Client (Vite admin components),Runtime,no,https://jaeger.icupa.dev,Tracing dashboard link.
 NEXT_PUBLIC_ALERTS_RUNBOOK_URL,Client (Vite admin components),Runtime,no,,Override for alerts playbook link.
-VERCEL_PROTECTION_BYPASS,Server (deployment),Runtime,no,,Legacy alias for bypass secret if needed.

@@ -33,4 +33,4 @@ The SQL regression suite in `supabase/tests` enforces that diners cannot read fo
 3. **Guard admin endpoints.** Functions that mutate global state must check `x-icupa-admin-token` or `x-icupa-internal` to prevent privilege escalation.
 4. **Update tests when headers change.** The Vitest and Playwright suites wrap the SQL RLS tests; if you introduce a new header-based policy, add a new SQL file and reference it from the suites so CI exercises it automatically.【F:tests/supabase/rls.test.ts†L1-L32】【F:tests/playwright/specs/supabase.rls.spec.ts†L1-L27】
 
-By documenting the contract here, frontend teams can mirror backend expectations and ensure staged environments behave like production when deploying to Vercel.
+By documenting the contract here, frontend teams can mirror backend expectations and ensure staged environments behave like production regardless of hosting target.

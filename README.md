@@ -33,7 +33,7 @@ ICUPA is a three-surface, multi-tenant Progressive Web Application that powers d
    - npm 10+ (or pnpm/yarn if preferred)
 
 2. **Bootstrap environment variables**
-   - Copy `.env.example` to `.env.local` (ignored by Git) and provide the Supabase project details you intend to use. Production builds and CI now fail fast if `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` (or their `NEXT_PUBLIC_*` equivalents) are absent, so populate them before running `npm run build` or deploying to Vercel.
+   - Copy `.env.example` to `.env.local` (ignored by Git) and provide the Supabase project details you intend to use. Production builds and CI now fail fast if `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` (or their `NEXT_PUBLIC_*` equivalents) are absent, so populate them before running `npm run build` or deploying.
    - Copy `agents-service/.env.example` to `agents-service/.env` when running the OpenAI Agents service locally.
 
 3. **Link your Supabase project** *(optional but recommended for deploy scripts)*
