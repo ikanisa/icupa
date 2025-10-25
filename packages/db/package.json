@@ -16,7 +16,7 @@
     "zod": "^3.25.76"
   },
   "peerDependencies": {
-    "@icupa/config": "^0.1.0",
-    "@icupa/types": "^0.1.0"
+    "@icupa/config": "workspace:*",
+    "@icupa/types": "workspace:*"
   }
 }

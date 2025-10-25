@@ -18,10 +18,10 @@
     "date-fns": "^3.6.0",
     "react-hook-form": "^7.53.0",
     "zod": "^3.23.8",
-    "@icupa/ui": "^0.1.0",
-    "@icupa/config": "^0.1.0",
-    "@icupa/types": "^0.1.0",
-    "@icupa/db": "^0.1.0"
+    "@icupa/ui": "workspace:*",
+    "@icupa/config": "workspace:*",
+    "@icupa/types": "workspace:*",
+    "@icupa/db": "workspace:*"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.21",
