@@ -10,7 +10,7 @@ const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY") ?? "";
 const STRIPE_API_BASE = "https://api.stripe.com/v1";
 const STRIPE_TIMEOUT_MS = Number(Deno.env.get("STRIPE_TIMEOUT_MS") ?? "15000");
 const MOCK_STRIPE_MODE = Deno.env.get("STRIPE_MOCK_MODE") === "1";
-const DEPLOY_ENV = (Deno.env.get("NODE_ENV") ?? Deno.env.get("ENVIRONMENT") ?? Deno.env.get("STAGE") ?? "development").toLowerCase();
+const DEPLOY_ENV = (Deno.env.get("VERCEL_ENV") ?? Deno.env.get("ENVIRONMENT") ?? Deno.env.get("STAGE") ?? "development").toLowerCase();
 const STRICT_STRIPE_MODE = (Deno.env.get("STRIPE_REQUIRE_LIVE") ?? (DEPLOY_ENV === "production" ? "1" : "0")) === "1";
 const DEGRADATION_WEBHOOK_URL = Deno.env.get("CHECKOUT_DEGRADATION_WEBHOOK_URL") ?? "";
 
