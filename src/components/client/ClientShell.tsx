@@ -179,7 +179,6 @@ export function ClientShell() {
   });
 
   const requiredAge = selectedLocation?.region === "EU" ? 17 : 18;
-  const isAgeVerified = ageGateChoice === "verified";
   const shouldShowAgeDialog = hasLoadedAgeGate && ageGateChoice === "unknown";
 
   const handleAgeConfirm = () => {

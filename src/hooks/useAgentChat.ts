@@ -102,6 +102,20 @@ function safeJsonParse(value: string): unknown {
   }
 }
 
+function normaliseQuickReplies(prompts?: Array<string | null | undefined>): string[] {
+  if (!prompts || prompts.length === 0) {
+    return [];
+  }
+  const normalized: string[] = [];
+  for (const prompt of prompts) {
+    if (typeof prompt !== 'string') continue;
+    const trimmed = prompt.trim();
+    if (!trimmed) continue;
+    normalized.push(trimmed);
+  }
+  return normalized;
+}
+
 export function useAgentChat<TResponse>(options: UseAgentChatOptions<TResponse>): UseAgentChatResult {
   const [state, setState] = useState<AgentChatState>({ messages: [], sessionId: null });
   const [availablePrompts, setAvailablePrompts] = useState<string[]>([]);
@@ -156,10 +170,11 @@ export function useAgentChat<TResponse>(options: UseAgentChatOptions<TResponse>)
       const assistantPayload = options.mapResponse(result.response);
       const assistantMessage = createAssistantMessage(assistantPayload);
       const metadata = assistantMessage.metadata ?? result.metadata;
-      const quickRepliesFromResponse =
-        assistantPayload.quickReplies ??
-        result.metadata?.suggested_prompts?.map((prompt) => prompt.prompt) ??
-        [];
+      const payloadQuickReplies = normaliseQuickReplies(assistantPayload.quickReplies);
+      const metadataQuickReplies = normaliseQuickReplies(
+        result.metadata?.suggested_prompts?.map((prompt) => prompt.prompt)
+      );
+      const quickRepliesFromResponse = payloadQuickReplies.length > 0 ? payloadQuickReplies : metadataQuickReplies;
       const latencyMs = Math.max(0, Date.now() - variables.startedAt);
       const primaryAgentType = derivePrimaryAgent(metadata, options.agent);
 
@@ -440,7 +455,7 @@ export function useAgentChat<TResponse>(options: UseAgentChatOptions<TResponse>)
   return {
     messages: sortedMessages,
     sendMessage,
-    isSending: mutation.isLoading,
+    isSending: mutation.isPending,
     isStreaming,
     error,
     reset,

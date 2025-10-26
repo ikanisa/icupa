@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, Badge, useToast } from '@/mod
 import { z } from 'zod';
 import { AgentRunDetailsDialog, ChatComposer, ChatTranscript } from '@/modules/agents-ui';
 import { useAgentChat } from '@/modules/agents-ui';
-import type { AgentChatMessage, AgentFeedbackRating } from '@/types/agents';
+import type { AgentChatMessage, AgentFeedbackRating, AgentUpsellItem } from '@/types/agents';
 import { parseAgentStreamEvent } from '@/lib/chat-stream';
 import { AgentMetadataSchema } from '@/lib/agent-schemas';
 
@@ -154,23 +154,39 @@ export function AIChatScreen({
           return { response: parsed, metadata: parsed.metadata };
         },
         getSessionId: (result: { response: z.infer<typeof WaiterResponseSchema> }) => result.response.session_id,
-        mapResponse: (response: z.infer<typeof WaiterResponseSchema>) => ({
-          content: response.reply,
-          metadata: response.metadata,
-          quickReplies:
-            response.metadata?.suggested_prompts?.map((prompt) => prompt.prompt) ??
+        mapResponse: (response: z.infer<typeof WaiterResponseSchema>) => {
+          const normalizedUpsell = response.upsell.map((suggestion) => ({
+            item_id: suggestion.item_id ?? "",
+            name: suggestion.name ?? "Chef recommendation",
+            price_cents: suggestion.price_cents ?? 0,
+            currency: suggestion.currency ?? "RWF",
+            rationale: suggestion.rationale ?? "Suggested by ICUPA",
+            allergens: suggestion.allergens ?? [],
+            tags: suggestion.tags ?? [],
+            is_alcohol: suggestion.is_alcohol ?? false,
+            citations: suggestion.citations ?? [],
+          }));
+
+          const quickReplies =
+            response.metadata?.suggested_prompts?.map((prompt) => prompt.prompt ?? "Tell me more") ??
             buildWaiterPrompts({
               upsell: response.upsell,
               hasAllergies: sanitizedAllergies.length > 0,
               cartSize: agentCart.length,
-            }),
-          extras: {
-            disclaimers: response.disclaimers,
-            upsell: response.upsell,
-            citations: response.citations,
-            raw: response,
-          },
-        }),
+            });
+
+          return {
+            content: response.reply,
+            metadata: response.metadata,
+            quickReplies,
+            extras: {
+              disclaimers: response.disclaimers,
+              upsell: normalizedUpsell,
+              citations: response.citations,
+              raw: response,
+            },
+          };
+        },
         buildPayload: ({ message, sessionId, context }) => ({
           message,
           session_id: sessionId ?? undefined,
@@ -232,9 +248,9 @@ export function AIChatScreen({
     waiterChat.submitFeedback(message, rating, agentContext);
   };
 
-  const handleUpsellAction = (item: NonNullable<AgentChatMessage['extras']>['upsell'][number]) => {
+  const handleUpsellAction = (item: AgentUpsellItem) => {
     if (!onAddToCart) return;
-    onAddToCart({ id: item.item_id, name: item.name, priceCents: item.price_cents });
+    onAddToCart({ id: item.item_id ?? '', name: item.name ?? 'Chef recommendation', priceCents: item.price_cents ?? 0 });
     toast({
       title: `${item.name} added to cart`,
       description: 'Review your cart when you are ready to place the order.',

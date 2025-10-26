@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import type { AgentChatMessage, AgentFeedbackRating } from '@/types/agents';
+import type { AgentChatMessage, AgentFeedbackRating, AgentUpsellItem } from '@/types/agents';
 import { ChatMessageBubble } from './ChatMessageBubble';
 import { ChatTypingIndicator } from './ChatTypingIndicator';
 
@@ -11,7 +11,7 @@ export interface ChatTranscriptProps {
   onInspectMetadata?: (message: AgentChatMessage) => void;
   onFeedback?: (message: AgentChatMessage, rating: AgentFeedbackRating) => void;
   feedbackPendingMessageId?: string | null;
-  onUpsellAction?: (item: NonNullable<AgentChatMessage['extras']>['upsell'][number]) => void;
+  onUpsellAction?: (item: AgentUpsellItem) => void;
 }
 
 export function ChatTranscript({

@@ -81,7 +81,7 @@ export function useBackgroundSyncToast(options?: BackgroundSyncToastOptions): vo
   }, []);
 
   useEffect(() => {
-//     if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
+    if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
       return;
     }
 
@@ -99,11 +99,15 @@ export function useBackgroundSyncToast(options?: BackgroundSyncToastOptions): vo
         return;
       }
 
+      if (!context.tableSessionId) {
+        return;
+      }
+
       try {
         const { error } = await supabase.from("offline_sync_events").insert({
-          tenant_id: context.tenantId ?? undefined,
-          location_id: context.locationId ?? undefined,
-          table_session_id: context.tableSessionId ?? undefined,
+          tenant_id: context.tenantId ?? null,
+          location_id: context.locationId ?? null,
+          table_session_id: context.tableSessionId,
           replayed_count: payload.replayedCount,
           first_enqueued_at: payload.firstQueuedAtIso,
           replay_started_at: payload.replayStartedAtIso,
@@ -223,7 +227,7 @@ export function useBackgroundSyncToast(options?: BackgroundSyncToastOptions): vo
       });
     };
 
-//     navigator.serviceWorker.addEventListener("message", handleMessage);
-//     return () => navigator.serviceWorker.removeEventListener("message", handleMessage);
+    navigator.serviceWorker.addEventListener("message", handleMessage);
+    return () => navigator.serviceWorker.removeEventListener("message", handleMessage);
   }, []);
 }

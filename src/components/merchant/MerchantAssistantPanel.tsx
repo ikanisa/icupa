@@ -66,6 +66,8 @@ const PromoResponseSchema = z.object({
 });
 
 type MerchantAgent = 'inventory' | 'support' | 'promo';
+type InventoryDirective = NonNullable<z.infer<typeof InventoryResponseSchema>['directives']>[number];
+type PromoAction = NonNullable<z.infer<typeof PromoResponseSchema>['actions']>[number];
 
 type AgentConfig<TSchema extends z.ZodTypeAny> = {
   schema: TSchema;
@@ -89,7 +91,7 @@ const MERCHANT_AGENT_CONFIGS: Record<MerchantAgent, AgentConfig<any>> = {
       'Suggest substitutions for 86 items',
     ],
     mapResponse: (response) => {
-      const directives = (response.directives ?? []).map((directive, index) => {
+      const directives = (response.directives ?? []).map((directive: InventoryDirective, index: number) => {
         const quantity = directive.new_quantity;
         const auto86 = directive.auto_86 ? ' (auto-86)' : '';
         return `${index + 1}. Set inventory ${directive.inventory_id} to ${quantity}${auto86}. ${directive.rationale}`;
@@ -159,7 +161,7 @@ const MERCHANT_AGENT_CONFIGS: Record<MerchantAgent, AgentConfig<any>> = {
       'Pause underperforming campaigns',
     ],
     mapResponse: (response) => {
-      const actions = (response.actions ?? []).map((action, index) => {
+      const actions = (response.actions ?? []).map((action: PromoAction, index: number) => {
         const budget = typeof action.budget_delta_cents === 'number'
           ? ` (budget delta ${(action.budget_delta_cents / 100).toFixed(2)} USD)`
           : '';

@@ -2,7 +2,7 @@ import { AgentAvatar, UserAvatar } from '@/components/ai/AgentAvatar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import type { AgentChatMessage, AgentFeedbackRating } from '@/types/agents';
+import type { AgentChatMessage, AgentFeedbackRating, AgentUpsellItem } from '@/types/agents';
 import { Info, ThumbsUp, ThumbsDown, Loader2, ShoppingCart } from 'lucide-react';
 import { useMemo } from 'react';
 
@@ -11,7 +11,7 @@ export interface ChatMessageBubbleProps {
   onInspectMetadata?: (message: AgentChatMessage) => void;
   onFeedback?: (message: AgentChatMessage, rating: AgentFeedbackRating) => void;
   feedbackPending?: boolean;
-  onUpsellAction?: (item: NonNullable<AgentChatMessage['extras']>['upsell'][number]) => void;
+  onUpsellAction?: (item: AgentUpsellItem) => void;
 }
 
 function formatPrice(priceCents: number, currency: string) {
@@ -50,6 +50,8 @@ export function ChatMessageBubble({
   const primaryAgent = message.primaryAgentType ?? message.metadata?.runs?.[0]?.agent_type ?? null;
   const costSummary = useMemo(() => summariseCost(message.metadata), [message.metadata]);
   const latencySummary = summariseLatency(message.latencyMs);
+  const upsellItems: AgentUpsellItem[] = message.extras?.upsell ?? [];
+  const disclaimers = message.extras?.disclaimers ?? [];
   const infoParts = useMemo(() => {
     const parts: string[] = [];
     if (latencySummary) parts.push(`Latency ${latencySummary}`);
@@ -83,21 +85,21 @@ export function ChatMessageBubble({
           )}
         </div>
 
-        {!isUser && message.extras?.upsell && message.extras.upsell.length > 0 && (
+        {!isUser && upsellItems.length > 0 && (
           <div className="grid gap-2">
-            {message.extras.upsell.map((item) => (
+            {upsellItems.map((item) => (
               <Card
                 key={item.item_id}
                 className="glass-card border border-white/10 bg-black/40 px-4 py-3 text-left text-white/90"
               >
                 <div className="flex items-center justify-between text-sm font-semibold">
                   <span>{item.name}</span>
-                  <span className="text-white/70">{formatPrice(item.price_cents, item.currency)}</span>
+                  <span className="text-white/70">{formatPrice(item.price_cents ?? 0, item.currency ?? 'USD')}</span>
                 </div>
                 <p className="mt-1 text-xs text-white/60">{item.rationale}</p>
-                {item.allergens.length > 0 && (
+                {(item.allergens ?? []).length > 0 && (
                   <p className="mt-2 text-[11px] uppercase tracking-wide text-amber-300/80">
-                    Allergens: {item.allergens.join(', ')}
+                    Allergens: {(item.allergens ?? []).join(', ')}
                   </p>
                 )}
                 {onUpsellAction && (
@@ -118,9 +120,9 @@ export function ChatMessageBubble({
           </div>
         )}
 
-        {!isUser && message.extras?.disclaimers && message.extras.disclaimers.length > 0 && (
+        {!isUser && disclaimers.length > 0 && (
           <div className="space-y-1 text-xs text-amber-200/90">
-            {message.extras.disclaimers.map((disclaimer) => (
+            {disclaimers.map((disclaimer) => (
               <p key={disclaimer} className="rounded-2xl border border-amber-400/40 bg-amber-500/10 px-3 py-2">
                 {disclaimer}
               </p>

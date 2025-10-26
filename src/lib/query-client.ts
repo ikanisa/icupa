@@ -1,36 +1,29 @@
-import {
-  QueryClient,
-  type DefaultOptions,
-  type Query,
-  type QueryKey,
-  type QueryObserverOptions,
-} from "@tanstack/react-query";
+import { QueryClient, type DefaultOptions, type Query } from "@tanstack/react-query";
 
 export const SUPABASE_STALE_TIME_MS = 2 * 60 * 1000;
 export const SUPABASE_GC_TIME_MS = 12 * 60 * 60 * 1000;
 export const SUPABASE_REFETCH_INTERVAL_MS = 5 * 60 * 1000;
 
-export interface SupabaseQueryMeta {
+export interface SupabaseQueryMeta extends Record<string, unknown> {
   source: "supabase";
   entity?: string;
 }
 
-type GenericQueryOptions = QueryObserverOptions<unknown, unknown, unknown, unknown, QueryKey>;
+export interface SupabaseCachingOptions {
+  staleTime?: number;
+  gcTime?: number;
+  refetchInterval?: number | false;
+  refetchIntervalInBackground?: boolean;
+  refetchOnReconnect?: boolean | "always";
+  refetchOnWindowFocus?: boolean;
+  retry?: number;
+  networkMode?: "online" | "offlineFirst" | "always";
+  meta?: SupabaseQueryMeta;
+}
 
 export function withSupabaseCaching(
-  overrides?: Partial<Omit<GenericQueryOptions, "meta">> & { entity?: string; meta?: GenericQueryOptions["meta"] }
-): Pick<
-  GenericQueryOptions,
-  | "staleTime"
-  | "gcTime"
-  | "refetchInterval"
-  | "refetchIntervalInBackground"
-  | "refetchOnReconnect"
-  | "refetchOnWindowFocus"
-  | "retry"
-  | "networkMode"
-  | "meta"
-> {
+  overrides?: Partial<Omit<SupabaseCachingOptions, "meta">> & { entity?: string; meta?: SupabaseCachingOptions["meta"] }
+): SupabaseCachingOptions {
   const { entity, meta, ...rest } = overrides ?? {};
 
   return {
@@ -46,7 +39,7 @@ export function withSupabaseCaching(
       ...(meta ?? {}),
       source: "supabase",
       entity,
-    } satisfies SupabaseQueryMeta,
+    },
     ...rest,
   };
 }
@@ -89,31 +82,5 @@ function isSupabaseQuery(query: Query): boolean {
 export function createSupabaseQueryClient(): QueryClient {
   const client = new QueryClient({ defaultOptions });
 
-  client.getQueryCache().subscribe((event) => {
-    if (event?.type !== "queryAdded") {
-      return;
-    }
-
-    const query = event.query;
-    if (!isSupabaseQuery(query)) {
-      return;
-    }
-
-    query.setOptions((current) => ({
-      ...current,
-      refetchInterval:
-        current.refetchInterval ?? SUPABASE_REFETCH_INTERVAL_MS,
-      refetchIntervalInBackground: true,
-      staleTime:
-        typeof current.staleTime === "number"
-          ? current.staleTime
-          : SUPABASE_STALE_TIME_MS,
-      gcTime:
-        typeof current.gcTime === "number" ? current.gcTime : SUPABASE_GC_TIME_MS,
-      networkMode: current.networkMode ?? "offlineFirst",
-    }));
-  });
-
   return client;
 }
-

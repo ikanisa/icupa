@@ -1,10 +1,10 @@
 export type ToolTraceStatus = 'succeeded' | 'failed' | 'in_progress' | 'unknown';
 
 export interface AgentToolTrace {
-  trace_id: string;
-  agent_type: string;
-  tool: string;
-  status: ToolTraceStatus;
+  trace_id?: string;
+  agent_type?: string;
+  tool?: string;
+  status?: ToolTraceStatus;
   input?: unknown;
   output?: unknown;
   error?: string;
@@ -15,28 +15,28 @@ export interface AgentToolTrace {
 export type AgentSuggestedPromptSource = 'agent' | 'fallback';
 
 export interface AgentSuggestedPrompt {
-  id: string;
-  agent_type: string;
-  prompt: string;
-  source: AgentSuggestedPromptSource;
+  id?: string;
+  agent_type?: string;
+  prompt?: string;
+  source?: AgentSuggestedPromptSource;
   reason?: string;
 }
 
 export interface AgentRunMetadata {
-  agent_type: string;
+  agent_type?: string;
   model?: string;
   usage?: {
-    inputTokens: number;
-    outputTokens: number;
+    inputTokens?: number;
+    outputTokens?: number;
   };
   cost_usd?: number;
-  tool_traces: AgentToolTrace[];
-  suggested_prompts: AgentSuggestedPrompt[];
+  tool_traces?: AgentToolTrace[];
+  suggested_prompts?: AgentSuggestedPrompt[];
 }
 
 export interface AgentResponseMetadata {
-  runs: AgentRunMetadata[];
-  suggested_prompts: AgentSuggestedPrompt[];
+  runs?: AgentRunMetadata[];
+  suggested_prompts?: AgentSuggestedPrompt[];
 }
 
 export type AgentFeedbackRating = 'up' | 'down';
@@ -45,18 +45,20 @@ export interface AgentChatAssistantExtras {
   disclaimers?: string[];
   citations?: string[];
   upsell?: Array<{
-    item_id: string;
-    name: string;
-    price_cents: number;
-    currency: string;
-    rationale: string;
-    allergens: string[];
-    tags: string[];
-    is_alcohol: boolean;
+    item_id?: string;
+    name?: string;
+    price_cents?: number;
+    currency?: string;
+    rationale?: string;
+    allergens?: string[];
+    tags?: string[];
+    is_alcohol?: boolean;
     citations?: string[];
   }>;
   raw?: unknown;
 }
+
+export type AgentUpsellItem = NonNullable<AgentChatAssistantExtras['upsell']>[number];
 
 export interface AgentChatMessage {
   id: string;
