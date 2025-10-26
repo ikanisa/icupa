@@ -48,7 +48,7 @@ interface UseAgentChatResult {
   feedbackPendingMessageId: string | null;
 }
 
-function createAssistantMessage(
+export function createAssistantMessage(
   payload: ReturnType<AgentEndpointConfig<any>['mapResponse']>
 ): Omit<AgentChatMessage, 'id' | 'role' | 'createdAt'> {
   return {
@@ -67,7 +67,7 @@ function derivePrimaryAgent(
   return metadata?.runs?.[0]?.agent_type ?? fallbackAgent;
 }
 
-function mergePrompts(current: string[], incoming?: string[]): string[] {
+export function mergePrompts(current: string[], incoming?: string[]): string[] {
   if (!incoming || incoming.length === 0) {
     return current;
   }
@@ -102,7 +102,7 @@ function safeJsonParse(value: string): unknown {
   }
 }
 
-function normaliseQuickReplies(prompts?: Array<string | null | undefined>): string[] {
+export function normaliseQuickReplies(prompts?: Array<string | null | undefined>): string[] {
   if (!prompts || prompts.length === 0) {
     return [];
   }

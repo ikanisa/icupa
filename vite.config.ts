@@ -32,6 +32,10 @@ export default defineConfig(({ mode }) => ({
       "src/**/*.{test,spec}.{ts,tsx}",
       "packages/**/*.{test,spec}.{ts,tsx}",
       "tests/**/*.{test,spec}.{ts,tsx}",
+      "supabase/functions/**/*.{test,spec}.{ts,tsx}",
+    ],
+    environmentMatchGlobs: [
+      ["supabase/functions/**", "node"],
     ],
   },
 }));
