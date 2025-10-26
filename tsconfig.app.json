@@ -6,7 +6,8 @@
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "moduleDetection": "force",
     "jsx": "react-jsx",
-    "noFallthroughCasesInSwitch": false
+    "noFallthroughCasesInSwitch": false,
+    "types": ["vite/client", "@testing-library/jest-dom", "vitest/globals"]
   },
   "include": ["src"]
 }

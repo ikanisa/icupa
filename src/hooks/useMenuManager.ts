@@ -63,7 +63,7 @@ interface RawSuggestionRow {
 async function fetchMenuItems(location?: MerchantLocation | null): Promise<ManagedMenuItem[]> {
   let query = supabase
     .from("items")
-    .select<RawMenuItem>(
+    .select(
       "id, name, description, is_available, price_cents, menu_id, menus:menus!items_menu_id_fkey(id, name, location_id)"
     )
     .order("name", { ascending: true });
@@ -72,7 +72,7 @@ async function fetchMenuItems(location?: MerchantLocation | null): Promise<Manag
     query = query.eq("menus.location_id", location.id);
   }
 
-  const { data, error } = await query;
+  const { data, error } = await query.returns<RawMenuItem[]>();
   if (error) {
     throw error;
   }
@@ -92,12 +92,14 @@ async function fetchMenuItems(location?: MerchantLocation | null): Promise<Manag
 }
 
 async function fetchSuggestions(location?: MerchantLocation | null): Promise<CopySuggestion[]> {
-  const { data, error } = await supabase
+  const query = supabase
     .from("menu_copy_suggestions")
-    .select<RawSuggestionRow>(
+    .select(
       "id, item_id, locale, tone, suggested_name, suggested_description, rationale, status, metadata, created_at, approved_at, approved_by, rejected_reason, items:items(name, description, menus:menus!items_menu_id_fkey(location_id))"
     )
     .order("created_at", { ascending: false });
+
+  const { data, error } = await query.returns<RawSuggestionRow[]>();
 
   if (error) {
     throw error;

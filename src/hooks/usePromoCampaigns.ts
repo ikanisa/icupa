@@ -45,7 +45,7 @@ interface RawPromoRow {
 async function fetchPromos(location?: MerchantLocation | null): Promise<PromoCampaign[]> {
   let query = supabase
     .from("promo_campaigns")
-    .select<RawPromoRow>(
+    .select(
       "id, tenant_id, location_id, name, description, epsilon, budget_cap_cents, spent_cents, frequency_cap, fairness_constraints, status, starts_at, ends_at, created_at, reviewed_at"
     )
     .order("created_at", { ascending: false });
@@ -54,7 +54,7 @@ async function fetchPromos(location?: MerchantLocation | null): Promise<PromoCam
     query = query.eq("location_id", location.id);
   }
 
-  const { data, error } = await query;
+  const { data, error } = await query.returns<RawPromoRow[]>();
   if (error) {
     throw error;
   }

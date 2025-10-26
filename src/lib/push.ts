@@ -13,7 +13,7 @@ export function base64UrlToUint8Array(value: string): Uint8Array {
 export function isPushSupported(): boolean {
   if (typeof window === "undefined") return false;
   const hasNotification = "Notification" in window;
-//   const hasServiceWorker = "serviceWorker" in navigator;
+  const hasServiceWorker = "serviceWorker" in navigator;
   const hasPushManager = "PushManager" in window;
   return hasNotification && hasServiceWorker && hasPushManager;
 }

@@ -33,7 +33,7 @@ interface RawInventoryRow {
 async function fetchInventory(location?: MerchantLocation | null): Promise<InventoryRecord[]> {
   let query = supabase
     .from("inventory_items")
-    .select<RawInventoryRow>(
+    .select(
       "id, sku, display_name, quantity, par_level, reorder_threshold, auto_86, auto_86_level, updated_at, location_id"
     )
     .order("display_name", { ascending: true });
@@ -42,7 +42,7 @@ async function fetchInventory(location?: MerchantLocation | null): Promise<Inven
     query = query.eq("location_id", location.id);
   }
 
-  const { data, error } = await query;
+  const { data, error } = await query.returns<RawInventoryRow[]>();
   if (error) {
     throw error;
   }

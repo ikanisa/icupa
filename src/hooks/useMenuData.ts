@@ -150,15 +150,18 @@ async function fetchMenuFromSupabase(): Promise<MenuDataPayload> {
   const [locationsResponse, categoriesResponse, itemsResponse] = await Promise.all([
     supabase
       .from("locations")
-      .select<SupabaseLocationRow>("id, name, region, currency, timezone, settings"),
+      .select("id, name, region, currency, timezone, settings")
+      .returns<SupabaseLocationRow[]>(),
     supabase
       .from("categories")
-      .select<SupabaseCategoryRow>("id, name, sort_order"),
+      .select("id, name, sort_order")
+      .returns<SupabaseCategoryRow[]>(),
     supabase
       .from("items")
-      .select<SupabaseItemRow>(
+      .select(
         "id, name, description, price_cents, category_id, location_id, allergens, tags, is_alcohol, is_available"
-      ),
+      )
+      .returns<SupabaseItemRow[]>(),
   ]);
 
   if (locationsResponse.error) {
@@ -228,7 +231,7 @@ async function fetchMenuFromSupabase(): Promise<MenuDataPayload> {
         highlight: fallback?.highlight,
         heroImage: fallback?.heroImage,
         recommendedPairings: fallback?.recommendedPairings ?? [],
-      } satisfies MenuItem;
+      } as MenuItem;
     })
     .filter((item): item is MenuItem => Boolean(item));
 

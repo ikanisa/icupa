@@ -20,7 +20,7 @@ interface SubscribeResponse {
 
 type VerificationStatus = "idle" | "sending" | "delivered" | "error";
 
-interface UsePushSubscriptionResult {
+export interface UsePushSubscriptionResult {
   canSubscribe: boolean;
   permission: NotificationPermission | "unsupported";
   isSubscribed: boolean;
@@ -119,7 +119,7 @@ export function usePushSubscription(
 
     let cancelled = false;
     void (async () => {
-//       const registration = await navigator.serviceWorker.ready;
+      const registration = await navigator.serviceWorker.ready;
       if (cancelled) {
         return;
       }
@@ -181,7 +181,7 @@ export function usePushSubscription(
         return;
       }
 
-//       const registration = await navigator.serviceWorker.ready;
+      const registration = await navigator.serviceWorker.ready;
       const existing = await registration.pushManager.getSubscription();
       const subscription =
         existing ??
@@ -213,7 +213,7 @@ export function usePushSubscription(
     setError(null);
     setIsUnsubscribing(true);
     try {
-//       const registration = await navigator.serviceWorker.ready;
+      const registration = await navigator.serviceWorker.ready;
       const existing = await registration.pushManager.getSubscription();
       if (!existing) {
         setIsSubscribed(false);

@@ -41,8 +41,8 @@ interface RawOrderRow {
 async function fetchOrders(locationId?: string): Promise<KdsOrder[]> {
   let query = supabase
     .from("orders")
-    .select<RawOrderRow>(
-      "id, status, created_at, table_id, total_cents, tables:tables!orders_table_id_fkey(code), order_items(id, quantity, item:items(name, allergens)))"
+    .select(
+      "id, status, created_at, table_id, total_cents, tables:tables!orders_table_id_fkey(code), order_items(id, quantity, item:items(name, allergens))"
     )
     .in("status", ACTIVE_STATUSES)
     .order("created_at", { ascending: true });
@@ -51,7 +51,7 @@ async function fetchOrders(locationId?: string): Promise<KdsOrder[]> {
     query = query.eq("location_id", locationId);
   }
 
-  const { data, error } = await query;
+  const { data, error } = await query.returns<RawOrderRow[]>();
   if (error) {
     throw error;
   }

@@ -90,7 +90,7 @@ export function AgentActionQueue({ tenantId }: AgentActionQueueProps) {
           <p className="text-xs uppercase tracking-widest text-white/60">Agent action queue</p>
           <p className="text-sm text-white/70">Review and apply queued promo or inventory adjustments.</p>
         </div>
-        {mutation.isLoading && <Badge variant="outline" className="border-white/40 text-white">Processing…</Badge>}
+        {mutation.isPending && <Badge variant="outline" className="border-white/40 text-white">Processing…</Badge>}
       </div>
 
       <ul className="mt-4 space-y-4">

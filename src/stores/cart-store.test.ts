@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+type PersistedCartSnapshot = {
+  state?: {
+    items?: Array<{ id: string; quantity: number }>;
+  };
+};
+
 type MockStorage = {
   getItem: (key: string) => string | null;
   setItem: (key: string, value: string) => void;
@@ -55,9 +61,10 @@ describe("cart-store offline persistence", () => {
     });
 
     expect(storage.getItem(CART_KEY)).toBeTruthy();
-    const parsed = JSON.parse(storage.getItem(CART_KEY) ?? "{}") as Record<string, unknown>;
-    expect(Array.isArray(parsed.state?.items)).toBe(true);
-    expect((parsed.state as { items: Array<{ id: string; quantity: number }> }).items[0]?.quantity).toBe(1);
+    const parsed = JSON.parse(storage.getItem(CART_KEY) ?? "{}") as PersistedCartSnapshot;
+    const items = parsed.state?.items ?? [];
+    expect(Array.isArray(items)).toBe(true);
+    expect(items[0]?.quantity).toBe(1);
   });
 
   it("rehydrates the cart from storage after a reload", async () => {

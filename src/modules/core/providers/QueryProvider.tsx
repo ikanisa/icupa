@@ -8,7 +8,7 @@ interface QueryProviderProps {
 }
 
 export const QueryProvider = ({ children }: QueryProviderProps) => {
-  const [client] = useState(createQueryClient);
+  const [client] = useState(() => createQueryClient());
 
   useEffect(() => {
     if (typeof window === "undefined") {

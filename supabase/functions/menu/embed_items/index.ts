@@ -3,10 +3,15 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.42.3";
 const supabaseUrl = Deno.env.get("SUPABASE_URL");
 const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 const openAiKey = Deno.env.get("OPENAI_API_KEY");
+const embedItemsSecret = Deno.env.get("EMBED_ITEMS_API_KEY");
 const embeddingModel = Deno.env.get("OPENAI_EMBEDDING_MODEL") ?? "text-embedding-3-large";
 
 if (!supabaseUrl || !serviceRoleKey) {
   throw new Error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set");
+}
+
+if (!embedItemsSecret) {
+  throw new Error("EMBED_ITEMS_API_KEY must be set to protect the embed endpoint");
 }
 
 const supabase = createClient(supabaseUrl, serviceRoleKey, {
@@ -25,6 +30,18 @@ interface ItemRecord {
 }
 
 const MAX_BATCH = 32;
+
+function extractAuthToken(req: Request): string | null {
+  const header = req.headers.get("authorization") ?? req.headers.get("x-api-key");
+  if (!header) {
+    return null;
+  }
+  const trimmed = header.trim();
+  if (trimmed.toLowerCase().startsWith("bearer ")) {
+    return trimmed.slice(7).trim();
+  }
+  return trimmed;
+}
 
 async function fetchItems(itemIds: string[] | undefined, force: boolean, limit: number): Promise<ItemRecord[]> {
   let query = supabase.from<ItemRecord>("items").select("id,name,description");
@@ -98,6 +115,14 @@ async function updateEmbeddings(items: ItemRecord[]): Promise<{ updated: number 
 export async function handleEmbedItems(req: Request): Promise<Response> {
   if (req.method !== "POST") {
     return new Response("Method Not Allowed", { status: 405 });
+  }
+
+  const token = extractAuthToken(req);
+  if (token !== embedItemsSecret) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "content-type": "application/json" },
+    });
   }
 
   const url = new URL(req.url);

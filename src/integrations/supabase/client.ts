@@ -24,7 +24,7 @@ if (!url || !anonKey) {
 
 const authStorage = typeof window !== 'undefined' ? window.localStorage : undefined;
 
-const withTableSession: typeof fetch = (input, init = {}) => {
+const withTableSession: typeof fetch = (input, init: RequestInit = {}) => {
   const headers = new Headers(init?.headers ?? {});
   if (typeof window !== 'undefined') {
     const sessionId = getTableSessionHeader();

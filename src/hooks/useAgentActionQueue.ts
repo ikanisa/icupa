@@ -14,16 +14,30 @@ export interface AgentActionQueueItem {
   createdAt: string;
 }
 
+type AgentActionRow = {
+  id: string | null;
+  tenant_id: string | null;
+  location_id: string | null;
+  agent_type: string | null;
+  action_type: string | null;
+  payload: Record<string, unknown> | null;
+  rationale: string | null;
+  status: string | null;
+  created_at: string | null;
+};
+
 const ADMIN_TOKEN = import.meta.env.VITE_ADMIN_SERVICE_TOKEN ?? "";
 const FUNCTION_BASE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin/agent_actions`;
 
 async function fetchAgentActions(tenantId: string): Promise<AgentActionQueueItem[]> {
-  const { data, error } = await supabase
+  const query = supabase
     .from("agent_action_queue")
     .select("id, tenant_id, location_id, agent_type, action_type, payload, rationale, status, created_at")
     .in("status", ["pending", "approved"])
     .order("created_at", { ascending: false })
     .limit(50);
+
+  const { data, error } = await query.returns<AgentActionRow[]>();
 
   if (error) {
     throw error;

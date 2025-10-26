@@ -29,7 +29,7 @@ ICUPA is a three-surface, multi-tenant Progressive Web Application that powers d
 ## Getting started
 
 1. **Install prerequisites**
-   - Node.js 20.11.1
+   - Node.js 18.17.x (LTS)
    - npm 10+ (or pnpm/yarn if preferred)
 
 2. **Bootstrap environment variables**
@@ -180,11 +180,12 @@ The migrations create enums, helper functions, ivfflat indexes, and row-level se
 
 ### Embedding refresh Edge Function
 
-`supabase/functions/menu/embed_items` calls OpenAI's embeddings API (`text-embedding-3-large` by default) to populate or refresh item vectors in batches. It accepts optional `item_ids` and `force` flags via JSON body and honours a `limit` query parameter (default 32). Configure `OPENAI_API_KEY` (and optionally `OPENAI_EMBEDDING_MODEL`) in the Supabase dashboard before deploying, then trigger with:
+`supabase/functions/menu/embed_items` calls OpenAI's embeddings API (`text-embedding-3-large` by default) to populate or refresh item vectors in batches. It accepts optional `item_ids` and `force` flags via JSON body and honours a `limit` query parameter (default 32). Configure `OPENAI_API_KEY`, `EMBED_ITEMS_API_KEY` (shared secret), and optionally `OPENAI_EMBEDDING_MODEL` in the Supabase dashboard before deploying, then trigger with:
 
 ```bash
 supabase functions deploy menu
-supabase functions invoke menu/embed_items --project-ref <ref> --no-verify-jwt
+supabase functions invoke menu/embed_items --project-ref <ref> --no-verify-jwt \\
+  --header \"Authorization: Bearer $EMBED_ITEMS_API_KEY\"
 ```
 
 The follow-up migration registers an hourly pg_cron job (`menu_embed_items_hourly`) that invokes the Edge Function so vectors stay fresh without manual intervention. The target URL lives in `public.scheduler_config` under the `menu_embed_items_url` key—by default it points at the local Supabase stack (`http://host.docker.internal:54321/functions/v1/menu/embed_items`). Override it in hosted environments after deploying the function:
@@ -196,6 +197,8 @@ where key = 'menu_embed_items_url';
 ```
 
 The helper raises a notice instead of failing when the URL is blank, making it safe to temporarily disable the job during maintenance windows.
+
+> ⚠️ Whether you call the function from `supabase functions invoke`, pg_cron, or an external scheduler, include `Authorization: Bearer $EMBED_ITEMS_API_KEY` (or `x-api-key`) in every request. Calls without the shared secret now receive `401 Unauthorized`.
 
 The ivfflat index on `items.embedding` (lists=100) accelerates cosine similarity queries used by the diner shell's semantic search and agent recommendation tooling.
 
