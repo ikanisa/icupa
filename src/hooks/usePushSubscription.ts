@@ -187,7 +187,7 @@ export function usePushSubscription(
         existing ??
         (await registration.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: base64UrlToUint8Array(VAPID_PUBLIC_KEY as string),
+          applicationServerKey: base64UrlToUint8Array(VAPID_PUBLIC_KEY as string).buffer as ArrayBuffer,
         }));
 
       const response = await persistSubscription(subscription, options);

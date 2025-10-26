@@ -15,7 +15,7 @@ export const QueryProvider = ({ children }: QueryProviderProps) => {
       return;
     }
 
-    const unsubscribe = focusManager.setEventListener((handleFocus) => {
+    return focusManager.setEventListener((handleFocus) => {
       const listener = () => handleFocus(!document.hidden);
       window.addEventListener("visibilitychange", listener);
       window.addEventListener("focus", listener);
@@ -24,10 +24,6 @@ export const QueryProvider = ({ children }: QueryProviderProps) => {
         window.removeEventListener("focus", listener);
       };
     });
-
-    return () => {
-      unsubscribe();
-    };
   }, []);
 
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { MerchantLocation } from "@/hooks/useMerchantLocations";
 import { withSupabaseCaching } from "@/lib/query-client";
+import type { Json } from "@/integrations/supabase/types";
 
 export type PromoStatus = "draft" | "pending_review" | "approved" | "active" | "paused" | "archived";
 
@@ -109,7 +110,7 @@ export function usePromoCampaigns(location?: MerchantLocation | null) {
         epsilon: payload.epsilon,
         budget_cap_cents: payload.budgetCapCents,
         frequency_cap: payload.frequencyCap,
-        fairness_constraints: payload.fairnessConstraints,
+        fairness_constraints: payload.fairnessConstraints as Json,
         starts_at: payload.startsAt ?? null,
         ends_at: payload.endsAt ?? null,
         status: "pending_review",
@@ -135,10 +136,12 @@ export function usePromoCampaigns(location?: MerchantLocation | null) {
 
   const recordSpend = useMutation({
     mutationFn: async ({ id, spendCents }: { id: string; spendCents: number }) => {
-      const { data, error } = await supabase.rpc<RawPromoRow>("increment_promo_spend", {
+      const response = await supabase.rpc("increment_promo_spend", {
         campaign_id: id,
         delta_cents: spendCents,
       });
+      const data = response.data as RawPromoRow | null;
+      const error = response.error;
 
       if (!error && data) {
         queryClient.setQueryData<PromoCampaign[]>(queryKey, (existing) => {
