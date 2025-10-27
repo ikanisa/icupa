@@ -10,12 +10,12 @@
  */
 
 import { readFile } from "node:fs/promises";
-import { join, relative } from "node:path";
+import { join, relative, dirname } from "node:path";
 import { readdir, stat } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = join(__filename, "..", "..");
+const __dirname = dirname(__filename);
 const rootDir = join(__dirname, "..", "..");
 
 // Server-only environment variable names that should never appear in client code
@@ -61,6 +61,20 @@ const IGNORE_PATTERNS = [
   ".env.local.example",
 ];
 
+// Server-side paths within client directories (these are OK to have server secrets)
+const SERVER_SIDE_PATHS = [
+  "/app/api/",     // Next.js API routes
+  "/pages/api/",   // Next.js API routes (pages router)
+  "/api/",         // Generic API routes
+  "/server/",      // Server-only code
+  "/tests/",       // Test files
+  "/test/",        // Test files
+  ".spec.",        // Test specs
+  ".test.",        // Test files
+  "/src/env.",     // Environment configuration files
+  "/config/env.",  // Environment configuration files
+];
+
 async function* walkDir(dir) {
   try {
     const entries = await readdir(dir, { withFileTypes: true });
@@ -92,6 +106,12 @@ async function* walkDir(dir) {
 
 async function scanFile(filePath) {
   try {
+    // Skip server-side files - they're allowed to use server-only env vars
+    const normalizedPath = filePath.replace(/\\/g, "/");
+    if (SERVER_SIDE_PATHS.some((pattern) => normalizedPath.includes(pattern))) {
+      return [];
+    }
+
     const content = await readFile(filePath, "utf8");
     const findings = [];
 
