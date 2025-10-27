@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# TypeScript build info
+*.tsbuildinfo
+
 # Phase 10 automation artefacts (preserve .gitkeep placeholders)
 artifacts/phase10/**
 !artifacts/phase10/**/.gitkeep
