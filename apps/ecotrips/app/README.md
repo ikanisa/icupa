@@ -1,12 +1,12 @@
 # Atlas + Supabase (Step 1)
 - Ensure `.env.local` has:
   - NEXT_PUBLIC_APP_NAME
-  - NEXT_PUBLIC_SUPABASE_URL
-  - NEXT_PUBLIC_SUPABASE_ANON_KEY
-  - OPENAI_API_KEY
-  - OPENAI_ROUTER_AGENT_ID
-  - CHATKIT_DOMAIN_KEY
+  - NEXT_PUBLIC_SUPABASE_URL (public, safe for client)
+  - NEXT_PUBLIC_SUPABASE_ANON_KEY (public, safe for client)
+  - OPENAI_API_KEY (SERVER-ONLY, never expose as NEXT_PUBLIC_)
+  - OPENAI_ROUTER_AGENT_ID (SERVER-ONLY, never expose as NEXT_PUBLIC_)
+  - CHATKIT_DOMAIN_KEY (SERVER-ONLY, never expose as NEXT_PUBLIC_)
 - `npm i`
 - `npm run dev`
 - Visit `/atlas-check` to verify Atlas UI + Supabase env.
-- Note: Do not expose the Supabase service role key in client code. We will add a server API route for writes in Step 2.
+- **Security Note**: Do not expose server-only keys (SUPABASE_SERVICE_ROLE_KEY, OPENAI_API_KEY, STRIPE_* secrets, etc.) in client code or with NEXT_PUBLIC_ prefix. Use these only in server API routes.

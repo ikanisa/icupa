@@ -1,15 +1,19 @@
 import { z } from "zod";
 
+// Public keys: Safe to expose in client-side code (NEXT_PUBLIC_ prefix)
 export const SUPABASE_PUBLIC_ENV_KEYS = Object.freeze([
   "NEXT_PUBLIC_SUPABASE_URL",
   "NEXT_PUBLIC_SUPABASE_ANON_KEY",
 ]);
 
+// SERVER-ONLY: Never expose these keys in client-side code or with NEXT_PUBLIC_ prefix
+// These keys grant elevated permissions and must only be used in server-side contexts
 export const SUPABASE_SERVICE_ENV_KEYS = Object.freeze([
   "SUPABASE_URL",
   "SUPABASE_SERVICE_ROLE_KEY",
 ]);
 
+// SERVER-ONLY: Anon key for server-side operations
 export const SUPABASE_ANON_ENV_KEYS = Object.freeze([
   "SUPABASE_URL",
   "SUPABASE_ANON_KEY",
