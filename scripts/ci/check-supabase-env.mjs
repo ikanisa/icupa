@@ -1,5 +1,25 @@
 #!/usr/bin/env node
 
+/**
+ * check-supabase-env.mjs
+ * 
+ * Validates that required Supabase environment variables are present before builds.
+ * 
+ * For production builds, prefer VITE_* prefixed keys:
+ *   - VITE_SUPABASE_URL
+ *   - VITE_SUPABASE_ANON_KEY
+ * 
+ * Fallback to NEXT_PUBLIC_* keys for Next.js compatibility:
+ *   - NEXT_PUBLIC_SUPABASE_URL
+ *   - NEXT_PUBLIC_SUPABASE_ANON_KEY
+ * 
+ * Local development: Either set works, but we recommend VITE_* for consistency.
+ * 
+ * SERVER-ONLY keys (never prefix with VITE_ or NEXT_PUBLIC_):
+ *   - SUPABASE_SERVICE_ROLE_KEY
+ *   - SUPABASE_URL (when used server-side without public prefix)
+ */
+
 const REQUIRED_PRIMARY_KEYS = ["VITE_SUPABASE_URL", "VITE_SUPABASE_ANON_KEY"];
 const FALLBACK_KEYS = ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY"];
 
@@ -20,9 +40,12 @@ const fallbackMissing = FALLBACK_KEYS.filter((key) => !normalize(process.env[key
 
 const messages = [
   "Supabase environment variables are required for builds.",
-  `Missing Vite keys: ${missing.join(", ") || "none"}.`,
-  `Missing Next.js-compatible keys: ${fallbackMissing.join(", ") || "none"}.`,
+  `Missing Vite keys (preferred): ${missing.join(", ") || "none"}.`,
+  `Missing Next.js-compatible keys (fallback): ${fallbackMissing.join(", ") || "none"}.`,
   "Provide VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (or their NEXT_PUBLIC equivalents) before running production builds.",
+  "",
+  "Note: For local development, either VITE_* or NEXT_PUBLIC_* keys work.",
+  "      Server-only keys like SUPABASE_SERVICE_ROLE_KEY should never be exposed with these prefixes.",
 ];
 
 console.error(messages.join("\n"));
