@@ -2,6 +2,7 @@
   "name": "@icupa/voice-agent",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "Production-ready voice agent connecting Twilio to OpenAI Realtime API with MCP tools",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
