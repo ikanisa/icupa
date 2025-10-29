@@ -143,12 +143,12 @@ export default async function TravelDiscoveryPage() {
       <CardGlass title="Cron schedules" subtitle="Supabase cron keeps travel-discovery fresh">
         <ul className="space-y-2 text-sm text-white/70">
           <li>
-            <span className="font-semibold text-white">travel-discovery-poi-hourly</span> — runs every hour with `{ "mode":
-            "poi" }`.
+            <span className="font-semibold text-white">travel-discovery-poi-hourly</span> — runs every hour with{" "}
+            <code>{`{ "mode": "poi" }`}</code>.
           </li>
           <li>
-            <span className="font-semibold text-white">travel-discovery-events-six-hourly</span> — runs every 6 hours with `{ "mode":
-            "events" }`.
+            <span className="font-semibold text-white">travel-discovery-events-six-hourly</span> — runs every 6 hours with{" "}
+            <code>{`{ "mode": "events" }`}</code>.
           </li>
         </ul>
       </CardGlass>

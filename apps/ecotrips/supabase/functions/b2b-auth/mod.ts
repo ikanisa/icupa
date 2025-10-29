@@ -66,7 +66,7 @@ export async function requireB2BKey(
 
   const prefixLength = Math.max(8, DEFAULT_PREFIX_LENGTH);
   const keyPrefix = apiKey.slice(0, prefixLength);
-  if (!/^[a-zA-Z0-9_\-]{8,}$/.test(keyPrefix)) {
+  if (!/^[a-zA-Z0-9_-]{8,}$/.test(keyPrefix)) {
     throw new B2BAuthError("Malformed API key", 401, "AUTH_REQUIRED");
   }
 

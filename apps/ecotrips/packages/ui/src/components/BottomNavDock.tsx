@@ -17,8 +17,8 @@ type BottomNavDockProps = {
 };
 
 export function BottomNavDock({ items, activePath }: BottomNavDockProps) {
-  const currentPath = activePath ?? usePathname();
-  const pathname = currentPath ?? "";
+  const hookPath = usePathname();
+  const pathname = activePath ?? hookPath ?? "";
   return (
     <nav className="fixed inset-x-4 bottom-4 z-50 mx-auto max-w-xl rounded-3xl border border-glass-border bg-surface/80 p-2 text-surface-foreground backdrop-blur-glass">
       <ul className="flex items-center justify-between">

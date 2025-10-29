@@ -45,7 +45,7 @@ const handler = withObs(async (req) => {
   const idempotencyKey = pickString(body, ["idempotency_key", "idempotencyKey"]);
 
   const errors: string[] = [];
-  let offerId = offerIdRaw ?? "";
+  const offerId = offerIdRaw ?? "";
   if (!offerId) {
     errors.push("offer_id is required");
   }

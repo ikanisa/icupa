@@ -88,7 +88,7 @@ const handler = withObs(async (req) => {
   const cacheKey = `quote:${paramsHash}`;
   const now = Date.now();
 
-  let cached = await getCachedResponse(cacheKey).catch(() => null);
+  const cached = await getCachedResponse(cacheKey).catch(() => null);
   const isFreshCache = cached && new Date(cached.expires_at).getTime() > now;
   if (isFreshCache) {
     const payload = buildQuoteResponse({

@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
     );
   }
 
-  let amountCents = payload.amount_cents === undefined
+  const amountCents = payload.amount_cents === undefined
     ? undefined
     : Number(payload.amount_cents);
   if (amountCents !== undefined) {

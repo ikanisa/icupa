@@ -19,12 +19,13 @@ describe('headers utilities', () => {
     expect(readHeader(request, 'x-icupa-session')).toBeNull();
   });
 
-  it('requires header and trims whitespace', () => {
+  it('requires header and returns value', () => {
     const request = new Request('https://example.com', {
       headers: { 'x-token': '  secret ' },
     });
 
-    expect(requireHeader(request, 'x-token')).toBe('  secret ');
+    // Note: Request headers API automatically trims whitespace
+    expect(requireHeader(request, 'x-token')).toBe('secret');
   });
 
   it('throws when required header missing', () => {
@@ -32,8 +33,6 @@ describe('headers utilities', () => {
       headers: { 'x-token': '   ' },
     });
 
-    expect(() => requireHeader(request, 'x-token')).toThrowErrorMatchingInlineSnapshot(
-      '"Header x-token is required"',
-    );
+    expect(() => requireHeader(request, 'x-token')).toThrow('Header x-token is required');
   });
 });
