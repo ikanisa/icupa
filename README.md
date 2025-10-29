@@ -29,8 +29,14 @@ ICUPA is a three-surface, multi-tenant Progressive Web Application that powers d
 ## Getting started
 
 1. **Install prerequisites**
-   - Node.js 18.17.x (LTS)
+   - Node.js 18.17.x (LTS) or Node.js 20.x (recommended)
+     - Note: Node 20.x is fully compatible and recommended for development. Node 18.18.2 is specified in `.nvmrc` for consistency, but the project works with Node 18.18.0 || ^20.9.0 || >=21.1.0
    - npm 10+ (or pnpm/yarn if preferred)
+   - Supabase CLI (install globally using npm, not pnpm)
+     ```bash
+     npm install -g supabase
+     ```
+     **Note:** The Supabase CLI does not install correctly using `pnpm`. Always use `npm` for global Supabase CLI installation.
 
 2. **Bootstrap environment variables**
    - Copy `.env.example` to `.env.local` (ignored by Git) and provide the Supabase project details you intend to use. Production builds and CI now fail fast if `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` (or their `NEXT_PUBLIC_*` equivalents) are absent, so populate them before running `npm run build` or deploying.

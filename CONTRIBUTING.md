@@ -11,9 +11,25 @@ Thanks for helping evolve the ICUPA platform. Before opening a pull request, ple
 ## 2. Coding standards
 
 - The repository uses the flat ESLint config in `eslint.config.js`.
-- Format TypeScript files with `npm run format` (which runs ESLint in `--fix` mode).
+- Format TypeScript files with `npm run format` (which runs Prettier).
+- Lint and auto-fix issues with `npm run lint:fix`.
 - Keep changes additive unless you have explicit alignment with the project owners.
-- Prefer co-locating hooks, components, and tests inside their feature “module” folders (`apps/web/src/modules/…` once the refactor lands).
+- Prefer co-locating hooks, components, and tests inside their feature "module" folders (`apps/web/src/modules/…` once the refactor lands).
+
+### Pre-commit hooks
+
+The repository uses Husky to enforce code quality checks before commits:
+
+- **Automatic linting and formatting**: The pre-commit hook runs `lint-staged`, which automatically:
+  - Runs ESLint with `--max-warnings=0` on staged TypeScript/JavaScript files
+  - Runs Prettier on staged files (TypeScript, JavaScript, JSON, Markdown, CSS, etc.)
+  - Formats code to match the repository's style guide (100-char line length, double quotes, etc.)
+
+- **Setup**: Husky hooks are automatically installed when you run `npm install`. The pre-commit hook is defined in `.husky/pre-commit`.
+
+- **Bypass (not recommended)**: If you need to bypass the pre-commit hook in exceptional cases, use `git commit --no-verify`, but be sure to fix any issues before opening a PR.
+
+- **What's checked**: The `lint-staged` configuration in `package.json` defines which files are checked and what commands run on them.
 
 ## 3. Pre-flight checks
 
