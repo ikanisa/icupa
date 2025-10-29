@@ -154,7 +154,7 @@ POST /tools/cart/add
 
 Tool endpoints called by agents during execution.
 
-### Realtime Token
+### WebRTC Token
 
 ```bash
 GET /realtime/token?session_id=...

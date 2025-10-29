@@ -115,8 +115,10 @@ This refactor prepares ICUPA for production deployment by implementing:
 
 3. **Playwright E2E** (`.github/workflows/playwright.yml`)
    - **Before**: Used npm, Node 20.11.1
-   - **After**: Uses pnpm, Node 18.18.2
+   - **After**: Uses pnpm, Node 18.18.2 (matches project standard)
    - 30-day report retention
+
+> **Note**: Node 18.18.2 is used consistently across all workflows to match the project's `.nvmrc` and production runtime. While Node 20 is also supported per the project's engine requirements, Node 18.18.2 LTS provides better stability and is the tested/recommended version.
 
 #### Workflows Added
 
