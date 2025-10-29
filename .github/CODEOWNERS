@@ -1,0 +1,64 @@
+# CODEOWNERS - Define who owns specific parts of the codebase
+# 
+# Each line is a file pattern followed by one or more owners.
+# Owners will be automatically requested for review when someone opens a PR.
+#
+# Learn more: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owners for everything in the repo
+* @ikanisa/maintainers
+
+# Infrastructure and CI/CD
+/.github/ @ikanisa/devops
+/scripts/ @ikanisa/devops
+/deployments/ @ikanisa/devops
+Dockerfile @ikanisa/devops
+*.yml @ikanisa/devops
+*.yaml @ikanisa/devops
+
+# Supabase and Database
+/supabase/ @ikanisa/backend @ikanisa/database
+/supabase/migrations/ @ikanisa/database
+/supabase/functions/ @ikanisa/backend
+
+# Core application
+/src/ @ikanisa/frontend
+/apps/web/ @ikanisa/frontend
+/apps/client/ @ikanisa/frontend
+/apps/admin/ @ikanisa/frontend
+/apps/vendor/ @ikanisa/frontend
+
+# Agent Service (AI/Backend)
+/agents-service/ @ikanisa/backend @ikanisa/ai
+
+# Shared packages
+/packages/ @ikanisa/platform
+/packages/db/ @ikanisa/database
+/packages/ui/ @ikanisa/frontend
+/packages/types/ @ikanisa/platform
+/packages/ingestion-utils/ @ikanisa/backend
+
+# Documentation
+/docs/ @ikanisa/maintainers
+SECURITY.md @ikanisa/security
+CONTRIBUTING.md @ikanisa/maintainers
+
+# Tests
+/tests/ @ikanisa/qa
+**/*.test.ts @ikanisa/qa
+**/*.test.tsx @ikanisa/qa
+**/*.spec.ts @ikanisa/qa
+
+# Configuration files
+package.json @ikanisa/platform
+pnpm-*.yaml @ikanisa/platform
+tsconfig*.json @ikanisa/platform
+vite.config.ts @ikanisa/platform
+eslint.config.js @ikanisa/platform
+prettier.config.mjs @ikanisa/platform
+tailwind.config.ts @ikanisa/frontend
+
+# Security-sensitive files
+.env.example @ikanisa/security
+/.github/workflows/ci-secret-guard.yml @ikanisa/security
+/tools/scripts/check-client-secrets.mjs @ikanisa/security
