@@ -37,11 +37,11 @@ export function AdminShell() {
   }, [tenants, selectedTenantId]);
 
   const currency = activeTenant?.currency === "EUR" ? "EUR" : "RWF";
-  const runbookBase = process.env.NEXT_PUBLIC_RUNBOOKS_BASE_URL ?? "https://github.com/icupa/icupa-pulse/tree/main/docs/runbooks";
+  const runbookBase = "https://github.com/icupa/icupa-pulse/tree/main/docs/runbooks";
   const complianceBase = "https://github.com/icupa/icupa-pulse/tree/main/docs";
-  const grafanaUrl = process.env.NEXT_PUBLIC_GRAFANA_URL ?? "https://grafana.icupa.dev";
-  const jaegerUrl = process.env.NEXT_PUBLIC_JAEGER_URL ?? "https://jaeger.icupa.dev";
-  const alertPlaybookUrl = process.env.NEXT_PUBLIC_ALERTS_RUNBOOK_URL ?? `${runbookBase}/alerts-escalation.md`;
+  const grafanaUrl = "https://grafana.icupa.dev";
+  const jaegerUrl = "https://jaeger.icupa.dev";
+  const alertPlaybookUrl = `${runbookBase}/alerts-escalation.md`;
 
   const runbookLinks = [
     {

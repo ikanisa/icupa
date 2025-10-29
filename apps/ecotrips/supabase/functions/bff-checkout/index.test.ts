@@ -27,7 +27,6 @@ function resetEnv() {
     "STRIPE_REQUIRE_LIVE",
     "STRIPE_MOCK_MODE",
     "CHECKOUT_DEGRADATION_WEBHOOK_URL",
-    "VERCEL_ENV",
     "ENVIRONMENT",
     "STAGE",
   ];
