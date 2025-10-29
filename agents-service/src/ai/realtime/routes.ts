@@ -4,14 +4,20 @@ import { z } from 'zod';
 import { PERSONAS, PersonaKey } from './personas';
 import { RealtimeClient, buildToolsSpec } from './realtimeClient';
 
+// Derive persona keys from PERSONAS object for consistency
+const personaKeys = Object.keys(PERSONAS) as PersonaKey[];
+
 const SayRequestSchema = z.object({
   text: z.string().min(1, "text is required")
 });
 
 const PersonaRequestSchema = z.object({
-  key: z.enum(["waiter", "cfo"])
+  key: z.enum(personaKeys as [PersonaKey, ...PersonaKey[]])
 });
 
+// Client state management (singleton per service instance)
+// Note: In production, consider using a proper singleton pattern or dependency injection
+// for better testability and multi-instance support
 let realtimeClient: RealtimeClient | null = null;
 let currentPersona: PersonaKey = "waiter";
 
@@ -83,14 +89,11 @@ export function registerRealtimeRoutes(app: FastifyInstance) {
     const { key } = parseResult.data;
     const persona = PERSONAS[key];
     
-    if (!persona) {
-      return reply.status(400).send({ error: 'unknown persona' });
-    }
-
     const client = await ensureClient();
     client.switchPersona(persona.system, buildToolsSpec(persona.tools));
     currentPersona = key;
     
+    // Use type casting to work around Fastify logger type mismatch
     (app.log as any).info({ persona: key }, "Switched persona");
     
     return reply.send({ ok: true, active: key });

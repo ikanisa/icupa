@@ -4,6 +4,35 @@ import { supabaseClient } from "../../supabase";
 
 type ToolCall = { call_id: string; name: string; arguments: unknown; };
 
+// Fallback stub data for demo/testing purposes
+const FALLBACK_DATA = {
+  menu: {
+    items: [{
+      id: "cappuccino",
+      name: "Cappuccino",
+      price: "RWF 2500",
+      description: "Rich espresso with steamed milk",
+      image_url: null
+    }]
+  },
+  pairing: {
+    upsell: "Try a croissant with that cappuccino for +RWF 1500."
+  },
+  financials: {
+    pnl: {
+      revenue: 125000,
+      cogs: 42000,
+      ebitda: 38000
+    },
+    note: "Demo data - integrate with actual GL tables"
+  },
+  taxRule: {
+    rule: "EU VAT OSS",
+    note: "Distance-selling thresholds apply; confirm country rate.",
+    demo: "Integrate with actual tax_rules table"
+  }
+} as const;
+
 export interface RealtimeClientOptions {
   url: string;
   apiKey: string;
@@ -80,8 +109,17 @@ export class RealtimeClient {
     try {
       const msg = JSON.parse(raw.toString());
       this.log.debug({ msg }, "← openai");
-      if (msg.type === "response.output_text.delta") process.stdout.write(msg.delta);
-      if (msg.type === "response.output_text.done") process.stdout.write("\n");
+      
+      // Log text deltas for observability (avoid direct stdout writes in production)
+      if (msg.type === "response.output_text.delta") {
+        this.log.debug({ delta: msg.delta }, "text delta received");
+        process.stdout.write(msg.delta);
+      }
+      if (msg.type === "response.output_text.done") {
+        this.log.debug("text output complete");
+        process.stdout.write("\n");
+      }
+      
       if (msg.type === "response.tool_call") this.handleToolCall({
         call_id: msg.call_id, name: msg.name, arguments: msg.arguments
       });
@@ -141,16 +179,8 @@ export class RealtimeClient {
       };
     } catch (err) {
       this.log.error({ err }, "lookup_menu exception");
-      // Stub fallback for demo
-      return { 
-        items: [{ 
-          id: "cappuccino", 
-          name: "Cappuccino", 
-          price: "RWF 2500",
-          description: "Rich espresso with steamed milk",
-          image_url: null
-        }] 
-      };
+      // Return stub fallback for demo
+      return FALLBACK_DATA.menu;
     }
   }
 
@@ -171,8 +201,8 @@ export class RealtimeClient {
       return { upsell: data?.text ?? null };
     } catch (err) {
       this.log.error({ err }, "recommend_pairing exception");
-      // Stub fallback for demo
-      return { upsell: "Try a croissant with that cappuccino for +RWF 1500." };
+      // Return stub fallback for demo
+      return FALLBACK_DATA.pairing;
     }
   }
 
@@ -182,13 +212,8 @@ export class RealtimeClient {
       // For now, return stub data
       this.log.info({ period: args.period }, "fetch_financials called");
       return { 
-        period: args.period, 
-        pnl: { 
-          revenue: 125000, 
-          cogs: 42000, 
-          ebitda: 38000 
-        },
-        note: "Demo data - integrate with actual GL tables"
+        period: args.period,
+        ...FALLBACK_DATA.financials
       };
     } catch (err) {
       this.log.error({ err }, "fetch_financials exception");
@@ -200,12 +225,10 @@ export class RealtimeClient {
     try {
       // This would query a tax_rules table
       this.log.info(args, "check_tax_rule called");
-      return { 
-        rule: "EU VAT OSS", 
-        note: "Distance-selling thresholds apply; confirm country rate.",
+      return {
+        ...FALLBACK_DATA.taxRule,
         jurisdiction: args.jurisdiction,
-        topic: args.topic,
-        demo: "Integrate with actual tax_rules table"
+        topic: args.topic
       };
     } catch (err) {
       this.log.error({ err }, "check_tax_rule exception");
