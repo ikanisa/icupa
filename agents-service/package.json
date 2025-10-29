@@ -11,7 +11,11 @@
     "build": "tsc --project tsconfig.json",
     "lint": "tsc --noEmit --project tsconfig.json",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "ai:persona:cfo": "curl -sS -X POST http://localhost:8787/ai/persona -H 'content-type: application/json' -d '{\"key\":\"cfo\"}'",
+    "ai:persona:waiter": "curl -sS -X POST http://localhost:8787/ai/persona -H 'content-type: application/json' -d '{\"key\":\"waiter\"}'",
+    "ai:demo": "curl -sS -X POST http://localhost:8787/ai/say -H 'content-type: application/json' -d '{\"text\":\"Hi!\"}'",
+    "ai:health": "curl -sS http://localhost:8787/ai/healthz"
   },
   "dependencies": {
     "@openai/agents": "^0.1.6",
@@ -22,13 +26,16 @@
     "@opentelemetry/sdk-node": "^0.52.1",
     "@opentelemetry/semantic-conventions": "^1.24.1",
     "@supabase/supabase-js": "^2.58.0",
-    "dotenv": "^16.4.5",
+    "dotenv": "^16.6.1",
     "fastify": "^4.28.1",
     "openai": "^5.23.1",
+    "pino": "^10.1.0",
+    "ws": "^8.18.3",
     "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/node": "^22.16.5",
+    "@types/ws": "^8.18.1",
     "pino-pretty": "^11.3.0",
     "tsx": "^4.19.2",
     "typescript": "^5.8.3",
