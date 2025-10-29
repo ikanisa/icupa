@@ -83,12 +83,13 @@ function validateAndConvertParam(
         }
         return { ok: true, value };
 
-      case "number":
+      case "number": {
         const num = typeof value === "number" ? value : parseFloat(value);
         if (isNaN(num)) {
           return { ok: false, error: `Parameter '${param.name}' must be a number` };
         }
         return { ok: true, value: num };
+      }
 
       case "date":
         // Validate ISO 8601 date format (YYYY-MM-DD)
@@ -97,7 +98,7 @@ function validateAndConvertParam(
         }
         return { ok: true, value };
 
-      case "timestamp":
+      case "timestamp": {
         // Validate ISO 8601 timestamp
         if (typeof value !== "string") {
           return { ok: false, error: `Parameter '${param.name}' must be a valid timestamp` };
@@ -107,6 +108,7 @@ function validateAndConvertParam(
           return { ok: false, error: `Parameter '${param.name}' must be a valid timestamp` };
         }
         return { ok: true, value };
+      }
 
       case "jsonb":
         // Ensure it's a valid JSON object or array
