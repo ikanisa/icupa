@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  voice-agent:
+    build:
+      context: ../..
+      dockerfile: apps/voice-agent/Dockerfile
+    ports:
+      - "8787:8787"
+      - "9797:9797"
+    environment:
+      - NODE_ENV=production
+      - PORT=8787
+      - MCP_PORT=9797
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_REALTIME_MODEL=${OPENAI_REALTIME_MODEL:-gpt-4o-realtime-preview-2024-12-17}
+      - OPENAI_REALTIME_VOICE=${OPENAI_REALTIME_VOICE:-verse}
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
+      - TWILIO_FROM_NUMBER=${TWILIO_FROM_NUMBER}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - PUBLIC_WS_URL=${PUBLIC_WS_URL}
+      - VOICE_AGENT_ENABLED=${VOICE_AGENT_ENABLED:-true}
+      - VOICE_AGENT_MCP_ENABLED=${VOICE_AGENT_MCP_ENABLED:-true}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8787/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      voice-agent:
+        condition: service_healthy
+    restart: unless-stopped
+
+networks:
+  default:
+    name: voice-agent-network
