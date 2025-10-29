@@ -1,0 +1,102 @@
+version: 2
+updates:
+  # Root workspace dependencies
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Africa/Kigali"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "ikanisa/devops-team"
+    assignees:
+      - "ikanisa/core-team"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "automated"
+    versioning-strategy: increase
+    # Auto-merge patch versions (1.2.3 -> 1.2.4)
+    # Requires GitHub auto-merge to be enabled
+    allow:
+      - dependency-type: "all"
+
+  # Agents service dependencies
+  - package-ecosystem: "npm"
+    directory: "/agents-service"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Africa/Kigali"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "ikanisa/backend-team"
+      - "ikanisa/ai-team"
+    commit-message:
+      prefix: "deps(agents)"
+    labels:
+      - "dependencies"
+      - "agents-service"
+      - "automated"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "09:00"
+      timezone: "Africa/Kigali"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "ikanisa/devops-team"
+    commit-message:
+      prefix: "ci"
+    labels:
+      - "dependencies"
+      - "github-actions"
+      - "automated"
+
+  # Docker base images
+  - package-ecosystem: "docker"
+    directory: "/agents-service"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "09:00"
+      timezone: "Africa/Kigali"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "ikanisa/devops-team"
+      - "ikanisa/security-team"
+    commit-message:
+      prefix: "deps(docker)"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "automated"
+
+# Security updates - immediate notification
+# These override the schedule above
+groups:
+  security-updates:
+    patterns:
+      - "*"
+    update-types:
+      - "security"
+
+# Ignore specific dependencies that require manual updates
+ignore:
+  # Pin React 18 for now
+  - dependency-name: "react"
+    versions: ["19.x"]
+  - dependency-name: "react-dom"
+    versions: ["19.x"]
+  # Review Next.js major versions carefully
+  - dependency-name: "next"
+    update-types: ["version-update:semver-major"]

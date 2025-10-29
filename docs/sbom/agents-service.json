@@ -1,0 +1,14 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.4",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2025-10-29T18:31:41Z",
+    "component": {
+      "type": "application",
+      "name": "agents-service",
+      "version": "0.1.0"
+    }
+  },
+  "components": []
+}

@@ -37,5 +37,31 @@ export default defineConfig(({ mode }) => ({
     environmentMatchGlobs: [
       ["supabase/functions/**", "node"],
     ],
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "json", "json-summary", "html"],
+      exclude: [
+        "**/*.test.{ts,tsx}",
+        "**/*.spec.{ts,tsx}",
+        "**/node_modules/**",
+        "**/dist/**",
+        "**/build/**",
+        "**/.{git,github}/**",
+        "**/coverage/**",
+        "**/tests/**",
+        "**/*.config.{ts,js}",
+        "**/vitest.setup.ts",
+      ],
+      include: [
+        "src/**/*.{ts,tsx}",
+        "packages/**/*.{ts,tsx}",
+        "supabase/functions/**/*.{ts,tsx}",
+      ],
+      all: true,
+      lines: 70,
+      functions: 70,
+      branches: 70,
+      statements: 70,
+    },
   },
 }));
