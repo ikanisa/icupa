@@ -37,6 +37,7 @@
     "test": "vitest run",
     "test:mcp": "vitest run tests/mcp",
     "test:accessibility": "vitest run tests/accessibility",
+    "security:lint-mcp": "node scripts/security/lint-mcp-tools.mjs",
     "pretest:e2e": "node scripts/ci/reset-supabase-test-db.mjs",
     "test:e2e": "playwright test --config tests/playwright/playwright.config.ts",
     "test:perf": "npx --yes @lhci/cli@0.15.1 autorun",
