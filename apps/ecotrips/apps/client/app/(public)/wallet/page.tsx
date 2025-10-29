@@ -1,4 +1,4 @@
-import { CardGlass, buttonClassName } from "@ecotrips/ui";
+import { CardGlass, buttonClassName, Badge } from "@ecotrips/ui";
 import { createEcoTripsFunctionClient } from "@ecotrips/api";
 import {
   ConciergeDailyBriefQuery,
@@ -13,6 +13,15 @@ import { ConciergeDailyBriefs } from "../components/ConciergeDailyBriefs";
 import { GroupSavingsChat } from "../components/GroupSavingsChat";
 import { WalletOfflinePack } from "../components/WalletOfflinePack";
 import { TripRecapCard } from "./TripRecapCard";
+
+export default async function WalletPage() {
+  // Stub data for fixture mode
+  const offline = true;
+  const errors: string[] = [];
+  const timezone = "Africa/Kigali";
+  const dailyBrief: ConciergeDailyBriefResponse = { briefs: [], timezone };
+  const timeToLeave: TimeToLeaveResponse = { departures: [], timezone };
+  const safety: SafetyAdvisoryResponse = { advisories: [] };
 
   return (
     <div className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 px-4 pb-24 pt-10">

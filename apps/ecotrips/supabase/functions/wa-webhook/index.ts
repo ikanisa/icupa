@@ -140,8 +140,8 @@ const handler = withObs(async (req) => {
       }
 
       const chatState = await fetchChatStateRecord(message.from);
-      let currentState = chatState.state;
-      let stateData = { ...chatState.data };
+      const currentState = chatState.state;
+      const stateData = { ...chatState.data };
 
       const existingSession = await getLatestSession(message.from);
       let sessionId = existingSession ?? null;

@@ -108,12 +108,12 @@ export default function RefundsPage({
 
       <div style={{ marginBottom: "2rem" }}>
         <h2 style={{ marginBottom: "0.75rem" }}>Initiate Refund</h2>
-        {/* @ts-ignore -- Async Server Action binding */}
+        {/* @ts-expect-error -- Async Server Action binding */}
         <RefundForm filters={filters} page={page} />
       </div>
 
       <Suspense fallback={<p>Loading refund ledger…</p>}>
-        {/* @ts-ignore -- Async Server Component */}
+        {/* @ts-expect-error -- Async Server Component */}
         <RefundsData filters={filters} selectedId={selectedId} page={page} />
       </Suspense>
     </section>

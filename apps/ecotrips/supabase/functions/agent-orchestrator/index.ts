@@ -796,7 +796,7 @@ const handler = withObs(async (req) => {
 
   const dryRun = Boolean(payload.dry_run);
   let sessionId = payload.session_id ?? null;
-  let moderationSummary: ModerationSummary | null = null;
+  const moderationSummary: ModerationSummary | null = null;
   let routerEventId: number | undefined;
 
   try {
@@ -1316,7 +1316,7 @@ function extractRequired(block: string): string[] | undefined {
   if (inlineMatch) {
     const list = inlineMatch[1]
       .split(",")
-      .map((item) => item.trim().replace(/^['\"]|['\"]$/g, ""))
+      .map((item) => item.trim().replace(/^['"]|['"]$/g, ""))
       .filter((item) => item.length > 0);
     return list.length ? list : undefined;
   }

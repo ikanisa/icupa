@@ -1,8 +1,11 @@
-import { CardGlass } from "@ecotrips/ui";
+import { CardGlass, buttonClassName } from "@ecotrips/ui";
 import { createEcoTripsFunctionClient } from "@ecotrips/api";
 import type { PriceBreakdown } from "@ecotrips/types";
 
 import { ChatOptionModals } from "./ChatOptionModals";
+import { SosCard } from "./SosCard";
+import { SupportChat } from "../components/SupportChat";
+import { PublicPage } from "../components/PublicPage";
 
 async function loadSupportBreakdowns(): Promise<Record<string, PriceBreakdown>> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -35,12 +38,6 @@ async function loadSupportBreakdowns(): Promise<Record<string, PriceBreakdown>> 
 
 export default async function SupportPage() {
   const breakdowns = await loadSupportBreakdowns();
-
-import { SosCard } from "./SosCard";
-
-import { SupportChat } from "../components/SupportChat";
-
-export default function SupportPage() {
   return (
     <PublicPage>
       <CardGlass title="Support" subtitle="SupportCopilot triages with human-in-the-loop controls.">

@@ -174,13 +174,13 @@ export default async function FinancePage() {
             <p className="mt-3 text-xs text-white/60">Ledger entry append ensures audit trail and dual control.</p>
           </div>
           <p className="mt-3 text-xs text-white/60">Ledger entry append ensures audit trail and dual control.</p>
-        </div>
+        </CardGlass>
         {financeBreakdown && (
           <div className="mt-6">
             <ExplainPrice breakdown={financeBreakdown} headline="REF-104 pricing" />
           </div>
         )}
-      </CardGlass>
+      </div>
       <CardGlass title="Guardrails" subtitle="FinOps approvals require dual control and observability.">
         <ul className="space-y-2 text-sm text-white/80">
           <li>• payments-refund edge function logs structured telemetry with request IDs.</li>
