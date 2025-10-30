@@ -1,0 +1,10 @@
+{
+  "server": "${SUPABASE_MCP_REMOTE_URL}",
+  "auth": "oauth2",
+  "client_id": "${SUPABASE_MCP_OAUTH_CLIENT_ID}",
+  "client_secret": "${SUPABASE_MCP_OAUTH_CLIENT_SECRET}",
+  "tools_manifest": "./mcp/legal.tools.json",
+  "role": "legal_agent",
+  "rls_context": {},
+  "human_approval": false
+}

@@ -13,7 +13,7 @@
     "./*": "./src/*"
   },
   "dependencies": {
-    "zod": "^3.25.76"
+    "zod": "^4.1.12"
   },
   "peerDependencies": {
     "@icupa/types": "workspace:*"

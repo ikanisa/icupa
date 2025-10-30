@@ -1,0 +1,65 @@
+{
+  "name": "legal_tools",
+  "description": "Read case docs, create filings, manage deadlines.",
+  "tools": [
+    {
+      "name": "fetch_case_docs",
+      "type": "sql",
+      "description": "Retrieve all documents for a specific case",
+      "sql": "select * from public.doc_store where case_id = :case_id order by created_at desc",
+      "parameters": [
+        {
+          "name": "case_id",
+          "type": "uuid",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "draft_filing",
+      "type": "sql",
+      "description": "Create a draft filing for a case",
+      "sql": "insert into public.filings (case_id, title, body, status) values (:case_id, :title, :body, 'draft') returning id",
+      "parameters": [
+        {
+          "name": "case_id",
+          "type": "uuid",
+          "required": true
+        },
+        {
+          "name": "title",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "body",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "set_deadline",
+      "type": "sql",
+      "description": "Set a deadline for a case",
+      "sql": "insert into public.deadlines (case_id, due_at, note) values (:case_id, :due_at, :note) returning id",
+      "parameters": [
+        {
+          "name": "case_id",
+          "type": "uuid",
+          "required": true
+        },
+        {
+          "name": "due_at",
+          "type": "timestamp",
+          "required": true
+        },
+        {
+          "name": "note",
+          "type": "string",
+          "required": false
+        }
+      ]
+    }
+  ]
+}
