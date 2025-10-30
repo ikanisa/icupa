@@ -33,10 +33,10 @@ export function hasAudio(sdp: string): boolean {
  * Extract codec preferences from SDP
  */
 export function extractCodecs(sdp: string): string[] {
-  const codecMatches = sdp.match(/a=rtpmap:\d+ ([\w-]+)/g);
+  const codecMatches = sdp.match(/a=rtpmap:\d+ (.+)/g);
   if (!codecMatches) return [];
   return codecMatches.map((match) => {
     const parts = match.split(" ");
-    return parts[1] || "";
+    return parts.slice(1).join(" ").trim();
   });
 }
