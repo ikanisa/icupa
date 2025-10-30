@@ -1,0 +1,14 @@
+{
+  "server": "${SUPABASE_MCP_REMOTE_URL}",
+  "auth": "oauth2",
+  "client_id": "${SUPABASE_MCP_OAUTH_CLIENT_ID}",
+  "client_secret": "${SUPABASE_MCP_OAUTH_CLIENT_SECRET}",
+  "tools_manifest": "./mcp/cfo.tools.json",
+  "role": "cfo_agent",
+  "rls_context": {},
+  "human_approval": true,
+  "approval_threshold": {
+    "amount": 10000,
+    "description": "Journal entries above $10,000 require human approval"
+  }
+}

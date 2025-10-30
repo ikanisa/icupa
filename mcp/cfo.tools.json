@@ -1,0 +1,107 @@
+{
+  "name": "cfo_tools",
+  "description": "Read ledgers, post invoices/journals, read tax rules and FX rates.",
+  "tools": [
+    {
+      "name": "read_recent_journals",
+      "type": "sql",
+      "description": "Retrieve the most recent general ledger entries",
+      "sql": "select * from public.gl_entries order by created_at desc limit 100",
+      "parameters": []
+    },
+    {
+      "name": "post_invoice",
+      "type": "sql",
+      "description": "Create a new invoice for a customer",
+      "sql": "insert into public.invoices (customer_id, amount, due_date, currency) values (:customer_id, :amount, :due_date, :currency) returning id",
+      "parameters": [
+        {
+          "name": "customer_id",
+          "type": "uuid",
+          "required": false
+        },
+        {
+          "name": "amount",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "due_date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "currency",
+          "type": "string",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "post_journal",
+      "type": "sql",
+      "description": "Post a journal entry to the general ledger",
+      "sql": "insert into public.gl_entries (entry_date, account_dr, account_cr, amount, memo) values (:entry_date, :account_dr, :account_cr, :amount, :memo) returning id",
+      "parameters": [
+        {
+          "name": "entry_date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "account_dr",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "account_cr",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "amount",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "memo",
+          "type": "string",
+          "required": false
+        }
+      ]
+    },
+    {
+      "name": "request_journal_approval",
+      "type": "sql",
+      "description": "Submit a journal entry for human approval before posting",
+      "sql": "insert into public.pending_journals (entry_date, account_dr, account_cr, amount, memo) values (:entry_date, :account_dr, :account_cr, :amount, :memo) returning id",
+      "parameters": [
+        {
+          "name": "entry_date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "account_dr",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "account_cr",
+          "type": "string",
+          "required": true
+        },
+        {
+          "name": "amount",
+          "type": "number",
+          "required": true
+        },
+        {
+          "name": "memo",
+          "type": "string",
+          "required": false
+        }
+      ]
+    }
+  ]
+}
