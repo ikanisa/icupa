@@ -15,6 +15,7 @@
     "dev:supplier": "pnpm --filter @ecotrips/supplier dev",
     "build:all": "pnpm -r build",
     "dev:agents": "npm --prefix agents-service run dev",
+    "dev:voice-agent": "pnpm --filter @icupa/voice-agent dev",
     "prebuild": "node scripts/ci/check-supabase-env.mjs",
     "pretest": "node scripts/ci/reset-supabase-test-db.mjs",
     "build": "tsc -b && vite build",
