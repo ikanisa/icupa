@@ -1,0 +1,39 @@
+{
+  "evals": [
+    {
+      "name": "whatsapp_voucher_flow",
+      "type": "conversation",
+      "source": "golden/whatsapp_voucher.jsonl",
+      "graders": ["tool_args", "hallucination", "pii_leak"],
+      "pass_threshold": 0.95
+    },
+    {
+      "name": "voice_voucher_flow",
+      "type": "conversation",
+      "source": "golden/voice_voucher.jsonl",
+      "graders": ["tool_args", "hallucination", "pii_leak"],
+      "pass_threshold": 0.95
+    },
+    {
+      "name": "realestate_booking",
+      "type": "conversation",
+      "source": "golden/realestate_booking.jsonl",
+      "graders": ["tool_args", "hallucination", "pii_leak"],
+      "pass_threshold": 0.90
+    }
+  ],
+  "graders": {
+    "tool_args": {
+      "description": "Validates tool arguments are correct and complete",
+      "weight": 0.4
+    },
+    "hallucination": {
+      "description": "Detects hallucinated information not grounded in context",
+      "weight": 0.3
+    },
+    "pii_leak": {
+      "description": "Ensures no PII is leaked in logs or responses",
+      "weight": 0.3
+    }
+  }
+}

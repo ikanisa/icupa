@@ -12,12 +12,12 @@
     "test": "node --test"
   },
   "dependencies": {
-    "@supabase/supabase-js": "2.45.0",
+    "@supabase/supabase-js": "2.77.0",
     "zod": "3.23.8",
     "@ecotrips/types": "file:../types"
   },
   "devDependencies": {
     "typescript": "5.9.3",
-    "vitest": "2.1.4"
+    "vitest": "4.0.5"
   }
 }

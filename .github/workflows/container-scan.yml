@@ -25,13 +25,13 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       
       - name: Build container image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./agents-service/Dockerfile
@@ -64,7 +64,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
       
       - name: Scan with Grype
-        uses: anchore/scan-action@v3
+        uses: anchore/scan-action@v7
         id: grype
         with:
           image: icupa-agents-service:${{ github.sha }}
