@@ -1,0 +1,3 @@
+{"user": "Hello, I want to create a voucher for 50 dollars for customer +250788111222", "expected_tools": ["create_voucher"], "expected_args": {"customer_msisdn": "+250788111222", "amount": 50}}
+{"user": "Check if customer +250788333444 exists", "expected_tools": ["lookup_customer"], "expected_args": {"msisdn": "+250788333444"}}
+{"user": "Please redeem my voucher with ID test-voucher-123", "expected_tools": ["redeem_voucher"], "expected_args": {"voucher_id": "test-voucher-123"}}

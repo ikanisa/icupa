@@ -1,0 +1,36 @@
+{
+  "agents": [
+    {
+      "id": "voice_agent",
+      "type": "realtime",
+      "tools": ["lookup_customer", "create_voucher"],
+      "entry": true,
+      "description": "Voice agent for phone-based voucher operations"
+    },
+    {
+      "id": "voucher_agent",
+      "type": "responses",
+      "tools": [
+        "lookup_customer",
+        "create_voucher",
+        "redeem_voucher",
+        "void_voucher"
+      ],
+      "description": "Text-based voucher agent for WhatsApp and other channels"
+    },
+    {
+      "id": "crm_agent",
+      "type": "responses",
+      "tools": [],
+      "description": "CRM agent for customer relationship management (future)"
+    }
+  ],
+  "routes": [
+    {
+      "from": "voice_agent",
+      "to": "voucher_agent",
+      "when": "voucher_intent",
+      "description": "Route from voice to voucher agent when voucher intent is detected"
+    }
+  ]
+}

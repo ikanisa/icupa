@@ -33,9 +33,11 @@ export default defineConfig(({ mode }) => ({
       "packages/**/*.{test,spec}.{ts,tsx}",
       "tests/**/*.{test,spec}.{ts,tsx}",
       "supabase/functions/**/*.{test,spec}.{ts,tsx}",
+      "ai/**/*.{test,spec}.{ts,tsx}",
     ],
     environmentMatchGlobs: [
       ["supabase/functions/**", "node"],
+      ["ai/**", "node"],
     ],
     coverage: {
       provider: "v8",
@@ -56,6 +58,7 @@ export default defineConfig(({ mode }) => ({
         "src/**/*.{ts,tsx}",
         "packages/**/*.{ts,tsx}",
         "supabase/functions/**/*.{ts,tsx}",
+        "ai/**/*.{ts,tsx}",
       ],
       all: true,
       lines: 70,
