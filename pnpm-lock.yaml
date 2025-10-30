@@ -1025,6 +1025,8 @@ importers:
         specifier: ^5.8.3
         version: 5.9.3
 
+  libs: {}
+
   packages/config:
     dependencies:
       '@icupa/types':
