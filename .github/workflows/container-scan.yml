@@ -64,7 +64,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
       
       - name: Scan with Grype
-        uses: anchore/scan-action@v3
+        uses: anchore/scan-action@v7
         id: grype
         with:
           image: icupa-agents-service:${{ github.sha }}
