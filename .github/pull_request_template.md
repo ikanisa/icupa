@@ -131,6 +131,15 @@ VARIABLE_NAME=description
 - [ ] Input validation added where needed
 - [ ] Authorization checks added where needed
 
+### MCP/AI Agent Changes (if applicable)
+- [ ] New SQL policies covered by tests
+- [ ] No direct use of service_role outside server-trusted contexts
+- [ ] Audit logs created for write tools
+- [ ] .env not committed; secrets in CI use repo-level env vars
+- [ ] Human-approval flow documented (if enabled)
+- [ ] MCP tool manifest security lint passed (`pnpm security:lint-mcp`)
+- [ ] RLS policies tested with negative test cases
+
 ### Deployment Readiness
 - [ ] PR title is clear and descriptive
 - [ ] PR is linked to relevant issue(s)

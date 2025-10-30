@@ -13,8 +13,8 @@ jobs:
     env:
       PROJECT_REF: ${{ github.event.inputs.project_ref || secrets.SUPABASE_PROJECT_REF }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
         with:
           node-version: 20.11.1
           cache: 'npm'

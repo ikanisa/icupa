@@ -1,0 +1,9 @@
+{
+  "remote_url": "${SUPABASE_MCP_REMOTE_URL}",
+  "local_url": "${SUPABASE_MCP_LOCAL_URL}",
+  "auth": {
+    "type": "oauth2",
+    "client_id": "${SUPABASE_MCP_OAUTH_CLIENT_ID}",
+    "client_secret": "${SUPABASE_MCP_OAUTH_CLIENT_SECRET}"
+  }
+}

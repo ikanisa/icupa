@@ -15,10 +15,20 @@ ICUPA is a three-surface, multi-tenant Progressive Web Application that powers d
 │   ├── lib/                   # Utility modules (formatters, motion helpers, etc.)
 │   └── pages/                 # Route-level entry points wired through react-router
 ├── agents-service/            # Fastify-based service for OpenAI agent endpoints (Phase 0 health check only)
+├── mcp/                       # Model Context Protocol for AI agents (waiter, CFO, legal)
+│   ├── runtime/               # Tool execution wrapper with Zod validation
+│   ├── clients/               # Agent configurations (OAuth2, RLS context)
+│   ├── waiter.tools.json      # Waiter tool manifest
+│   ├── cfo.tools.json         # CFO tool manifest
+│   └── legal.tools.json       # Legal tool manifest
 ├── supabase/
 │   ├── migrations/            # SQL migrations applied during `supabase db reset`
 │   ├── seed/                  # Seed data to exercise diner shell flows
-│   └── functions/             # Edge Function sources (stubs during Phase 0)
+│   └── functions/             # Edge Function sources (including MCP approval workflows)
+├── tests/                     # Test suites (Vitest, Playwright, MCP)
+├── docs/ai-agents/            # MCP and agent documentation
+├── config/                    # Configuration files (MCP, etc.)
+├── scripts/security/          # Security linting tools (MCP tool validation)
 ├── package.json               # Workspace scripts and dependencies
 ├── vite.config.ts             # Vite tooling & alias configuration
 └── .env.example               # Template for local environment variables
@@ -156,6 +166,66 @@ That ensures pretest database resets, SQL migrations, and `npm run supabase:test
 When you need to run the CLI directly, prefer `npx supabase <command>` so the project-pinned version stays in sync across machines.
 
 Scripts are defined in `package.json` alongside the curated dependency set (React 18, Radix UI, Tailwind, Framer Motion, Supabase client SDK, TanStack Query, etc.).【F:package.json†L1-L61】
+
+---
+
+## MCP (Model Context Protocol) for AI Agents
+
+ICUPA uses **Supabase Remote MCP** as a shared control plane for AI agents with least-privilege access:
+
+- **Waiter Agent 🍽️** - Reads menus, creates orders, manages payments (scoped to venue)
+- **CFO Agent 💰** - Manages ledgers, invoices, journals (with human approval for >$10k)
+- **Legal Agent ⚖️** - Handles cases, filings, documents (scoped to assigned cases)
+
+### Quick Start
+
+```bash
+# Start local Supabase and apply MCP migration
+pnpm supabase:start
+pnpm supabase:migrate
+
+# Run MCP tests
+pnpm test:mcp
+
+# Security lint for tool manifests
+pnpm security:lint-mcp
+```
+
+### Key Features
+
+- ✅ **Least-Privilege Roles**: Dedicated PostgreSQL roles per agent (waiter_agent, cfo_agent, legal_agent)
+- ✅ **Row-Level Security**: Data scoped by venue_id, assigned_to, or unrestricted but audited
+- ✅ **Audit Trail**: All operations logged to `mcp_audit_log` with parameters and outcomes
+- ✅ **Parameterized SQL**: Tools use `:param` syntax (no SQL injection)
+- ✅ **Human-in-the-Loop**: High-value operations require approval via Edge Functions
+
+### Directory Structure
+
+```
+mcp/
+├── runtime/executeTool.ts      # Tool execution wrapper with Zod validation
+├── clients/                     # Agent configurations (OAuth2, RLS context)
+│   ├── waiter.agent.json
+│   ├── cfo.agent.json
+│   └── legal.agent.json
+├── waiter.tools.json            # Waiter tool manifest (menu, orders)
+├── cfo.tools.json               # CFO tool manifest (ledgers, invoices)
+└── legal.tools.json             # Legal tool manifest (cases, filings)
+```
+
+### Documentation
+
+- **Complete Guide**: [docs/ai-agents/mcp-guide.md](docs/ai-agents/mcp-guide.md)
+- **MCP README**: [mcp/README.md](mcp/README.md)
+- **Security**: [SECURITY.md](SECURITY.md#mcp-agent-security-model-context-protocol)
+
+### Testing
+
+| Script | Purpose |
+| --- | --- |
+| `pnpm test:mcp` | Run MCP unit and integration tests |
+| `pnpm security:lint-mcp` | Validate tool manifests for dangerous SQL patterns |
+| `pnpm supabase:test` | Run SQL-based RLS policy tests |
 
 ---
 
