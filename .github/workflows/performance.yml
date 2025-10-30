@@ -223,7 +223,7 @@ jobs:
           fi
       
       - name: Compare bundle sizes
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const baseSize = parseInt('${{ steps.base.outputs.size }}');
