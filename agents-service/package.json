@@ -18,7 +18,7 @@
     "ai:health": "curl -sS http://localhost:8787/ai/healthz"
   },
   "dependencies": {
-    "@openai/agents": "^0.1.6",
+    "@openai/agents": "^0.2.1",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/auto-instrumentations-node": "^0.46.1",
     "@opentelemetry/exporter-trace-otlp-http": "^0.207.0",
