@@ -1,0 +1,21 @@
+{
+  "supabase": {
+    "url": "${SUPABASE_URL}",
+    "description": "Supabase backend for voucher and customer data"
+  },
+  "whatsapp": {
+    "number_id": "${WA_PHONE_NUMBER_ID}",
+    "api_base": "${WA_API_BASE}",
+    "description": "WhatsApp Cloud API for messaging"
+  },
+  "sip": {
+    "trunk": "${SIP_TRUNK_URI}",
+    "description": "SIP trunk for voice calls (provider-specific)"
+  },
+  "openai": {
+    "api_key": "${OPENAI_API_KEY}",
+    "responses_model": "${OPENAI_RESPONSES_MODEL}",
+    "realtime_model": "${OPENAI_REALTIME_MODEL}",
+    "description": "OpenAI API for AI responses and realtime voice"
+  }
+}
