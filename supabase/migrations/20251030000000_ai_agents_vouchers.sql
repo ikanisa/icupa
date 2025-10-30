@@ -43,7 +43,11 @@ CREATE TABLE IF NOT EXISTS public.vouchers (
   redeemed_at TIMESTAMPTZ,
   voided_at TIMESTAMPTZ,
   metadata JSONB DEFAULT '{}'::jsonb,
-  notes TEXT
+  notes TEXT,
+  CONSTRAINT fk_vouchers_customer 
+    FOREIGN KEY (customer_msisdn) 
+    REFERENCES public.customers(msisdn) 
+    ON DELETE RESTRICT
 );
 
 -- Add indexes for performance
@@ -110,11 +114,22 @@ CREATE POLICY "Service role has full access to vouchers"
   WITH CHECK (true);
 
 -- Authenticated users can read their own data
+-- NOTE: This assumes a customer_user_mapping table exists to link auth.uid() to customers.msisdn
+-- If not implemented yet, these policies should be adjusted or removed
+-- For now, we rely on service_role access for AI agents
+
+-- Uncomment and adjust when user-customer mapping is implemented:
+/*
 CREATE POLICY "Users can read their own customer data"
   ON public.customers
   FOR SELECT
   TO authenticated
-  USING (auth.uid()::text = id::text);
+  USING (
+    msisdn IN (
+      SELECT customer_msisdn FROM public.customer_user_mapping 
+      WHERE user_id = auth.uid()
+    )
+  );
 
 CREATE POLICY "Users can read their own vouchers"
   ON public.vouchers
@@ -122,9 +137,11 @@ CREATE POLICY "Users can read their own vouchers"
   TO authenticated
   USING (
     customer_msisdn IN (
-      SELECT msisdn FROM public.customers WHERE id::text = auth.uid()::text
+      SELECT customer_msisdn FROM public.customer_user_mapping 
+      WHERE user_id = auth.uid()
     )
   );
+*/
 
 -- ====================================================================
 -- SAMPLE DATA (for development/testing only)

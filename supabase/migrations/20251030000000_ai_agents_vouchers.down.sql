@@ -4,10 +4,13 @@
 -- Date: 2025-10-30
 
 -- Drop policies
-DROP POLICY IF EXISTS "Users can read their own vouchers" ON public.vouchers;
-DROP POLICY IF EXISTS "Users can read their own customer data" ON public.customers;
+-- DROP POLICY IF EXISTS "Users can read their own vouchers" ON public.vouchers;
+-- DROP POLICY IF EXISTS "Users can read their own customer data" ON public.customers;
 DROP POLICY IF EXISTS "Service role has full access to vouchers" ON public.vouchers;
 DROP POLICY IF EXISTS "Service role has full access to customers" ON public.customers;
+
+-- Drop foreign key constraint
+ALTER TABLE IF EXISTS public.vouchers DROP CONSTRAINT IF EXISTS fk_vouchers_customer;
 
 -- Drop triggers
 DROP TRIGGER IF EXISTS update_vouchers_updated_at ON public.vouchers;
