@@ -25,20 +25,23 @@ The main ICUPA application is a **single Vite + React SPA** with three integrate
 │   │   └── admin/             # Admin surface pages (AI config, analytics, compliance)
 │   ├── integrations/          # Supabase client + typed helpers
 │   ├── hooks/                 # Reusable React hooks
-│   └── lib/                   # Utility modules (formatters, motion helpers, etc.)
-├── agents-service/            # Fastify-based AI agents orchestration service
-│   ├── src/agents/            # AI Waiter, Allergen Guardian, Upsell agents
-│   ├── src/tools/             # Agent tool implementations
-│   └── src/middleware/        # Policy enforcement, auth, logging
+│   ├── lib/                   # Utility modules (formatters, motion helpers, etc.)
+│   └── pages/                 # Route-level entry points wired through react-router
+├── agents-service/            # Fastify-based service for OpenAI agent endpoints (Phase 0 health check only)
+├── mcp/                       # Model Context Protocol for AI agents (waiter, CFO, legal)
+│   ├── runtime/               # Tool execution wrapper with Zod validation
+│   ├── clients/               # Agent configurations (OAuth2, RLS context)
+│   ├── waiter.tools.json      # Waiter tool manifest
+│   ├── cfo.tools.json         # CFO tool manifest
+│   └── legal.tools.json       # Legal tool manifest
 ├── supabase/
 │   ├── migrations/            # SQL migrations applied during `supabase db reset`
 │   ├── seed/                  # Seed data to exercise diner shell flows
-│   └── functions/             # Edge Function sources
-├── packages/                  # Shared workspace packages
-│   ├── ui/                    # Shared UI component library
-│   ├── db/                    # Supabase client and types
-│   ├── types/                 # Shared TypeScript types
-│   └── config/                # Shared configuration
+│   └── functions/             # Edge Function sources (including MCP approval workflows)
+├── tests/                     # Test suites (Vitest, Playwright, MCP)
+├── docs/ai-agents/            # MCP and agent documentation
+├── config/                    # Configuration files (MCP, etc.)
+├── scripts/security/          # Security linting tools (MCP tool validation)
 ├── package.json               # Workspace scripts and dependencies
 ├── vite.config.ts             # Vite tooling & alias configuration
 └── .env.example               # Template for local environment variables
