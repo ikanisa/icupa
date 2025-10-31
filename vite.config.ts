@@ -39,7 +39,6 @@ export default defineConfig(({ mode }) => ({
     environmentMatchGlobs: [
       ["supabase/functions/**", "node"],
       ["ai/**", "node"],
-      ["libs/**", "node"],
     ],
     coverage: {
       provider: "v8",
@@ -59,7 +58,6 @@ export default defineConfig(({ mode }) => ({
       include: [
         "src/**/*.{ts,tsx}",
         "packages/**/*.{ts,tsx}",
-        "libs/**/*.{ts,tsx}",
         "supabase/functions/**/*.{ts,tsx}",
         "ai/**/*.{ts,tsx}",
       ],
