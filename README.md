@@ -6,23 +6,59 @@ ICUPA is a three-surface, multi-tenant Progressive Web Application that powers d
 
 ## Repository structure
 
+### Primary PWA Implementation (Production)
+
+The main ICUPA application is a **single Vite + React SPA** with three integrated surfaces:
+
 ```
 ├── public/                    # Static assets consumed by the PWA shell
-├── src/                       # React application code
-│   ├── components/            # Shared UI building blocks (client, merchant, admin shells)
+├── src/                       # React application code (PRIMARY IMPLEMENTATION)
+│   ├── components/
+│   │   ├── client/            # Diner/Client surface components
+│   │   ├── merchant/          # Merchant/Vendor surface components
+│   │   ├── admin/             # Admin panel components (includes AI agent management)
+│   │   └── ui/                # Shared design system components
+│   ├── modules/
+│   │   ├── routing/           # AppRouter with three surfaces: /, /merchant, /admin
+│   │   ├── client/            # Client surface pages
+│   │   ├── merchant/          # Merchant surface pages
+│   │   └── admin/             # Admin surface pages (AI config, analytics, compliance)
 │   ├── integrations/          # Supabase client + typed helpers
 │   ├── hooks/                 # Reusable React hooks
-│   ├── lib/                   # Utility modules (formatters, motion helpers, etc.)
-│   └── pages/                 # Route-level entry points wired through react-router
-├── agents-service/            # Fastify-based service for OpenAI agent endpoints (Phase 0 health check only)
+│   └── lib/                   # Utility modules (formatters, motion helpers, etc.)
+├── agents-service/            # Fastify-based AI agents orchestration service
+│   ├── src/agents/            # AI Waiter, Allergen Guardian, Upsell agents
+│   ├── src/tools/             # Agent tool implementations
+│   └── src/middleware/        # Policy enforcement, auth, logging
 ├── supabase/
 │   ├── migrations/            # SQL migrations applied during `supabase db reset`
 │   ├── seed/                  # Seed data to exercise diner shell flows
-│   └── functions/             # Edge Function sources (stubs during Phase 0)
+│   └── functions/             # Edge Function sources
+├── packages/                  # Shared workspace packages
+│   ├── ui/                    # Shared UI component library
+│   ├── db/                    # Supabase client and types
+│   ├── types/                 # Shared TypeScript types
+│   └── config/                # Shared configuration
 ├── package.json               # Workspace scripts and dependencies
 ├── vite.config.ts             # Vite tooling & alias configuration
 └── .env.example               # Template for local environment variables
 ```
+
+**This Vite app is built and deployed by CI/CD** (`pnpm dev` → `pnpm build`).
+
+### Experimental Next.js Apps
+
+The repository also contains experimental Next.js implementations (not used in production):
+
+```
+├── apps/
+│   ├── client/                # Experimental standalone client PWA (Next.js)
+│   ├── vendor/                # Experimental standalone vendor/merchant PWA (Next.js)
+│   ├── admin/                 # Experimental standalone admin panel (Next.js)
+│   └── web/                   # Experimental unified Next.js app (imports from src/)
+```
+
+These apps are for migration exploration and are **not currently deployed**.
 
 ---
 
@@ -156,6 +192,66 @@ That ensures pretest database resets, SQL migrations, and `npm run supabase:test
 When you need to run the CLI directly, prefer `npx supabase <command>` so the project-pinned version stays in sync across machines.
 
 Scripts are defined in `package.json` alongside the curated dependency set (React 18, Radix UI, Tailwind, Framer Motion, Supabase client SDK, TanStack Query, etc.).【F:package.json†L1-L61】
+
+---
+
+## MCP (Model Context Protocol) for AI Agents
+
+ICUPA uses **Supabase Remote MCP** as a shared control plane for AI agents with least-privilege access:
+
+- **Waiter Agent 🍽️** - Reads menus, creates orders, manages payments (scoped to venue)
+- **CFO Agent 💰** - Manages ledgers, invoices, journals (with human approval for >$10k)
+- **Legal Agent ⚖️** - Handles cases, filings, documents (scoped to assigned cases)
+
+### Quick Start
+
+```bash
+# Start local Supabase and apply MCP migration
+pnpm supabase:start
+pnpm supabase:migrate
+
+# Run MCP tests
+pnpm test:mcp
+
+# Security lint for tool manifests
+pnpm security:lint-mcp
+```
+
+### Key Features
+
+- ✅ **Least-Privilege Roles**: Dedicated PostgreSQL roles per agent (waiter_agent, cfo_agent, legal_agent)
+- ✅ **Row-Level Security**: Data scoped by venue_id, assigned_to, or unrestricted but audited
+- ✅ **Audit Trail**: All operations logged to `mcp_audit_log` with parameters and outcomes
+- ✅ **Parameterized SQL**: Tools use `:param` syntax (no SQL injection)
+- ✅ **Human-in-the-Loop**: High-value operations require approval via Edge Functions
+
+### Directory Structure
+
+```
+mcp/
+├── runtime/executeTool.ts      # Tool execution wrapper with Zod validation
+├── clients/                     # Agent configurations (OAuth2, RLS context)
+│   ├── waiter.agent.json
+│   ├── cfo.agent.json
+│   └── legal.agent.json
+├── waiter.tools.json            # Waiter tool manifest (menu, orders)
+├── cfo.tools.json               # CFO tool manifest (ledgers, invoices)
+└── legal.tools.json             # Legal tool manifest (cases, filings)
+```
+
+### Documentation
+
+- **Complete Guide**: [docs/ai-agents/mcp-guide.md](docs/ai-agents/mcp-guide.md)
+- **MCP README**: [mcp/README.md](mcp/README.md)
+- **Security**: [SECURITY.md](SECURITY.md#mcp-agent-security-model-context-protocol)
+
+### Testing
+
+| Script | Purpose |
+| --- | --- |
+| `pnpm test:mcp` | Run MCP unit and integration tests |
+| `pnpm security:lint-mcp` | Validate tool manifests for dangerous SQL patterns |
+| `pnpm supabase:test` | Run SQL-based RLS policy tests |
 
 ---
 
@@ -363,16 +459,54 @@ The diner pay screen now calls these Edge Functions, surfaces pending vs. captur
 
 ---
 
-## AI and agent experience roadmap
+## AI Agent Management & Architecture
 
-The UI includes dedicated surfaces for the AI waiter, allergen guardian, and merchant automation flows. As we wire the OpenAI Agents SDK, we will:
+### Three PWA Surfaces
 
-1. Register agents (waiter, upsell, inventory, compliance, etc.) inside a dedicated agents service (or Supabase Edge Functions) that consumes Supabase tools and honours guardrails (age gates, allergen blocks, availability filters).
-2. Enable retrieval using Supabase collections (`menu`, `allergens`, `policies`) so conversational answers cite menu knowledge cards.
-3. Capture telemetry in `agent_sessions` and `agent_events` tables to drive bandit learning, evaluations, and transparency dashboards.
-4. Surface per-tenant configuration (instructions, autonomy levels, budgets, experiments) through the admin UI while keeping kill-switches available across regions.
+ICUPA provides three distinct progressive web app surfaces, all accessible from the main Vite application:
 
-Refer back to this README as the authoritative overview when expanding the agents layer—the document will be updated alongside implementation milestones.
+1. **Client/Diner PWA** (`/`) - For diners ordering at restaurants
+   - Menu browsing with AI-powered search
+   - AI Waiter chat assistant
+   - Cart management and checkout
+   - Receipt viewing
+
+2. **Merchant/Vendor PWA** (`/merchant`) - For restaurant staff
+   - Kitchen Display System (KDS)
+   - Floor management
+   - Menu and inventory management
+   - Order tracking and analytics
+
+3. **Admin Panel** (`/admin`) - For platform administrators
+   - **AI Agent Configuration** - Full control over agent behavior
+   - Tenant and location management
+   - Analytics and compliance dashboards
+   - Feature flags and experiments
+
+### AI Agents Service Integration
+
+The **`agents-service/`** directory contains a standalone Fastify service that orchestrates AI agents:
+
+- **AI Waiter** - Conversational ordering assistant
+- **Allergen Guardian** - Safety-focused allergen checking
+- **Upsell Agent** - Intelligent recommendation engine
+
+**Admin Panel AI Management** (accessible at `/admin`):
+- Configure agent autonomy levels (0-3)
+- Set budget limits (session and daily)
+- Define custom instructions per agent
+- Enable/disable tools from allow-list
+- Track audit logs for all configuration changes
+- Monitor agent performance metrics
+
+The admin panel connects to the agents service via Supabase Edge Functions, allowing real-time configuration updates that propagate to all running agent instances.
+
+**Key Features:**
+- ✅ All AI agents are managed through the admin panel
+- ✅ Per-tenant configuration with override capabilities
+- ✅ Kill-switch support for emergency shutdowns
+- ✅ Comprehensive audit trails for compliance
+- ✅ Token usage tracking and budget enforcement
 
 ---
 

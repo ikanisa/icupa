@@ -1,0 +1,59 @@
+{
+  "name": "waiter_tools",
+  "description": "Read menus, create and update orders, manage pending payments.",
+  "tools": [
+    {
+      "name": "read_menu",
+      "type": "sql",
+      "description": "Retrieve active menu items for a venue",
+      "sql": "select * from public.menus where active = true order by position asc",
+      "parameters": []
+    },
+    {
+      "name": "create_order",
+      "type": "sql",
+      "description": "Create a new order for a table in a venue",
+      "sql": "insert into public.orders (venue_id, table_id, items, total) values (:venue_id, :table_id, :items, :total) returning id",
+      "parameters": [
+        {
+          "name": "venue_id",
+          "type": "uuid",
+          "required": true
+        },
+        {
+          "name": "table_id",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "items",
+          "type": "jsonb",
+          "required": true
+        },
+        {
+          "name": "total",
+          "type": "number",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "update_payment_status",
+      "type": "sql",
+      "description": "Update the status of a pending payment",
+      "sql": "update public.payments_pending set status = :status where id = :id returning *",
+      "parameters": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "required": true
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "required": true
+        }
+      ]
+    }
+  ]
+}

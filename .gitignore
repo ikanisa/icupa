@@ -36,6 +36,11 @@ artifacts/phase10/**
 !.env.example
 .husky/_
 
+# MCP agent configurations with secrets
+mcp/clients/*.local.json
+mcp/runtime/.env
+config/mcp.config.local.json
+
 # cleanup backup artifacts
 *.bak
 apps/ecotrips/app/src/env.ts.backup-before-nodeenv
