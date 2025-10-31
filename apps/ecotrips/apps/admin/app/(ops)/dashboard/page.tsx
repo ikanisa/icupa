@@ -1,6 +1,6 @@
 import { CardGlass, Stepper } from "@ecotrips/ui";
 import { SupplierSlaHeatmap } from "./supplier-sla-heatmap";
-
+import { FinopsCostPanel } from "./FinopsCostPanel";
 import { createAdminServerClient } from "../../lib/supabaseServer";
 
 type SupplierQueueRow = {
@@ -60,9 +60,6 @@ async function loadOfflineCoverage(): Promise<OfflineCoverageRow[]> {
 export default async function DashboardPage() {
   const [queue, coverage] = await Promise.all([loadSupplierQueue(), loadOfflineCoverage()]);
 
-import { FinopsCostPanel } from "./FinopsCostPanel";
-
-export default function DashboardPage() {
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <div className="lg:col-span-2">

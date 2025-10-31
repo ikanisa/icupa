@@ -84,7 +84,7 @@ export default function SupplierSlasPage({
 
       <FilterControls filters={filters} />
       <Suspense fallback={<p>Loading supplier SLA metrics…</p>}>
-        {/* @ts-ignore -- Async Server Component */}
+        {/* @ts-expect-error -- Async Server Component */}
         <SupplierSlasData filters={filters} selected={selected} page={page} />
       </Suspense>
     </section>

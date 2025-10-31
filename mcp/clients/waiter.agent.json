@@ -1,0 +1,12 @@
+{
+  "server": "${SUPABASE_MCP_REMOTE_URL}",
+  "auth": "oauth2",
+  "client_id": "${SUPABASE_MCP_OAUTH_CLIENT_ID}",
+  "client_secret": "${SUPABASE_MCP_OAUTH_CLIENT_SECRET}",
+  "tools_manifest": "./mcp/waiter.tools.json",
+  "role": "waiter_agent",
+  "rls_context": {
+    "app.venue_id": "<uuid-replace-with-actual-venue-id>"
+  },
+  "human_approval": false
+}

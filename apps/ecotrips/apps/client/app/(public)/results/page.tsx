@@ -1,8 +1,21 @@
 import { CardGlass, ExplainPrice, buttonClassName } from "@ecotrips/ui";
 import { createEcoTripsFunctionClient } from "@ecotrips/api";
-import { InventorySearchInput } from "@ecotrips/types";
+import { InventorySearchInput, type PriceBreakdown } from "@ecotrips/types";
 import Link from "next/link";
 import { PushNotificationBanner } from "../components/PushNotificationBanner";
+import { PlannerFeatureGate } from "../components/PlannerFeatureGate";
+import { ResultsList } from "./ResultsList";
+import { OptionCard } from "../components/OptionCard";
+import { CountdownChip } from "../components/CountdownChip";
+
+type RawSearchParams = Record<string, string | string[] | undefined>;
+
+function createPageMetadata(opts: { title: string; description: string; path: string }) {
+  return {
+    title: opts.title,
+    description: opts.description,
+  };
+}
 
 function parseSearchParams(searchParams: Record<string, string | string[] | undefined>) {
   const destination = typeof searchParams.destination === "string" ? searchParams.destination : "Kigali";
@@ -38,6 +51,9 @@ async function loadResults(searchParams: Record<string, string | string[] | unde
   if (!supabaseUrl || !anonKey) {
     return { items: [], ok: false, cacheHit: true };
   }
+  // Stub: Return fixture data when API is unavailable
+  return { items: [], ok: false, cacheHit: true };
+}
 
 export async function generateMetadata({ searchParams }: { searchParams: RawSearchParams }) {
   const input = parseSearchParams(searchParams);
@@ -147,7 +163,7 @@ export default async function ResultsPage({ searchParams }: { searchParams: Reco
             })}
           </ul>
         )}
-      </CardGlass>
+      </ResultsList>
       {isOffline && (
         <CardGlass title="Offline fallback" subtitle="Fixtures served within 3 seconds to maintain experience.">
           <p className="text-sm text-white/80">

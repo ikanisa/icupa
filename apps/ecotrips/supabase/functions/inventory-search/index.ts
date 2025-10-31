@@ -97,7 +97,7 @@ const handler = withObs(async (req) => {
   const cacheKey = `search:${paramsHash}`;
   const now = Date.now();
 
-  let cached = await getCachedResponse(cacheKey).catch((error) => {
+  const cached = await getCachedResponse(cacheKey).catch((error) => {
     console.log(JSON.stringify({
       level: "WARN",
       event: "inventory.cache.error",
