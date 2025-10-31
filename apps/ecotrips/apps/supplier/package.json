@@ -34,7 +34,7 @@
     "eslint-config-next": "16.0.1",
     "typescript": "5.9.3",
     "postcss": "8.5.6",
-    "autoprefixer": "10.4.16",
+    "autoprefixer": "10.4.21",
     "tailwindcss": "3.4.3",
     "@ecotrips/eslint-config": "file:../../packages/eslint-config",
     "@ecotrips/prettier-config": "file:../../packages/prettier-config"
