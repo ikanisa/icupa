@@ -19,7 +19,8 @@ const isLocalEnvironment = process.env.NODE_ENV === "development" || !process.en
 
 if (
   shouldSkipValidation &&
-  isNodeProduction
+  isNodeProduction &&
+  !isCiEnvironment
 ) {
   throw new Error(
     "SKIP_ENV_VALIDATION cannot be used when deploying the production runtime.",

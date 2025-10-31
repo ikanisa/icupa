@@ -1,232 +1,118 @@
 version: 2
-
 updates:
-  # GitHub Actions dependencies
-  - package-ecosystem: "github-actions"
+  # Root workspace dependencies
+  - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-      - "github-actions"
-    reviewers:
-      - "ikanisa/devops"
-    commit-message:
-      prefix: "chore(deps)"
-      include: "scope"
-  
-  # Root workspace (pnpm)
-  - package-ecosystem: "npm"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-      day: "tuesday"
+      time: "09:00"
+      timezone: "Africa/Kigali"
     open-pull-requests-limit: 10
-    versioning-strategy: increase
+    reviewers:
+      - "ikanisa/devops-team"
+    assignees:
+      - "ikanisa/core-team"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
     labels:
       - "dependencies"
-      - "npm"
-    reviewers:
-      - "ikanisa/platform"
-    commit-message:
-      prefix: "chore(deps)"
-      include: "scope"
-    ignore:
-      # Ignore major version updates for core frameworks
-      # These require manual testing and migration
-      - dependency-name: "react"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "react-dom"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "typescript"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "vite"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "@tanstack/react-query"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "@supabase/supabase-js"
-        update-types: ["version-update:semver-major"]
+      - "automated"
+    versioning-strategy: increase
+    # Auto-merge patch versions (1.2.3 -> 1.2.4)
+    # Requires GitHub auto-merge to be enabled
+    allow:
+      - dependency-type: "all"
     groups:
-      # Group Radix UI updates together
-      radix-ui:
+      security-updates:
         patterns:
-          - "@radix-ui/*"
-      # Group testing library updates together
-      testing:
-        patterns:
-          - "@testing-library/*"
-          - "vitest*"
-          - "@playwright/test"
-      # Group ESLint related updates
-      eslint:
-        patterns:
-          - "eslint*"
-          - "@eslint/*"
-      # Group TypeScript related updates
-      typescript:
-        patterns:
-          - "typescript*"
-          - "@types/*"
-  
-  # Agents service workspace
+          - "*"
+        update-types:
+          - "security"
+    ignore:
+      # Pin React 18 for now
+      - dependency-name: "react"
+        versions:
+          - "19.x"
+      - dependency-name: "react-dom"
+        versions:
+          - "19.x"
+      # Review Next.js major versions carefully
+      - dependency-name: "next"
+        update-types:
+          - "version-update:semver-major"
+
+  # Agents service dependencies
   - package-ecosystem: "npm"
     directory: "/agents-service"
     schedule:
       interval: "weekly"
-      day: "wednesday"
+      day: "monday"
+      time: "09:00"
+      timezone: "Africa/Kigali"
     open-pull-requests-limit: 5
+    reviewers:
+      - "ikanisa/backend-team"
+      - "ikanisa/ai-team"
+    commit-message:
+      prefix: "deps(agents)"
     labels:
       - "dependencies"
       - "agents-service"
-    reviewers:
-      - "ikanisa/backend"
-    commit-message:
-      prefix: "chore(agents)"
-      include: "scope"
-    ignore:
-      - dependency-name: "@openai/agents"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "fastify"
-        update-types: ["version-update:semver-major"]
-  
-  # Web app workspace
-  - package-ecosystem: "npm"
-    directory: "/apps/web"
+      - "automated"
+    groups:
+      security-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "security"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
     schedule:
       interval: "weekly"
-      day: "thursday"
+      day: "tuesday"
+      time: "09:00"
+      timezone: "Africa/Kigali"
     open-pull-requests-limit: 5
+    reviewers:
+      - "ikanisa/devops-team"
+    commit-message:
+      prefix: "ci"
     labels:
       - "dependencies"
-      - "web-app"
-    reviewers:
-      - "ikanisa/frontend"
-    commit-message:
-      prefix: "chore(web)"
-      include: "scope"
-  
-  # Client app workspace
-  - package-ecosystem: "npm"
-    directory: "/apps/client"
-    schedule:
-      interval: "weekly"
-      day: "thursday"
-    open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-      - "client-app"
-    reviewers:
-      - "ikanisa/frontend"
-    commit-message:
-      prefix: "chore(client)"
-      include: "scope"
-  
-  # Admin app workspace
-  - package-ecosystem: "npm"
-    directory: "/apps/admin"
-    schedule:
-      interval: "weekly"
-      day: "thursday"
-    open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-      - "admin-app"
-    reviewers:
-      - "ikanisa/frontend"
-    commit-message:
-      prefix: "chore(admin)"
-      include: "scope"
-  
-  # Shared packages
-  - package-ecosystem: "npm"
-    directory: "/packages/ui"
-    schedule:
-      interval: "weekly"
-      day: "friday"
-    open-pull-requests-limit: 3
-    labels:
-      - "dependencies"
-      - "packages"
-    reviewers:
-      - "ikanisa/platform"
-    commit-message:
-      prefix: "chore(ui)"
-      include: "scope"
-  
-  - package-ecosystem: "npm"
-    directory: "/packages/types"
-    schedule:
-      interval: "weekly"
-      day: "friday"
-    open-pull-requests-limit: 3
-    labels:
-      - "dependencies"
-      - "packages"
-    reviewers:
-      - "ikanisa/platform"
-    commit-message:
-      prefix: "chore(types)"
-      include: "scope"
-  
-  - package-ecosystem: "npm"
-    directory: "/packages/db"
-    schedule:
-      interval: "weekly"
-      day: "friday"
-    open-pull-requests-limit: 3
-    labels:
-      - "dependencies"
-      - "packages"
-    reviewers:
-      - "ikanisa/database"
-    commit-message:
-      prefix: "chore(db)"
-      include: "scope"
-  
-  - package-ecosystem: "npm"
-    directory: "/packages/config"
-    schedule:
-      interval: "weekly"
-      day: "friday"
-    open-pull-requests-limit: 3
-    labels:
-      - "dependencies"
-      - "packages"
-    reviewers:
-      - "ikanisa/platform"
-    commit-message:
-      prefix: "chore(config)"
-      include: "scope"
-  
-  - package-ecosystem: "npm"
-    directory: "/packages/ingestion-utils"
-    schedule:
-      interval: "weekly"
-      day: "friday"
-    open-pull-requests-limit: 3
-    labels:
-      - "dependencies"
-      - "packages"
-    reviewers:
-      - "ikanisa/backend"
-    commit-message:
-      prefix: "chore(ingestion)"
-      include: "scope"
+      - "github-actions"
+      - "automated"
+    groups:
+      security-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "security"
 
   # Docker base images
   - package-ecosystem: "docker"
     directory: "/agents-service"
     schedule:
       interval: "weekly"
-      day: "saturday"
-    open-pull-requests-limit: 2
+      day: "wednesday"
+      time: "09:00"
+      timezone: "Africa/Kigali"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "ikanisa/devops-team"
+      - "ikanisa/security-team"
+    commit-message:
+      prefix: "deps(docker)"
     labels:
       - "dependencies"
       - "docker"
-    reviewers:
-      - "ikanisa/devops"
-    commit-message:
-      prefix: "chore(docker)"
-      include: "scope"
+      - "automated"
+    groups:
+      security-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "security"

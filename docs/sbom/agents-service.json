@@ -1,106 +1,14 @@
 {
-  "$schema": "http://cyclonedx.org/schema/bom-1.6.schema.json",
   "bomFormat": "CycloneDX",
-  "specVersion": "1.6",
+  "specVersion": "1.4",
   "version": 1,
-  "serialNumber": "urn:uuid:54cf3b4b-1f7f-4f82-82e2-355440cbccb1",
   "metadata": {
-    "timestamp": "2025-10-30T22:24:23.039Z",
-    "tools": {
-      "components": [
-        {
-          "type": "application",
-          "name": "npm",
-          "version": "9.8.1"
-        },
-        {
-          "type": "application",
-          "name": "cyclonedx-npm",
-          "group": "@cyclonedx",
-          "version": "4.1.0",
-          "author": "Jan Kowalleck",
-          "description": "Create CycloneDX Software Bill of Materials (SBOM) from NPM projects.",
-          "licenses": [
-            {
-              "license": {
-                "id": "Apache-2.0"
-              }
-            }
-          ],
-          "externalReferences": [
-            {
-              "url": "git+https://github.com/CycloneDX/cyclonedx-node-npm.git",
-              "type": "vcs",
-              "comment": "as detected from PackageJson property \"repository.url\""
-            },
-            {
-              "url": "https://github.com/CycloneDX/cyclonedx-node-npm#readme",
-              "type": "website",
-              "comment": "as detected from PackageJson property \"homepage\""
-            },
-            {
-              "url": "https://github.com/CycloneDX/cyclonedx-node-npm/issues",
-              "type": "issue-tracker",
-              "comment": "as detected from PackageJson property \"bugs.url\""
-            }
-          ]
-        },
-        {
-          "type": "library",
-          "name": "cyclonedx-library",
-          "group": "@cyclonedx",
-          "version": "9.2.0",
-          "author": "Jan Kowalleck",
-          "description": "Core functionality of CycloneDX for JavaScript (Node.js or WebBrowser).",
-          "licenses": [
-            {
-              "license": {
-                "id": "Apache-2.0"
-              }
-            }
-          ],
-          "externalReferences": [
-            {
-              "url": "git+https://github.com/CycloneDX/cyclonedx-javascript-library.git",
-              "type": "vcs",
-              "comment": "as detected from PackageJson property \"repository.url\""
-            },
-            {
-              "url": "https://github.com/CycloneDX/cyclonedx-javascript-library#readme",
-              "type": "website",
-              "comment": "as detected from PackageJson property \"homepage\""
-            },
-            {
-              "url": "https://github.com/CycloneDX/cyclonedx-javascript-library/issues",
-              "type": "issue-tracker",
-              "comment": "as detected from PackageJson property \"bugs.url\""
-            }
-          ]
-        }
-      ]
-    },
+    "timestamp": "2025-10-29T18:31:41Z",
     "component": {
       "type": "application",
-      "name": "icupa-monorepo",
-      "version": "0.1.0",
-      "bom-ref": "icupa-monorepo@0.1.0",
-      "purl": "pkg:npm/icupa-monorepo@0.1.0",
-      "properties": [
-        {
-          "name": "cdx:npm:package:private",
-          "value": "true"
-        },
-        {
-          "name": "cdx:npm:package:path",
-          "value": ""
-        }
-      ]
+      "name": "agents-service",
+      "version": "0.1.0"
     }
   },
-  "components": [],
-  "dependencies": [
-    {
-      "ref": "icupa-monorepo@0.1.0"
-    }
-  ]
+  "components": []
 }

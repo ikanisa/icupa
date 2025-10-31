@@ -1,93 +1,71 @@
 ---
 name: Feature Request
-about: Suggest an idea for this project
+about: Suggest a new feature or enhancement for ICUPA
 title: '[FEATURE] '
-labels: 'enhancement, needs-triage'
+labels: enhancement
 assignees: ''
 ---
 
 ## Feature Description
-
-<!-- A clear and concise description of the feature you'd like to see -->
+<!-- A clear and concise description of what you want to happen -->
 
 ## Problem Statement
-
 <!-- What problem does this feature solve? -->
 
 ## Proposed Solution
-
 <!-- Describe the solution you'd like -->
 
-## Alternatives Considered
-
-<!-- Describe alternative solutions or features you've considered -->
+## Alternative Solutions
+<!-- Describe any alternative solutions or features you've considered -->
 
 ## Use Cases
-
 <!-- Describe specific use cases for this feature -->
 
-1. 
-2. 
-3. 
+1. As a [user type], I want to [action] so that [benefit]
+2. ...
 
-## Benefits
+## Impact
+<!-- Who will benefit from this feature? How many users? -->
 
-<!-- What are the benefits of implementing this feature? -->
+- **User Impact:** [High/Medium/Low]
+- **Business Impact:** [High/Medium/Low]
+- **Technical Complexity:** [High/Medium/Low]
 
-- 
-- 
-- 
+## Implementation Notes
+<!-- If you have ideas about implementation, share them here -->
 
-## Potential Drawbacks
+## Mockups/Examples
+<!-- If applicable, add screenshots, mockups, or links to similar features -->
 
-<!-- Are there any potential drawbacks or concerns? -->
+## Acceptance Criteria
+<!-- What must be true for this feature to be considered complete? -->
 
-## Implementation Suggestions
+- [ ] Criterion 1
+- [ ] Criterion 2
+- [ ] Criterion 3
 
-<!-- Optional: Do you have ideas on how to implement this? -->
-
-### Technical Approach
-
-<!-- Optional: Technical details or considerations -->
-
-### UI/UX Mockups
-
-<!-- Optional: Add mockups or wireframes -->
-
-## Affected Components
-
-<!-- Which parts of the system would be affected? -->
-
-- [ ] Web App
-- [ ] Admin Portal
-- [ ] Merchant Portal
-- [ ] Diner Experience
-- [ ] Agent Service
-- [ ] Supabase Functions
-- [ ] Database Schema
+## Area
+<!-- Remove the ones that don't apply -->
+- [ ] Frontend (Web PWA)
+- [ ] Backend (Supabase/Edge Functions)
+- [ ] Database
+- [ ] Agents Service
+- [ ] Mobile
+- [ ] Infrastructure/DevOps
 - [ ] Documentation
 
 ## Priority
-
-<!-- How important is this feature? -->
-
-- [ ] Critical - Blocking go-live
-- [ ] High - Important for production
-- [ ] Medium - Would improve user experience
-- [ ] Low - Nice to have
+<!-- Your suggested priority (final decision by product team) -->
+- [ ] P0 - Critical (blocking go-live)
+- [ ] P1 - High (needed for next release)
+- [ ] P2 - Medium (nice to have soon)
+- [ ] P3 - Low (future consideration)
 
 ## Additional Context
+<!-- Add any other context, links, or references about the feature request -->
 
-<!-- Add any other context, links, or references about the feature request here -->
-
-## Related Issues
-
-<!-- Link any related issues or PRs here -->
-
-## Labels
-
-<!-- Suggested labels for this issue -->
-
-- `area:<component>` - Which area does this affect?
-- `go-live` - Is this required for go-live?
-- `refactor` - Is this part of the refactoring effort?
+## Checklist
+- [ ] I have searched existing issues to avoid duplicates
+- [ ] I have described the problem clearly
+- [ ] I have described the proposed solution
+- [ ] I have considered alternative approaches
