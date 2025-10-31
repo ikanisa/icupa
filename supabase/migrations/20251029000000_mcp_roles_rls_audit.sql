@@ -358,8 +358,11 @@ create table if not exists public.pending_journals (
   created_at timestamptz not null default now()
 );
 
+alter table public.pending_journals
+  add column if not exists approver_notes text;
+
 -- Grant insert to CFO agent for approval requests
-grant insert, select on public.pending_journals to cfo_agent;
+grant insert, select, update on public.pending_journals to cfo_agent;
 
 -- Enable RLS
 alter table public.pending_journals enable row level security;
