@@ -85,7 +85,8 @@ export async function respond(input: Message[]): Promise<any> {
       conversation.push({
         role: "tool",
         tool_call_id: toolCall.id,
-        content: result,
+        content:
+          typeof result === "string" ? result : JSON.stringify(result ?? {}),
       });
     }
 
