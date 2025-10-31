@@ -34,10 +34,10 @@ describe("MCP executeTool Unit Tests", () => {
 
   describe("executeTool validation", () => {
     const toolManifests = {
-      waiter: loadToolManifest(waiterTools),
-      cfo: loadToolManifest(cfoTools),
-      legal: loadToolManifest(legalTools),
-    };
+      waiter_agent: loadToolManifest(waiterTools),
+      cfo_agent: loadToolManifest(cfoTools),
+      legal_agent: loadToolManifest(legalTools),
+    } as const;
 
     it("should reject invalid request with missing role", async () => {
       const result = await executeTool(
@@ -260,10 +260,10 @@ describe("MCP executeTool Unit Tests", () => {
 
   describe("parameter type conversion", () => {
     const toolManifests = {
-      waiter: loadToolManifest(waiterTools),
-      cfo: loadToolManifest(cfoTools),
-      legal: loadToolManifest(legalTools),
-    };
+      waiter_agent: loadToolManifest(waiterTools),
+      cfo_agent: loadToolManifest(cfoTools),
+      legal_agent: loadToolManifest(legalTools),
+    } as const;
 
     it("should convert string number to number type", async () => {
       const result = await executeTool(

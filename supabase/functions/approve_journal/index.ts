@@ -2,6 +2,32 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.58.0";
 import { corsHeaders } from "../_shared/headers.ts";
 
+function extractRoles(value: unknown): string[] {
+  if (!value) return [];
+  if (typeof value === "string") {
+    return [value];
+  }
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === "string");
+  }
+  return [];
+}
+
+function hasCfoPrivileges(user: { app_metadata?: Record<string, unknown>; user_metadata?: Record<string, unknown> }): boolean {
+  const roles = new Set<string>();
+
+  const appMetadata = user.app_metadata ?? {};
+  const userMetadata = user.user_metadata ?? {};
+
+  for (const key of ["roles", "role", "mcp_roles", "agent_roles"]) {
+    extractRoles((appMetadata as Record<string, unknown>)[key]).forEach((role) => roles.add(role));
+    extractRoles((userMetadata as Record<string, unknown>)[key]).forEach((role) => roles.add(role));
+  }
+
+  const normalizedRoles = Array.from(roles).map((role) => role.toLowerCase());
+  return normalizedRoles.some((role) => role === "cfo" || role === "cfo_agent");
+}
+
 interface ApprovalRequest {
   pending_journal_id: string;
   action: "approve" | "reject";
@@ -60,118 +86,48 @@ serve(async (req) => {
 
     const approverId = userData.user.id;
 
-    // Fetch the pending journal entry
-    const { data: pendingJournal, error: fetchError } = await supabase
-      .from("pending_journals")
-      .select("*")
-      .eq("id", pending_journal_id)
-      .single();
-
-    if (fetchError || !pendingJournal) {
-      return new Response(JSON.stringify({ error: "Pending journal not found" }), {
-        status: 404,
+    if (!hasCfoPrivileges(userData.user)) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    if (pendingJournal.status !== "pending") {
-      return new Response(
-        JSON.stringify({ error: `Journal already ${pendingJournal.status}` }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    // Handle approval
-    if (action === "approve") {
-      // Post the journal entry to gl_entries
-      const { data: glEntry, error: glError } = await supabase
-        .from("gl_entries")
-        .insert({
-          entry_date: pendingJournal.entry_date,
-          account_dr: pendingJournal.account_dr,
-          account_cr: pendingJournal.account_cr,
-          amount: pendingJournal.amount,
-          memo: pendingJournal.memo,
-          posted_by: approverId,
-        })
-        .select()
-        .single();
-
-      if (glError) {
-        return new Response(JSON.stringify({ error: "Failed to post journal", details: glError }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      // Update pending journal status
-      const { error: updateError } = await supabase
-        .from("pending_journals")
-        .update({
-          status: "approved",
-          approved_by: approverId,
-          approved_at: new Date().toISOString(),
-        })
-        .eq("id", pending_journal_id);
-
-      if (updateError) {
-        console.error("Failed to update pending journal status:", updateError);
-      }
-
-      // TODO: Send notification (Slack/email) to requester
-      // This can be implemented using a webhook or email service
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: "Journal entry approved and posted",
-          gl_entry_id: glEntry.id,
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    } else if (action === "reject") {
-      // Update pending journal status to rejected
-      const { error: updateError } = await supabase
-        .from("pending_journals")
-        .update({
-          status: "rejected",
-          approved_by: approverId,
-          approved_at: new Date().toISOString(),
-        })
-        .eq("id", pending_journal_id);
-
-      if (updateError) {
-        return new Response(JSON.stringify({ error: "Failed to reject journal", details: updateError }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      // TODO: Send notification (Slack/email) to requester
-      // This can be implemented using a webhook or email service
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: "Journal entry rejected",
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    } else {
+    if (action !== "approve" && action !== "reject") {
       return new Response(JSON.stringify({ error: "Invalid action. Use 'approve' or 'reject'" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const { data: rpcResult, error: rpcError } = await supabase.rpc(
+      "mcp_handle_pending_journal",
+      {
+        action,
+        pending_journal_id,
+        approver: approverId,
+        notes: approver_notes ?? null,
+      }
+    );
+
+    if (rpcError) {
+      console.error("Journal approval RPC failed", rpcError);
+      return new Response(JSON.stringify({ error: "Failed to process journal", details: rpcError.message }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        result: rpcResult,
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
   } catch (error) {
     console.error("Error in approve_journal:", error);
     return new Response(

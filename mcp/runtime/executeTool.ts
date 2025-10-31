@@ -43,6 +43,7 @@ const ExecuteToolRequestSchema = z.object({
 type ExecuteToolRequest = z.infer<typeof ExecuteToolRequestSchema>;
 type Tool = z.infer<typeof ToolSchema>;
 type ToolParameter = z.infer<typeof ToolParameterSchema>;
+type ToolManifests = Record<ExecuteToolRequest["role"], z.infer<typeof ToolManifestSchema>>;
 
 /**
  * Result of tool execution
@@ -157,7 +158,7 @@ function prepareSqlWithParams(sql: string, params: Record<string, any>): { sql: 
  */
 export async function executeTool(
   request: ExecuteToolRequest,
-  toolManifests: Record<string, z.infer<typeof ToolManifestSchema>>,
+  toolManifests: ToolManifests,
   supabaseUrl: string,
   supabaseServiceRoleKey: string,
 ): Promise<ToolExecutionResult> {
@@ -172,17 +173,8 @@ export async function executeTool(
 
   const { role, toolName, params, rls_context } = requestValidation.data;
 
-  // Find tool manifest for the role
-  let manifest: z.infer<typeof ToolManifestSchema> | undefined;
-  let tool: Tool | undefined;
-
-  for (const [, manifestData] of Object.entries(toolManifests)) {
-    tool = manifestData.tools.find((t) => t.name === toolName);
-    if (tool) {
-      manifest = manifestData;
-      break;
-    }
-  }
+  const manifest = toolManifests[role];
+  const tool = manifest?.tools.find((t) => t.name === toolName);
 
   if (!manifest || !tool) {
     await logAudit(supabaseUrl, supabaseServiceRoleKey, {
@@ -216,28 +208,19 @@ export async function executeTool(
     validatedParams[paramDef.name] = validation.value;
   }
 
-  // Create Supabase client with service role
+  // Create Supabase client with service role (execution constrained in RPC)
   const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
   try {
-    // Set RLS context if provided
-    if (rls_context) {
-      for (const [key, value] of Object.entries(rls_context)) {
-        await supabase.rpc("set_config", {
-          setting_name: key,
-          setting_value: value,
-          is_local: true,
-        });
-      }
-    }
-
     // Prepare SQL with parameters
     const { sql: preparedSql, values } = prepareSqlWithParams(tool.sql, validatedParams);
 
-    // Execute SQL via Supabase
-    const { data, error } = await supabase.rpc("exec_sql", {
+    // Execute SQL via Supabase constrained RPC
+    const { data, error } = await supabase.rpc("mcp_execute_sql", {
+      role,
       sql: preparedSql,
       params: values,
+      rls_context: rls_context ?? null,
     });
 
     if (error) {
