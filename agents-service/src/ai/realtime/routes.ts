@@ -33,12 +33,15 @@ export async function initializeRealtimeClient(logger: any): Promise<RealtimeCli
     throw new Error("Missing OPENAI_API_KEY");
   }
 
-  const fallbackPersona: PersonaKey = "waiter";
-  let personaKey: PersonaKey = fallbackPersona;
-  if (DEFAULT_PERSONA && personaKeys.includes(DEFAULT_PERSONA as PersonaKey)) {
-    personaKey = DEFAULT_PERSONA as PersonaKey;
-  } else if (DEFAULT_PERSONA && DEFAULT_PERSONA !== fallbackPersona) {
-    logger.warn({ DEFAULT_PERSONA }, "Invalid DEFAULT_PERSONA configured, falling back to waiter");
+  const envPersonaRaw = (DEFAULT_PERSONA as string | undefined)?.trim();
+  const envPersona = envPersonaRaw ? (envPersonaRaw as PersonaKey) : undefined;
+  const personaKey = envPersona ?? "waiter";
+
+  if (envPersona && !personaKeys.includes(envPersona)) {
+    logger.error({ envPersona }, "Invalid DEFAULT_PERSONA provided");
+    throw new Error(
+      `DEFAULT_PERSONA must be one of: ${personaKeys.join(', ')}`
+    );
   }
 
   const persona = PERSONAS[personaKey];
