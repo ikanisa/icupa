@@ -43,9 +43,25 @@ export interface RealtimeClientOptions {
 }
 
 export class RealtimeClient {
-  private ws!: WebSocket;
+  private ws: WebSocket | null = null;
   private log: any;
   private opts: RealtimeClientOptions;
+  private connectPromise: Promise<void> | null = null;
+  private reconnectTimer: NodeJS.Timeout | null = null;
+  private readonly handleMessage = (buf: WebSocket.RawData) => this.onMessage(buf);
+  private readonly handleRuntimeError = (err: Error) => {
+    this.log.error({ err }, "ws error");
+  };
+  private readonly handleClose = (code: number, reason: Buffer) => {
+    this.log.warn({ code, reason: reason.toString() }, "ws closed");
+    if (this.ws) {
+      this.ws.off("message", this.handleMessage);
+      this.ws.off("error", this.handleRuntimeError);
+      this.ws.off("close", this.handleClose);
+      this.ws = null;
+    }
+    this.scheduleReconnect();
+  };
 
   constructor(opts: RealtimeClientOptions) {
     this.opts = opts;
@@ -53,25 +69,59 @@ export class RealtimeClient {
   }
 
   async connect() {
-    const { url, apiKey, model } = this.opts;
-    this.ws = new WebSocket(`${url}?model=${encodeURIComponent(model)}`, {
-      headers: { Authorization: `Bearer ${apiKey}` }
-    });
-    this.ws.on("message", (buf) => this.onMessage(buf));
-    this.ws.on("error", (err) => this.log.error({ err }, "ws error"));
-    this.ws.on("close", (c, r) => this.log.warn({ code: c, reason: r.toString() }, "ws closed"));
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      return;
+    }
 
-    await new Promise<void>((resolve, reject) => {
-      this.ws.once("open", async () => {
-        try { await this.bootstrapSession(); resolve(); } catch (e) { reject(e); }
+    if (!this.connectPromise) {
+      const { url, apiKey, model } = this.opts;
+      this.connectPromise = new Promise<void>((resolve, reject) => {
+        const socket = new WebSocket(`${url}?model=${encodeURIComponent(model)}`, {
+          headers: { Authorization: `Bearer ${apiKey}` }
+        });
+
+        const handleOpen = async () => {
+          socket.off("error", handleInitialError);
+          if (this.reconnectTimer) {
+            clearTimeout(this.reconnectTimer);
+            this.reconnectTimer = null;
+          }
+          this.ws = socket;
+          this.ws.on("message", this.handleMessage);
+          this.ws.on("error", this.handleRuntimeError);
+          this.ws.on("close", this.handleClose);
+          try {
+            await this.bootstrapSession();
+            this.log.info("Realtime socket connected");
+            resolve();
+          } catch (err) {
+            socket.close();
+            reject(err);
+          }
+        };
+
+        const handleInitialError = (err: Error) => {
+          socket.off("open", handleOpen);
+          socket.off("error", handleInitialError);
+          reject(err);
+        };
+
+        socket.once("open", handleOpen);
+        socket.once("error", handleInitialError);
+      }).finally(() => {
+        this.connectPromise = null;
       });
-      this.ws.once("error", reject);
-    });
+    }
+
+    await this.connectPromise;
   }
 
   private send(event: Record<string, unknown>) {
     const payload = JSON.stringify(event);
     this.log.debug({ event }, "→ openai");
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      throw new Error("Realtime socket is not connected");
+    }
     this.ws.send(payload);
   }
 
@@ -87,7 +137,32 @@ export class RealtimeClient {
     this.send({ type: "tools.update", tools: this.opts.tools });
   }
 
-  switchPersona(system: string, tools: ReturnType<typeof buildToolsSpec>) {
+  private scheduleReconnect() {
+    if (this.reconnectTimer) {
+      return;
+    }
+
+    this.reconnectTimer = setTimeout(async () => {
+      this.reconnectTimer = null;
+      try {
+        await this.connect();
+        this.log.info("Realtime socket reconnected");
+      } catch (err) {
+        this.log.error({ err }, "reconnect attempt failed");
+        this.scheduleReconnect();
+      }
+    }, 1000);
+  }
+
+  private async ensureConnected() {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      return;
+    }
+    await this.connect();
+  }
+
+  async switchPersona(system: string, tools: ReturnType<typeof buildToolsSpec>) {
+    await this.ensureConnected();
     this.opts.system = system;
     this.opts.tools = tools;
     this.send({ type: "session.update", session: { instructions: system } });
@@ -95,6 +170,7 @@ export class RealtimeClient {
   }
 
   async say(text: string) {
+    await this.ensureConnected();
     this.send({
       type: "response.create",
       response: {
@@ -152,7 +228,11 @@ export class RealtimeClient {
     } catch (err) {
       output = { error: String(err) };
     }
-    this.send({ type: "tool.output", call_id, output });
+    try {
+      this.send({ type: "tool.output", call_id, output });
+    } catch (err) {
+      this.log.error({ err }, "failed to send tool output");
+    }
   }
 
   private async lookupMenu(args: { query: string }) {
