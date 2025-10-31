@@ -52,6 +52,7 @@ import {
   ensureLocationOrSession,
 } from './routes/schemas';
 import { openAIModels } from './openai/client';
+import { registerRealtimeRoutes } from './ai/realtime/routes';
 
 const config = loadConfig();
 const { default: defaultModel, lowCost: lowCostModel } = openAIModels;
@@ -746,6 +747,16 @@ const gracefulShutdown = async () => {
 
 process.on('SIGTERM', gracefulShutdown);
 process.on('SIGINT', gracefulShutdown);
+
+// Register realtime routes if enabled
+if (process.env.AI_REALTIME_ENABLED !== 'false') {
+  try {
+    registerRealtimeRoutes(app);
+    app.log.info('AI Realtime routes registered at /ai/*');
+  } catch (error) {
+    app.log.warn({ error }, 'Failed to register AI Realtime routes');
+  }
+}
 
 const start = async () => {
   try {

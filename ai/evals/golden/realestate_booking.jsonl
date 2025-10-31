@@ -1,0 +1,2 @@
+{"user": "Hi, I'm interested in booking a property", "expected_tools": [], "expected_response_contains": "booking"}
+{"user": "What properties do you have available?", "expected_tools": [], "expected_response_contains": "property"}

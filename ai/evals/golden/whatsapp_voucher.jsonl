@@ -1,0 +1,5 @@
+{"user": "Hi, I need a voucher for 5000 RWF", "expected_tools": ["create_voucher"], "expected_args": {"amount": 5000, "currency": "RWF"}}
+{"user": "Create voucher for +250788123456 amount 10000", "expected_tools": ["create_voucher"], "expected_args": {"customer_msisdn": "+250788123456", "amount": 10000, "currency": "RWF"}}
+{"user": "Is there a customer with phone +250788999888?", "expected_tools": ["lookup_customer"], "expected_args": {"msisdn": "+250788999888"}}
+{"user": "Redeem voucher abc123-def456", "expected_tools": ["redeem_voucher"], "expected_args": {"voucher_id": "abc123-def456"}}
+{"user": "Cancel voucher xyz789", "expected_tools": ["void_voucher"], "expected_args": {"voucher_id": "xyz789"}}

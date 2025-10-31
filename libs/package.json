@@ -1,0 +1,22 @@
+{
+  "name": "@icupa/libs",
+  "version": "0.1.0",
+  "description": "Shared libraries for OpenAI Agents SDK integration in ICUPA",
+  "main": "index.ts",
+  "types": "index.ts",
+  "private": true,
+  "keywords": [
+    "openai",
+    "agents",
+    "sdk",
+    "icupa",
+    "supabase"
+  ],
+  "exports": {
+    ".": "./index.ts",
+    "./agents": "./agents/bookingAgent.ts",
+    "./db": "./db/supabaseClient.ts",
+    "./types": "./types/agents.ts",
+    "./api": "./api/bookingHandler.ts"
+  }
+}
