@@ -18,6 +18,15 @@ export async function startSipSession(
   sessionInstructions: string,
   toolSpecs: any[]
 ): Promise<{ sdpAnswer: string; toolSpecs: any[] }> {
+  const sessionConfig = {
+    instructions: sessionInstructions,
+    tools: toolSpecs,
+  };
+
+  const encodedConfig = Buffer.from(JSON.stringify(sessionConfig), "utf8").toString(
+    "base64"
+  );
+
   const resp = await fetch(
     `https://api.openai.com/v1/realtime?model=${REALTIME_MODEL}`,
     {
@@ -26,6 +35,7 @@ export async function startSipSession(
         Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
         "Content-Type": "application/sdp",
         "X-Session-Instruction": sessionInstructions,
+        "X-OpenAI-Session-Config": encodedConfig,
       },
       body: sdpOffer,
     }
