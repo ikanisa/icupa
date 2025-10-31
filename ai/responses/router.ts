@@ -52,46 +52,37 @@ export async function respond(input: Message[]): Promise<any> {
     },
   }));
 
-  const messages: any[] = [...input];
-  const MAX_TOOL_ITERATIONS = 6;
+  const conversation: any[] = [...input];
+  let iteration = 0;
+  const MAX_TOOL_ITERATIONS = 8;
 
-  for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration++) {
+  while (iteration < MAX_TOOL_ITERATIONS) {
     const response = await responsesClient.chat.completions.create({
       model: RESPONSES_MODEL,
-      messages,
+      messages: conversation,
       tools: toolSpecs,
     });
 
-    const choice = response.choices?.[0];
+    const choice = response.choices[0];
     const assistantMessage = choice?.message;
 
     if (!assistantMessage) {
       return response;
     }
 
-    const toolCalls = assistantMessage.tool_calls ?? [];
+    conversation.push(assistantMessage);
 
+    const toolCalls = assistantMessage.tool_calls || [];
     if (toolCalls.length === 0) {
       return response;
     }
 
-    messages.push(assistantMessage);
-
-    const toolMessages = [] as any[];
     for (const toolCall of toolCalls) {
       const toolName = toolCall.function.name;
-      let args: Record<string, unknown> = {};
-
-      try {
-        args = JSON.parse(toolCall.function.arguments || "{}");
-      } catch (error) {
-        throw new Error(
-          `Failed to parse tool arguments for ${toolName}: ${error}`
-        );
-      }
-
+      const args = JSON.parse(toolCall.function.arguments || "{}");
       const result = await callTool(toolName, args);
-      toolMessages.push({
+
+      conversation.push({
         role: "tool",
         tool_call_id: toolCall.id,
         content:
@@ -99,11 +90,11 @@ export async function respond(input: Message[]): Promise<any> {
       });
     }
 
-    messages.push(...toolMessages);
+    iteration += 1;
   }
 
   throw new Error(
-    `Exceeded maximum tool iterations (${MAX_TOOL_ITERATIONS}) without completing response.`
+    `Exceeded maximum tool call iterations (${MAX_TOOL_ITERATIONS}) without completion`
   );
 }
 

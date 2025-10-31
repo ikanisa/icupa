@@ -18,7 +18,12 @@ export async function startSipSession(
   sessionInstructions: string,
   toolSpecs: any[]
 ): Promise<{ sdpAnswer: string; toolSpecs: any[] }> {
-  const encodedTools = Buffer.from(JSON.stringify({ tools: toolSpecs }), "utf-8").toString(
+  const sessionConfig = {
+    instructions: sessionInstructions,
+    tools: toolSpecs,
+  };
+
+  const encodedConfig = Buffer.from(JSON.stringify(sessionConfig), "utf8").toString(
     "base64"
   );
 
@@ -30,7 +35,7 @@ export async function startSipSession(
         Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
         "Content-Type": "application/sdp",
         "X-Session-Instruction": sessionInstructions,
-        "X-Session-Tools": encodedTools,
+        "X-OpenAI-Session-Config": encodedConfig,
       },
       body: sdpOffer,
     }
