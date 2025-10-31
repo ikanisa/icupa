@@ -69,6 +69,9 @@ revoke select, insert, update on public.deadlines from legal_agent;
 -- Revoke audit log access
 revoke insert on public.mcp_audit_log from waiter_agent, cfo_agent, legal_agent;
 
+-- Drop execution function
+drop function if exists public.mcp_execute_tool(text, text, jsonb, jsonb);
+
 -- Revoke schema usage
 revoke usage on schema public from waiter_agent, cfo_agent, legal_agent;
 

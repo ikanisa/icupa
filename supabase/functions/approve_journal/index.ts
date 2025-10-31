@@ -61,13 +61,52 @@ serve(async (req) => {
     const approverId = userData.user.id;
 
     // Fetch the pending journal entry
-    const { data: pendingJournal, error: fetchError } = await supabase
-      .from("pending_journals")
-      .select("*")
-      .eq("id", pending_journal_id)
-      .single();
+    const appMetadata = (userData.user.app_metadata ?? {}) as Record<string, unknown>;
+    const rawRoles =
+      (appMetadata.mcp_roles as string[] | string | undefined) ??
+      (appMetadata.roles as string[] | string | undefined);
 
-    if (fetchError || !pendingJournal) {
+    const userRoles = Array.isArray(rawRoles)
+      ? rawRoles
+      : rawRoles
+        ? String(rawRoles)
+            .split(",")
+            .map((role) => role.trim())
+            .filter(Boolean)
+        : [];
+
+    if (!userRoles.includes("cfo_agent")) {
+      return new Response(JSON.stringify({ error: "User lacks CFO approval permissions" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const executeAsCfo = async (
+      sql: string,
+      params: Array<{ type: "uuid" | "number" | "string" | "date" | "timestamp" | "jsonb"; value: unknown }>,
+    ) => {
+      const { data, error } = await supabase.rpc("mcp_execute_tool", {
+        role: "cfo_agent",
+        sql,
+        params,
+        rls_context: {},
+      });
+
+      if (error) {
+        throw new Error(error.message ?? "MCP execution failed");
+      }
+      return data;
+    };
+
+    const pendingResult = await executeAsCfo(
+      "select * from public.pending_journals where id = $1",
+      [{ type: "uuid", value: pending_journal_id }],
+    );
+
+    const pendingJournal = Array.isArray(pendingResult) ? pendingResult[0] : null;
+
+    if (!pendingJournal) {
       return new Response(JSON.stringify({ error: "Pending journal not found" }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -87,38 +126,41 @@ serve(async (req) => {
     // Handle approval
     if (action === "approve") {
       // Post the journal entry to gl_entries
-      const { data: glEntry, error: glError } = await supabase
-        .from("gl_entries")
-        .insert({
-          entry_date: pendingJournal.entry_date,
-          account_dr: pendingJournal.account_dr,
-          account_cr: pendingJournal.account_cr,
-          amount: pendingJournal.amount,
-          memo: pendingJournal.memo,
-          posted_by: approverId,
-        })
-        .select()
-        .single();
+      const glResult = await executeAsCfo(
+        "insert into public.gl_entries (entry_date, account_dr, account_cr, amount, memo, posted_by) values ($1, $2, $3, $4, $5, $6) returning id",
+        [
+          { type: "date", value: pendingJournal.entry_date },
+          { type: "string", value: pendingJournal.account_dr },
+          { type: "string", value: pendingJournal.account_cr },
+          { type: "number", value: pendingJournal.amount },
+          { type: "string", value: pendingJournal.memo ?? null },
+          { type: "uuid", value: approverId },
+        ],
+      );
 
-      if (glError) {
-        return new Response(JSON.stringify({ error: "Failed to post journal", details: glError }), {
+      const glEntry = Array.isArray(glResult) ? glResult[0] : null;
+
+      if (!glEntry) {
+        return new Response(JSON.stringify({ error: "Failed to post journal" }), {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
       // Update pending journal status
-      const { error: updateError } = await supabase
-        .from("pending_journals")
-        .update({
-          status: "approved",
-          approved_by: approverId,
-          approved_at: new Date().toISOString(),
-        })
-        .eq("id", pending_journal_id);
+      const approvalUpdate = await executeAsCfo(
+        "update public.pending_journals set status = 'approved', approved_by = $1, approved_at = now() where id = $2",
+        [
+          { type: "uuid", value: approverId },
+          { type: "uuid", value: pending_journal_id },
+        ],
+      );
 
-      if (updateError) {
-        console.error("Failed to update pending journal status:", updateError);
+      if (!approvalUpdate || (approvalUpdate as { row_count?: number }).row_count !== 1) {
+        return new Response(JSON.stringify({ error: "Failed to finalize journal approval" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
       // TODO: Send notification (Slack/email) to requester
@@ -137,17 +179,16 @@ serve(async (req) => {
       );
     } else if (action === "reject") {
       // Update pending journal status to rejected
-      const { error: updateError } = await supabase
-        .from("pending_journals")
-        .update({
-          status: "rejected",
-          approved_by: approverId,
-          approved_at: new Date().toISOString(),
-        })
-        .eq("id", pending_journal_id);
+      const rejectionUpdate = await executeAsCfo(
+        "update public.pending_journals set status = 'rejected', approved_by = $1, approved_at = now() where id = $2",
+        [
+          { type: "uuid", value: approverId },
+          { type: "uuid", value: pending_journal_id },
+        ],
+      );
 
-      if (updateError) {
-        return new Response(JSON.stringify({ error: "Failed to reject journal", details: updateError }), {
+      if (!rejectionUpdate || (rejectionUpdate as { row_count?: number }).row_count !== 1) {
+        return new Response(JSON.stringify({ error: "Failed to reject journal" }), {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
