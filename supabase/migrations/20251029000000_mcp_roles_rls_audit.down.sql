@@ -16,6 +16,7 @@ drop policy if exists cfo_gl_rw on public.gl_entries;
 drop policy if exists cfo_invoices_rw on public.invoices;
 drop policy if exists cfo_pending_journals_insert on public.pending_journals;
 drop policy if exists cfo_pending_journals_read on public.pending_journals;
+drop policy if exists cfo_pending_journals_update on public.pending_journals;
 
 -- Legal Agent Policies
 drop policy if exists legal_cases_read on public.cases;
@@ -58,7 +59,7 @@ revoke select, insert, update on public.gl_entries from cfo_agent;
 revoke select, insert, update on public.invoices from cfo_agent;
 revoke select on public.tax_rules from cfo_agent;
 revoke select on public.fx_rates from cfo_agent;
-revoke insert, select on public.pending_journals from cfo_agent;
+revoke insert, select, update on public.pending_journals from cfo_agent;
 
 -- Revoke from Legal Agent
 revoke select, insert, update on public.cases from legal_agent;
@@ -80,6 +81,7 @@ revoke usage on schema public from waiter_agent, cfo_agent, legal_agent;
 -- If tables existed before, leave them intact
 
 -- drop table if exists public.pending_journals;
+-- alter table public.pending_journals drop column if exists approver_notes;
 -- drop table if exists public.mcp_audit_log;
 -- drop table if exists public.deadlines;
 -- drop table if exists public.doc_store;
@@ -101,3 +103,11 @@ revoke usage on schema public from waiter_agent, cfo_agent, legal_agent;
 drop role if exists waiter_agent;
 drop role if exists cfo_agent;
 drop role if exists legal_agent;
+
+-- ============================================================================
+-- 6. DROP MCP FUNCTIONS
+-- ============================================================================
+
+drop function if exists public.mcp_handle_pending_journal(text, uuid, uuid, text);
+drop function if exists public.mcp_execute_sql(text, text, jsonb, jsonb);
+drop function if exists public.mcp_apply_rls_context(jsonb);
