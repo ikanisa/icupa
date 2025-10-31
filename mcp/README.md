@@ -50,8 +50,24 @@ Edit `waiter.agent.local.json` with your credentials:
 ```typescript
 import { executeTool, loadToolManifest } from './mcp/runtime/executeTool';
 import waiterTools from './mcp/waiter.tools.json';
+import cfoTools from './mcp/cfo.tools.json';
+import legalTools from './mcp/legal.tools.json';
 
-const manifest = loadToolManifest(waiterTools);
+const manifests = {
+  waiter_agent: loadToolManifest(waiterTools),
+  cfo_agent: loadToolManifest(cfoTools),
+  legal_agent: loadToolManifest(legalTools),
+};
+
+const supabaseConfig = {
+  supabaseUrl: process.env.SUPABASE_URL!,
+  roleKeys: {
+    waiter_agent: process.env.SUPABASE_WAITER_AGENT_KEY!,
+    cfo_agent: process.env.SUPABASE_CFO_AGENT_KEY!,
+    legal_agent: process.env.SUPABASE_LEGAL_AGENT_KEY!,
+  },
+  auditKey: process.env.SUPABASE_MCP_AUDIT_KEY,
+} as const;
 
 const result = await executeTool(
   {
@@ -60,9 +76,8 @@ const result = await executeTool(
     params: {},
     rls_context: { 'app.venue_id': 'uuid-here' }
   },
-  { waiter: manifest },
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
+  manifests,
+  supabaseConfig
 );
 
 if (result.ok) {

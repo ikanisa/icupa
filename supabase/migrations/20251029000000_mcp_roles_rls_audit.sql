@@ -358,8 +358,11 @@ create table if not exists public.pending_journals (
   created_at timestamptz not null default now()
 );
 
+alter table public.pending_journals
+  add column if not exists approver_notes text;
+
 -- Grant insert to CFO agent for approval requests
-grant insert, select on public.pending_journals to cfo_agent;
+grant insert, select, update on public.pending_journals to cfo_agent;
 
 -- Enable RLS
 alter table public.pending_journals enable row level security;
@@ -375,3 +378,116 @@ drop policy if exists cfo_pending_journals_read on public.pending_journals;
 create policy cfo_pending_journals_read on public.pending_journals
   for select
   using (current_role = 'cfo_agent');
+
+-- ============================================================================
+-- 8. SECURE TOOL EXECUTION FUNCTION
+-- ============================================================================
+
+create or replace function public.mcp_execute_tool(
+  p_role text,
+  p_sql text,
+  p_params jsonb default '[]'::jsonb,
+  p_rls_context jsonb default '{}'::jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  allowed_roles constant text[] := array['waiter_agent', 'cfo_agent', 'legal_agent'];
+  final_sql text;
+  param_count integer;
+  idx integer;
+  param jsonb;
+  replacement text;
+  result jsonb;
+  row_count integer;
+  context_entry record;
+begin
+  if p_role is null or trim(p_role) = '' then
+    raise exception 'role is required';
+  end if;
+
+  if not p_role = any(allowed_roles) then
+    raise exception 'role % is not permitted', p_role;
+  end if;
+
+  final_sql := trim(both ';' from coalesce(p_sql, ''));
+  if final_sql = '' then
+    raise exception 'sql statement is required';
+  end if;
+
+  if p_params is null then
+    p_params := '[]'::jsonb;
+  end if;
+
+  if jsonb_typeof(p_params) <> 'array' then
+    raise exception 'params must be an array';
+  end if;
+
+  if p_rls_context is not null then
+    for context_entry in
+      select key, value from jsonb_each_text(p_rls_context)
+    loop
+      if context_entry.key like 'app.%' then
+        perform set_config(context_entry.key, context_entry.value, true);
+      end if;
+    end loop;
+  end if;
+
+  execute format('set local role %I', p_role);
+
+  param_count := coalesce(jsonb_array_length(p_params), 0);
+  if param_count > 0 then
+    for idx in reverse 1..param_count loop
+      param := p_params -> (idx - 1);
+      if param is null or jsonb_typeof(param) <> 'object' then
+        raise exception 'invalid parameter payload for index %', idx;
+      end if;
+
+      if not param ? 'type' then
+        raise exception 'parameter type missing for index %', idx;
+      end if;
+
+      if not param ? 'value' or param->'value' is null then
+        replacement := 'null';
+      else
+        case param->>'type'
+          when 'number' then
+            replacement := quote_nullable(param->>'value');
+          when 'jsonb' then
+            replacement := quote_nullable((param->'value')::text) || '::jsonb';
+          when 'timestamp' then
+            replacement := quote_nullable(param->>'value') || '::timestamptz';
+          when 'date' then
+            replacement := quote_nullable(param->>'value') || '::date';
+          when 'uuid' then
+            replacement := quote_nullable(param->>'value') || '::uuid';
+          else
+            replacement := quote_nullable(param->>'value');
+        end case;
+      end if;
+
+      final_sql := regexp_replace(final_sql, '\$' || idx::text, replacement, 'g');
+    end loop;
+  end if;
+
+  if final_sql ~* '^\s*(select|with)\b' or final_sql ~* '\breturning\b' then
+    execute format(
+      'select coalesce(jsonb_agg(row_to_json(t)), ''[]''::jsonb) from (%s) as t',
+      final_sql
+    )
+    into result;
+  else
+    execute final_sql;
+    get diagnostics row_count = row_count;
+    result := jsonb_build_object('row_count', row_count);
+  end if;
+
+  return result;
+end;
+$$;
+
+grant execute on function public.mcp_execute_tool(text, text, jsonb, jsonb)
+  to waiter_agent, cfo_agent, legal_agent, authenticated, service_role;
