@@ -1,64 +1,115 @@
-# CODEOWNERS - Define who owns specific parts of the codebase
-# 
-# Each line is a file pattern followed by one or more owners.
-# Owners will be automatically requested for review when someone opens a PR.
-#
-# Learn more: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+# Code Owners
+
+# This file defines the code owners for the ICUPA repository.
+# Owners are automatically requested for review when someone opens a pull request.
 
 # Default owners for everything in the repo
-* @ikanisa/maintainers
-
-# Infrastructure and CI/CD
-/.github/ @ikanisa/devops
-/scripts/ @ikanisa/devops
-/deployments/ @ikanisa/devops
-Dockerfile @ikanisa/devops
-*.yml @ikanisa/devops
-*.yaml @ikanisa/devops
-
-# Supabase and Database
-/supabase/ @ikanisa/backend @ikanisa/database
-/supabase/migrations/ @ikanisa/database
-/supabase/functions/ @ikanisa/backend
-
-# Core application
-/src/ @ikanisa/frontend
-/apps/web/ @ikanisa/frontend
-/apps/client/ @ikanisa/frontend
-/apps/admin/ @ikanisa/frontend
-/apps/vendor/ @ikanisa/frontend
-
-# Agent Service (AI/Backend)
-/agents-service/ @ikanisa/backend @ikanisa/ai
-
-# Shared packages
-/packages/ @ikanisa/platform
-/packages/db/ @ikanisa/database
-/packages/ui/ @ikanisa/frontend
-/packages/types/ @ikanisa/platform
-/packages/ingestion-utils/ @ikanisa/backend
+*       @ikanisa/core-team
 
 # Documentation
-/docs/ @ikanisa/maintainers
-SECURITY.md @ikanisa/security
-CONTRIBUTING.md @ikanisa/maintainers
-
-# Tests
-/tests/ @ikanisa/qa
-**/*.test.ts @ikanisa/qa
-**/*.test.tsx @ikanisa/qa
-**/*.spec.ts @ikanisa/qa
+/docs/                          @ikanisa/core-team @ikanisa/docs-team
+/README.md                      @ikanisa/core-team
+/CONTRIBUTING.md                @ikanisa/core-team
+/SECURITY.md                    @ikanisa/security-team
+/SUPPORT.md                     @ikanisa/core-team
 
 # Configuration files
-package.json @ikanisa/platform
-pnpm-*.yaml @ikanisa/platform
-tsconfig*.json @ikanisa/platform
-vite.config.ts @ikanisa/platform
-eslint.config.js @ikanisa/platform
-prettier.config.mjs @ikanisa/platform
-tailwind.config.ts @ikanisa/frontend
+/.github/                       @ikanisa/devops-team
+/eslint.config.js               @ikanisa/frontend-team
+/tsconfig*.json                 @ikanisa/core-team
+/vite.config.ts                 @ikanisa/frontend-team
+/package.json                   @ikanisa/core-team
+/pnpm-workspace.yaml            @ikanisa/core-team
 
-# Security-sensitive files
-.env.example @ikanisa/security
-/.github/workflows/ci-secret-guard.yml @ikanisa/security
-/tools/scripts/check-client-secrets.mjs @ikanisa/security
+# Frontend - Web PWA
+/src/                           @ikanisa/frontend-team
+/src/components/client/         @ikanisa/frontend-team
+/src/components/merchant/       @ikanisa/frontend-team
+/src/components/admin/          @ikanisa/frontend-team
+/src/integrations/supabase/     @ikanisa/backend-team @ikanisa/frontend-team
+/src/hooks/                     @ikanisa/frontend-team
+/src/pages/                     @ikanisa/frontend-team
+/public/                        @ikanisa/frontend-team
+/index.html                     @ikanisa/frontend-team
+
+# Apps
+/apps/web/                      @ikanisa/frontend-team
+/apps/admin/                    @ikanisa/frontend-team
+/apps/client/                   @ikanisa/frontend-team
+/apps/ocr-converter/            @ikanisa/backend-team
+/apps/vendor/                   @ikanisa/frontend-team
+/apps/ecotrips/                 @ikanisa/ecotrips-team
+
+# Agents Service
+/agents-service/                @ikanisa/ai-team @ikanisa/backend-team
+/agents-service/Dockerfile      @ikanisa/devops-team @ikanisa/ai-team
+/agents-service/src/agents/     @ikanisa/ai-team
+/agents-service/src/server.ts   @ikanisa/backend-team
+
+# Packages
+/packages/                      @ikanisa/core-team
+/packages/db/                   @ikanisa/backend-team
+/packages/ui/                   @ikanisa/frontend-team
+/packages/types/                @ikanisa/core-team
+/packages/config/               @ikanisa/core-team
+
+# Database & Backend
+/supabase/                      @ikanisa/backend-team
+/supabase/migrations/           @ikanisa/backend-team @ikanisa/dba-team
+/supabase/seed/                 @ikanisa/backend-team
+/supabase/functions/            @ikanisa/backend-team
+/supabase/functions/payments/   @ikanisa/backend-team @ikanisa/payments-team
+/supabase/functions/receipts/   @ikanisa/backend-team @ikanisa/compliance-team
+/supabase/functions/auth/       @ikanisa/backend-team @ikanisa/security-team
+/supabase/tests/                @ikanisa/backend-team @ikanisa/qa-team
+
+# Tests
+/tests/                         @ikanisa/qa-team
+/tests/playwright/              @ikanisa/qa-team @ikanisa/frontend-team
+/tests/k6/                      @ikanisa/qa-team @ikanisa/sre-team
+/tests/accessibility/           @ikanisa/qa-team @ikanisa/accessibility-team
+
+# Scripts
+/scripts/                       @ikanisa/devops-team
+/scripts/ci/                    @ikanisa/devops-team
+/scripts/supabase/              @ikanisa/backend-team @ikanisa/devops-team
+/scripts/ops/                   @ikanisa/sre-team
+/scripts/dev/                   @ikanisa/core-team
+
+# Deployment & Infrastructure
+/deployments/                   @ikanisa/devops-team
+/.github/workflows/             @ikanisa/devops-team
+/.github/workflows/ci.yml       @ikanisa/devops-team @ikanisa/core-team
+/.github/workflows/codeql.yml   @ikanisa/security-team @ikanisa/devops-team
+/.github/workflows/supabase-deploy.yml @ikanisa/backend-team @ikanisa/devops-team
+
+# Security & Compliance
+/docs/security/                 @ikanisa/security-team
+/docs/compliance/               @ikanisa/compliance-team
+/docs/runbooks/                 @ikanisa/sre-team
+/audit/                         @ikanisa/security-team
+
+# AI & ML
+/docs/ai/                       @ikanisa/ai-team
+/docs/agents/                   @ikanisa/ai-team
+
+# Observability
+/docs/observability.md          @ikanisa/sre-team
+
+# Runbooks
+/docs/runbooks/fiscalization.md       @ikanisa/compliance-team @ikanisa/sre-team
+/docs/runbooks/payments-timeout.md    @ikanisa/payments-team @ikanisa/sre-team
+/docs/runbooks/ai-kill-switch.md      @ikanisa/ai-team @ikanisa/sre-team
+/docs/release-runbook.md              @ikanisa/sre-team @ikanisa/devops-team
+
+# Critical Production Files - Require multiple approvers
+/supabase/migrations/*.sql      @ikanisa/dba-team @ikanisa/backend-lead
+/agents-service/Dockerfile      @ikanisa/devops-lead @ikanisa/security-team
+/.github/workflows/deploy.yml   @ikanisa/devops-lead @ikanisa/engineering-lead
+
+# Notes:
+# - Replace @ikanisa/* team mentions with actual GitHub team names
+# - Ensure teams exist in GitHub organization settings
+# - Individual reviewers can be specified as @github-username
+# - Multiple owners can be specified for redundancy
+# - Use wildcards (*) carefully to avoid over-notification
