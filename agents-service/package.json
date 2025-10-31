@@ -31,10 +31,10 @@
     "openai": "^5.23.1",
     "pino": "^10.1.0",
     "ws": "^8.18.3",
-    "zod": "^3.25.76"
+    "zod": "^4.1.12"
   },
   "devDependencies": {
-    "@types/node": "^24.9.2",
+    "@types/node": "^22.16.5",
     "@types/ws": "^8.18.1",
     "pino-pretty": "^11.3.0",
     "tsx": "^4.19.2",

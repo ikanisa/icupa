@@ -19,7 +19,7 @@
     "@icupa/db": "workspace:*",
     "@tanstack/react-query": "^5.83.0",
     "date-fns": "^4.1.0",
-    "lucide-react": "^0.548.0",
+    "lucide-react": "^0.552.0",
     "recharts": "^2.15.4"
   },
   "devDependencies": {
