@@ -12,7 +12,7 @@
     "./*": "./src/*"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.77.0",
+    "@supabase/supabase-js": "^2.78.0",
     "zod": "^4.1.12"
   },
   "peerDependencies": {
