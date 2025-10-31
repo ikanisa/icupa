@@ -63,10 +63,3 @@ jobs:
           category: "/language:${{ matrix.language }}"
           # Upload results even if some queries fail
           upload: true
-          
-      - name: Upload SARIF results
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: ${{ runner.workspace }}/results
-          category: codeql-${{ matrix.language }}
