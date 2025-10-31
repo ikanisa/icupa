@@ -79,7 +79,7 @@ jobs:
         shell: bash
         run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
 
-      - name: Restore pnpm store
+      - name: Restore pnpm store cache
         uses: actions/cache@v4
         with:
           path: ${{ env.STORE_PATH }}
@@ -121,7 +121,7 @@ jobs:
         shell: bash
         run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
 
-      - name: Restore pnpm store
+      - name: Restore pnpm store cache
         uses: actions/cache@v4
         with:
           path: ${{ env.STORE_PATH }}
@@ -163,7 +163,7 @@ jobs:
         shell: bash
         run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
 
-      - name: Restore pnpm store
+      - name: Restore pnpm store cache
         uses: actions/cache@v4
         with:
           path: ${{ env.STORE_PATH }}
@@ -208,7 +208,7 @@ jobs:
         shell: bash
         run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
 
-      - name: Restore pnpm store
+      - name: Restore pnpm store cache
         uses: actions/cache@v4
         with:
           path: ${{ env.STORE_PATH }}
