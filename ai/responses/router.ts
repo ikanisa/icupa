@@ -52,49 +52,49 @@ export async function respond(input: Message[]): Promise<any> {
     },
   }));
 
-  // Make initial request to OpenAI
-  const res = await responsesClient.chat.completions.create({
-    model: RESPONSES_MODEL,
-    messages: input,
-    tools: toolSpecs,
-  });
+  const conversation: any[] = [...input];
+  let iteration = 0;
+  const MAX_TOOL_ITERATIONS = 8;
 
-  // Handle tool calls if present
-  const firstChoice = res.choices[0];
-  if (firstChoice?.message?.tool_calls && firstChoice.message.tool_calls.length > 0) {
-    const toolCalls = firstChoice.message.tool_calls;
-    const toolMessages: any[] = [];
+  while (iteration < MAX_TOOL_ITERATIONS) {
+    const response = await responsesClient.chat.completions.create({
+      model: RESPONSES_MODEL,
+      messages: conversation,
+      tools: toolSpecs,
+    });
 
-    // Execute each tool call
+    const choice = response.choices[0];
+    const assistantMessage = choice?.message;
+
+    if (!assistantMessage) {
+      return response;
+    }
+
+    conversation.push(assistantMessage);
+
+    const toolCalls = assistantMessage.tool_calls || [];
+    if (toolCalls.length === 0) {
+      return response;
+    }
+
     for (const toolCall of toolCalls) {
       const toolName = toolCall.function.name;
       const args = JSON.parse(toolCall.function.arguments || "{}");
-
       const result = await callTool(toolName, args);
-      toolMessages.push({
+
+      conversation.push({
         role: "tool",
         tool_call_id: toolCall.id,
         content: result,
       });
     }
 
-    // Create follow-up request with tool results
-    const followUpMessages = [
-      ...input,
-      firstChoice.message,
-      ...toolMessages,
-    ];
-
-    const followUp = await responsesClient.chat.completions.create({
-      model: RESPONSES_MODEL,
-      messages: followUpMessages,
-      tools: toolSpecs,
-    });
-
-    return followUp;
+    iteration += 1;
   }
 
-  return res;
+  throw new Error(
+    `Exceeded maximum tool call iterations (${MAX_TOOL_ITERATIONS}) without completion`
+  );
 }
 
 /**
