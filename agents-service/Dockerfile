@@ -14,7 +14,7 @@ COPY --chown=node:node agents-service/package.json ./package.json
 COPY --chown=node:node agents-service/package-lock.json ./package-lock.json
 
 USER node
-RUN npm ci --omit=dev --ignore-scripts
+RUN npm ci --ignore-scripts
 
 FROM deps AS build
 USER root

@@ -31,6 +31,7 @@ export default defineConfig(({ mode }) => ({
     include: [
       "src/**/*.{test,spec}.{ts,tsx}",
       "packages/**/*.{test,spec}.{ts,tsx}",
+      "libs/**/*.{test,spec}.{ts,tsx}",
       "tests/**/*.{test,spec}.{ts,tsx}",
       "supabase/functions/**/*.{test,spec}.{ts,tsx}",
       "ai/**/*.{test,spec}.{ts,tsx}",
