@@ -50,7 +50,7 @@
     "presupabase:test": "node scripts/ci/reset-supabase-test-db.mjs"
   },
   "dependencies": {
-    "@hookform/resolvers": "^3.10.0",
+    "@hookform/resolvers": "^5.2.2",
     "@opentelemetry/exporter-trace-otlp-http": "^0.207.0",
     "@opentelemetry/resources": "^2.2.0",
     "@opentelemetry/sdk-node": "^0.207.0",
