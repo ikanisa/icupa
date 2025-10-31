@@ -33,9 +33,20 @@ export async function initializeRealtimeClient(logger: any): Promise<RealtimeCli
     throw new Error("Missing OPENAI_API_KEY");
   }
 
-  const personaKey = (DEFAULT_PERSONA as PersonaKey) ?? "waiter";
-  currentPersona = personaKey;
+  const fallbackPersona: PersonaKey = "waiter";
+  let personaKey: PersonaKey = fallbackPersona;
+  if (DEFAULT_PERSONA && personaKeys.includes(DEFAULT_PERSONA as PersonaKey)) {
+    personaKey = DEFAULT_PERSONA as PersonaKey;
+  } else if (DEFAULT_PERSONA && DEFAULT_PERSONA !== fallbackPersona) {
+    logger.warn({ DEFAULT_PERSONA }, "Invalid DEFAULT_PERSONA configured, falling back to waiter");
+  }
+
   const persona = PERSONAS[personaKey];
+  if (!persona) {
+    throw new Error(`Persona configuration missing for key: ${personaKey}`);
+  }
+
+  currentPersona = personaKey;
 
   const client = new RealtimeClient({
     url: OPENAI_REALTIME_ENDPOINT,
@@ -90,7 +101,7 @@ export function registerRealtimeRoutes(app: FastifyInstance) {
     const persona = PERSONAS[key];
     
     const client = await ensureClient();
-    client.switchPersona(persona.system, buildToolsSpec(persona.tools));
+    await client.switchPersona(persona.system, buildToolsSpec(persona.tools));
     currentPersona = key;
     
     // Use type casting to work around Fastify logger type mismatch
