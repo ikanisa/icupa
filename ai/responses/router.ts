@@ -52,49 +52,59 @@ export async function respond(input: Message[]): Promise<any> {
     },
   }));
 
-  // Make initial request to OpenAI
-  const res = await responsesClient.chat.completions.create({
-    model: RESPONSES_MODEL,
-    messages: input,
-    tools: toolSpecs,
-  });
+  const messages: any[] = [...input];
+  const MAX_TOOL_ITERATIONS = 6;
 
-  // Handle tool calls if present
-  const firstChoice = res.choices[0];
-  if (firstChoice?.message?.tool_calls && firstChoice.message.tool_calls.length > 0) {
-    const toolCalls = firstChoice.message.tool_calls;
-    const toolMessages: any[] = [];
+  for (let iteration = 0; iteration < MAX_TOOL_ITERATIONS; iteration++) {
+    const response = await responsesClient.chat.completions.create({
+      model: RESPONSES_MODEL,
+      messages,
+      tools: toolSpecs,
+    });
 
-    // Execute each tool call
+    const choice = response.choices?.[0];
+    const assistantMessage = choice?.message;
+
+    if (!assistantMessage) {
+      return response;
+    }
+
+    const toolCalls = assistantMessage.tool_calls ?? [];
+
+    if (toolCalls.length === 0) {
+      return response;
+    }
+
+    messages.push(assistantMessage);
+
+    const toolMessages = [] as any[];
     for (const toolCall of toolCalls) {
       const toolName = toolCall.function.name;
-      const args = JSON.parse(toolCall.function.arguments || "{}");
+      let args: Record<string, unknown> = {};
+
+      try {
+        args = JSON.parse(toolCall.function.arguments || "{}");
+      } catch (error) {
+        throw new Error(
+          `Failed to parse tool arguments for ${toolName}: ${error}`
+        );
+      }
 
       const result = await callTool(toolName, args);
       toolMessages.push({
         role: "tool",
         tool_call_id: toolCall.id,
-        content: result,
+        content:
+          typeof result === "string" ? result : JSON.stringify(result ?? {}),
       });
     }
 
-    // Create follow-up request with tool results
-    const followUpMessages = [
-      ...input,
-      firstChoice.message,
-      ...toolMessages,
-    ];
-
-    const followUp = await responsesClient.chat.completions.create({
-      model: RESPONSES_MODEL,
-      messages: followUpMessages,
-      tools: toolSpecs,
-    });
-
-    return followUp;
+    messages.push(...toolMessages);
   }
 
-  return res;
+  throw new Error(
+    `Exceeded maximum tool iterations (${MAX_TOOL_ITERATIONS}) without completing response.`
+  );
 }
 
 /**
