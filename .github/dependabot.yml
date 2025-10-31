@@ -33,12 +33,15 @@ updates:
     ignore:
       # Pin React 18 for now
       - dependency-name: "react"
-        versions: ["19.x"]
+        versions:
+          - "19.x"
       - dependency-name: "react-dom"
-        versions: ["19.x"]
+        versions:
+          - "19.x"
       # Review Next.js major versions carefully
       - dependency-name: "next"
-        update-types: ["version-update:semver-major"]
+        update-types:
+          - "version-update:semver-major"
 
   # Agents service dependencies
   - package-ecosystem: "npm"
