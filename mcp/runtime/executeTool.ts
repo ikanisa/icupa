@@ -43,7 +43,18 @@ const ExecuteToolRequestSchema = z.object({
 type ExecuteToolRequest = z.infer<typeof ExecuteToolRequestSchema>;
 type Tool = z.infer<typeof ToolSchema>;
 type ToolParameter = z.infer<typeof ToolParameterSchema>;
-type ToolManifests = Record<ExecuteToolRequest["role"], z.infer<typeof ToolManifestSchema>>;
+type AgentRole = ExecuteToolRequest["role"];
+
+interface PreparedParam {
+  type: ToolParameter["type"];
+  value: any;
+}
+
+interface ExecuteToolSupabaseConfig {
+  supabaseUrl: string;
+  roleKeys: Record<AgentRole, string>;
+  auditKey?: string;
+}
 
 /**
  * Result of tool execution
@@ -137,15 +148,54 @@ function validateAndConvertParam(
 /**
  * Replace SQL placeholders with positional parameters
  */
-function prepareSqlWithParams(sql: string, params: Record<string, any>): { sql: string; values: any[] } {
-  const values: any[] = [];
+function createSupabaseClientWithKey(
+  supabaseUrl: string,
+  key: string,
+): SupabaseClient {
+  return createClient(supabaseUrl, key, {
+    auth: { persistSession: false },
+    global: {
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${key}`,
+      },
+    },
+  });
+}
+
+function createAuditClient(
+  config: ExecuteToolSupabaseConfig,
+  role: AgentRole,
+): SupabaseClient | null {
+  const auditKey = config.auditKey ?? config.roleKeys[role];
+  if (!auditKey) {
+    return null;
+  }
+  return createSupabaseClientWithKey(config.supabaseUrl, auditKey);
+}
+
+function prepareSqlWithParams(
+  sql: string,
+  params: Record<string, any>,
+  paramDefs: ToolParameter[],
+): { sql: string; values: PreparedParam[] } {
+  const values: PreparedParam[] = [];
   let index = 1;
   const paramMap: Record<string, number> = {};
+  const paramDefMap = Object.fromEntries(
+    paramDefs.map((definition) => [definition.name, definition]),
+  );
 
   const preparedSql = sql.replace(/:(\w+)/g, (_, paramName) => {
+    if (!(paramName in paramDefMap)) {
+      throw new Error(`Parameter '${paramName}' is not defined in tool manifest`);
+    }
     if (!(paramName in paramMap)) {
       paramMap[paramName] = index++;
-      values.push(params[paramName]);
+      values.push({
+        type: paramDefMap[paramName].type,
+        value: params[paramName],
+      });
     }
     return `$${paramMap[paramName]}`;
   });
@@ -158,9 +208,8 @@ function prepareSqlWithParams(sql: string, params: Record<string, any>): { sql: 
  */
 export async function executeTool(
   request: ExecuteToolRequest,
-  toolManifests: ToolManifests,
-  supabaseUrl: string,
-  supabaseServiceRoleKey: string,
+  toolManifests: Record<AgentRole, z.infer<typeof ToolManifestSchema>>,
+  supabaseConfig: ExecuteToolSupabaseConfig,
 ): Promise<ToolExecutionResult> {
   // Validate request
   const requestValidation = ExecuteToolRequestSchema.safeParse(request);
@@ -173,18 +222,34 @@ export async function executeTool(
 
   const { role, toolName, params, rls_context } = requestValidation.data;
 
+  // Find tool manifest for the role
   const manifest = toolManifests[role];
-  const tool = manifest?.tools.find((t) => t.name === toolName);
+  let auditClient = createAuditClient(supabaseConfig, role);
 
-  if (!manifest || !tool) {
-    await logAudit(supabaseUrl, supabaseServiceRoleKey, {
+  if (!manifest) {
+    await logAudit(auditClient, {
       role,
       toolName,
       operation: "execute",
       resource: "unknown",
       params,
       ok: false,
-      error: `Tool '${toolName}' not found`,
+      error: `No manifest configured for role '${role}'`,
+    });
+    return { ok: false, error: `No manifest configured for role '${role}'` };
+  }
+
+  const tool = manifest.tools.find((t) => t.name === toolName);
+
+  if (!tool) {
+    await logAudit(auditClient, {
+      role,
+      toolName,
+      operation: "execute",
+      resource: "unknown",
+      params,
+      ok: false,
+      error: `Tool '${toolName}' not found for role '${role}'`,
     });
     return { ok: false, error: `Tool '${toolName}' not found` };
   }
@@ -194,7 +259,7 @@ export async function executeTool(
   for (const paramDef of tool.parameters) {
     const validation = validateAndConvertParam(params[paramDef.name], paramDef);
     if (!validation.ok) {
-      await logAudit(supabaseUrl, supabaseServiceRoleKey, {
+      await logAudit(auditClient, {
         role,
         toolName,
         operation: "execute",
@@ -208,23 +273,47 @@ export async function executeTool(
     validatedParams[paramDef.name] = validation.value;
   }
 
-  // Create Supabase client with service role (execution constrained in RPC)
-  const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+  const roleKey = supabaseConfig.roleKeys[role];
+  if (!roleKey) {
+    await logAudit(auditClient, {
+      role,
+      toolName,
+      operation: "execute",
+      resource: tool.sql.split(" ")[0],
+      params: validatedParams,
+      ok: false,
+      error: `No Supabase key configured for role '${role}'`,
+    });
+    return { ok: false, error: `No Supabase key configured for role '${role}'` };
+  }
+
+  const supabase = createSupabaseClientWithKey(
+    supabaseConfig.supabaseUrl,
+    roleKey,
+  );
+
+  if (!auditClient) {
+    auditClient = supabase;
+  }
 
   try {
     // Prepare SQL with parameters
-    const { sql: preparedSql, values } = prepareSqlWithParams(tool.sql, validatedParams);
+    const { sql: preparedSql, values } = prepareSqlWithParams(
+      tool.sql,
+      validatedParams,
+      tool.parameters,
+    );
 
-    // Execute SQL via Supabase constrained RPC
-    const { data, error } = await supabase.rpc("mcp_execute_sql", {
+    // Execute SQL via Supabase
+    const { data, error } = await supabase.rpc("mcp_execute_tool", {
       role,
       sql: preparedSql,
       params: values,
-      rls_context: rls_context ?? null,
+      rls_context: rls_context ?? {},
     });
 
     if (error) {
-      await logAudit(supabaseUrl, supabaseServiceRoleKey, {
+      await logAudit(auditClient, {
         role,
         toolName,
         operation: "execute",
@@ -237,7 +326,7 @@ export async function executeTool(
     }
 
     // Log success
-    await logAudit(supabaseUrl, supabaseServiceRoleKey, {
+    await logAudit(auditClient, {
       role,
       toolName,
       operation: "execute",
@@ -249,7 +338,7 @@ export async function executeTool(
     return { ok: true, data };
   } catch (error: any) {
     const errorMsg = error?.message || String(error);
-    await logAudit(supabaseUrl, supabaseServiceRoleKey, {
+    await logAudit(auditClient, {
       role,
       toolName,
       operation: "execute",
@@ -266,8 +355,7 @@ export async function executeTool(
  * Log audit entry to mcp_audit_log
  */
 async function logAudit(
-  supabaseUrl: string,
-  supabaseServiceRoleKey: string,
+  supabase: SupabaseClient | null,
   entry: {
     role: string;
     toolName: string;
@@ -278,7 +366,9 @@ async function logAudit(
     error?: string;
   },
 ): Promise<void> {
-  const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+  if (!supabase) {
+    return;
+  }
 
   try {
     await supabase.from("mcp_audit_log").insert({

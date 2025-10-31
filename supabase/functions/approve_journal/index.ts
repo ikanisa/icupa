@@ -86,9 +86,55 @@ serve(async (req) => {
 
     const approverId = userData.user.id;
 
-    if (!hasCfoPrivileges(userData.user)) {
-      return new Response(JSON.stringify({ error: "Forbidden" }), {
+    // Fetch the pending journal entry
+    const appMetadata = (userData.user.app_metadata ?? {}) as Record<string, unknown>;
+    const rawRoles =
+      (appMetadata.mcp_roles as string[] | string | undefined) ??
+      (appMetadata.roles as string[] | string | undefined);
+
+    const userRoles = Array.isArray(rawRoles)
+      ? rawRoles
+      : rawRoles
+        ? String(rawRoles)
+            .split(",")
+            .map((role) => role.trim())
+            .filter(Boolean)
+        : [];
+
+    if (!userRoles.includes("cfo_agent")) {
+      return new Response(JSON.stringify({ error: "User lacks CFO approval permissions" }), {
         status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const executeAsCfo = async (
+      sql: string,
+      params: Array<{ type: "uuid" | "number" | "string" | "date" | "timestamp" | "jsonb"; value: unknown }>,
+    ) => {
+      const { data, error } = await supabase.rpc("mcp_execute_tool", {
+        role: "cfo_agent",
+        sql,
+        params,
+        rls_context: {},
+      });
+
+      if (error) {
+        throw new Error(error.message ?? "MCP execution failed");
+      }
+      return data;
+    };
+
+    const pendingResult = await executeAsCfo(
+      "select * from public.pending_journals where id = $1",
+      [{ type: "uuid", value: pending_journal_id }],
+    );
+
+    const pendingJournal = Array.isArray(pendingResult) ? pendingResult[0] : null;
+
+    if (!pendingJournal) {
+      return new Response(JSON.stringify({ error: "Pending journal not found" }), {
+        status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -100,13 +146,75 @@ serve(async (req) => {
       });
     }
 
-    const { data: rpcResult, error: rpcError } = await supabase.rpc(
-      "mcp_handle_pending_journal",
-      {
-        action,
-        pending_journal_id,
-        approver: approverId,
-        notes: approver_notes ?? null,
+    // Handle approval
+    if (action === "approve") {
+      // Post the journal entry to gl_entries
+      const glResult = await executeAsCfo(
+        "insert into public.gl_entries (entry_date, account_dr, account_cr, amount, memo, posted_by) values ($1, $2, $3, $4, $5, $6) returning id",
+        [
+          { type: "date", value: pendingJournal.entry_date },
+          { type: "string", value: pendingJournal.account_dr },
+          { type: "string", value: pendingJournal.account_cr },
+          { type: "number", value: pendingJournal.amount },
+          { type: "string", value: pendingJournal.memo ?? null },
+          { type: "uuid", value: approverId },
+        ],
+      );
+
+      const glEntry = Array.isArray(glResult) ? glResult[0] : null;
+
+      if (!glEntry) {
+        return new Response(JSON.stringify({ error: "Failed to post journal" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Update pending journal status
+      const approvalUpdate = await executeAsCfo(
+        "update public.pending_journals set status = 'approved', approved_by = $1, approved_at = now() where id = $2",
+        [
+          { type: "uuid", value: approverId },
+          { type: "uuid", value: pending_journal_id },
+        ],
+      );
+
+      if (!approvalUpdate || (approvalUpdate as { row_count?: number }).row_count !== 1) {
+        return new Response(JSON.stringify({ error: "Failed to finalize journal approval" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // TODO: Send notification (Slack/email) to requester
+      // This can be implemented using a webhook or email service
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: "Journal entry approved and posted",
+          gl_entry_id: glEntry.id,
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    } else if (action === "reject") {
+      // Update pending journal status to rejected
+      const rejectionUpdate = await executeAsCfo(
+        "update public.pending_journals set status = 'rejected', approved_by = $1, approved_at = now() where id = $2",
+        [
+          { type: "uuid", value: approverId },
+          { type: "uuid", value: pending_journal_id },
+        ],
+      );
+
+      if (!rejectionUpdate || (rejectionUpdate as { row_count?: number }).row_count !== 1) {
+        return new Response(JSON.stringify({ error: "Failed to reject journal" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
     );
 

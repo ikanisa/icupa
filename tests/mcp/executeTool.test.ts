@@ -6,7 +6,15 @@ import legalTools from "../../mcp/legal.tools.json";
 
 describe("MCP executeTool Unit Tests", () => {
   const mockSupabaseUrl = "https://test.supabase.co";
-  const mockServiceRoleKey = "test-service-role-key";
+  const mockSupabaseConfig = {
+    supabaseUrl: mockSupabaseUrl,
+    roleKeys: {
+      waiter_agent: "waiter-role-key",
+      cfo_agent: "cfo-role-key",
+      legal_agent: "legal-role-key",
+    },
+    auditKey: "audit-role-key",
+  } as const;
 
   describe("loadToolManifest", () => {
     it("should load and validate waiter tools manifest", () => {
@@ -47,8 +55,7 @@ describe("MCP executeTool Unit Tests", () => {
           params: {},
         },
         toolManifests,
-        mockSupabaseUrl,
-        mockServiceRoleKey
+        mockSupabaseConfig
       );
 
       expect(result.ok).toBe(false);
@@ -63,8 +70,7 @@ describe("MCP executeTool Unit Tests", () => {
           params: {},
         },
         toolManifests,
-        mockSupabaseUrl,
-        mockServiceRoleKey
+        mockSupabaseConfig
       );
 
       expect(result.ok).toBe(false);
@@ -79,12 +85,26 @@ describe("MCP executeTool Unit Tests", () => {
           params: {},
         },
         toolManifests,
-        mockSupabaseUrl,
-        mockServiceRoleKey
+        mockSupabaseConfig
       );
 
       expect(result.ok).toBe(false);
       expect(result.error).toContain("Tool 'unknown_tool' not found");
+    });
+
+    it("should reject tools that do not belong to the requested role", async () => {
+      const result = await executeTool(
+        {
+          role: "waiter_agent",
+          toolName: "post_journal", // CFO tool
+          params: {},
+        },
+        toolManifests,
+        mockSupabaseConfig
+      );
+
+      expect(result.ok).toBe(false);
+      expect(result.error).toContain("Tool 'post_journal' not found");
     });
 
     it("should reject missing required parameters", async () => {
@@ -97,8 +117,7 @@ describe("MCP executeTool Unit Tests", () => {
           },
         },
         toolManifests,
-        mockSupabaseUrl,
-        mockServiceRoleKey
+        mockSupabaseConfig
       );
 
       expect(result.ok).toBe(false);
@@ -117,8 +136,7 @@ describe("MCP executeTool Unit Tests", () => {
           },
         },
         toolManifests,
-        mockSupabaseUrl,
-        mockServiceRoleKey
+        mockSupabaseConfig
       );
 
       expect(result.ok).toBe(false);
@@ -137,8 +155,7 @@ describe("MCP executeTool Unit Tests", () => {
           },
         },
         toolManifests,
-        mockSupabaseUrl,
-        mockServiceRoleKey
+        mockSupabaseConfig
       );
 
       expect(result.ok).toBe(false);
@@ -158,8 +175,7 @@ describe("MCP executeTool Unit Tests", () => {
           },
         },
         toolManifests,
-        mockSupabaseUrl,
-        mockServiceRoleKey
+        mockSupabaseConfig
       );
 
       expect(result.ok).toBe(false);
@@ -178,8 +194,7 @@ describe("MCP executeTool Unit Tests", () => {
           },
         },
         toolManifests,
-        mockSupabaseUrl,
-        mockServiceRoleKey
+        mockSupabaseConfig
       );
 
       expect(result.ok).toBe(false);
@@ -201,8 +216,7 @@ describe("MCP executeTool Unit Tests", () => {
           },
         },
         toolManifests,
-        mockSupabaseUrl,
-        mockServiceRoleKey
+        mockSupabaseConfig
       );
 
       // Should fail at execution, not validation
@@ -225,8 +239,7 @@ describe("MCP executeTool Unit Tests", () => {
           },
         },
         toolManifests,
-        mockSupabaseUrl,
-        mockServiceRoleKey
+        mockSupabaseConfig
       );
 
       // Should fail at execution, not validation
@@ -247,8 +260,7 @@ describe("MCP executeTool Unit Tests", () => {
           },
         },
         toolManifests,
-        mockSupabaseUrl,
-        mockServiceRoleKey
+        mockSupabaseConfig
       );
 
       // Should fail at execution, not validation
@@ -277,8 +289,7 @@ describe("MCP executeTool Unit Tests", () => {
           },
         },
         toolManifests,
-        mockSupabaseUrl,
-        mockServiceRoleKey
+        mockSupabaseConfig
       );
 
       // Should pass validation (conversion happens)
@@ -298,8 +309,7 @@ describe("MCP executeTool Unit Tests", () => {
           },
         },
         toolManifests,
-        mockSupabaseUrl,
-        mockServiceRoleKey
+        mockSupabaseConfig
       );
 
       // Should pass validation
@@ -319,8 +329,7 @@ describe("MCP executeTool Unit Tests", () => {
           },
         },
         toolManifests,
-        mockSupabaseUrl,
-        mockServiceRoleKey
+        mockSupabaseConfig
       );
 
       // Should pass validation

@@ -379,42 +379,11 @@ create policy cfo_pending_journals_read on public.pending_journals
   for select
   using (current_role = 'cfo_agent');
 
-drop policy if exists cfo_pending_journals_update on public.pending_journals;
-create policy cfo_pending_journals_update on public.pending_journals
-  for update
-  using (current_role = 'cfo_agent')
-  with check (current_role = 'cfo_agent');
-
 -- ============================================================================
--- 8. MCP EXECUTION HELPERS
+-- 8. SECURE TOOL EXECUTION FUNCTION
 -- ============================================================================
 
-create or replace function public.mcp_apply_rls_context(p_rls jsonb)
-returns void
-language plpgsql
-security definer
-set search_path = public, extensions
-as $$
-declare
-  ctx record;
-begin
-  if p_rls is null or p_rls = '{}'::jsonb then
-    return;
-  end if;
-
-  for ctx in select key, value from jsonb_each_text(p_rls) loop
-    if ctx.key !~ '^[a-zA-Z0-9_.]+$' then
-      raise exception 'Invalid RLS context key: %', ctx.key;
-    end if;
-    perform set_config(ctx.key, ctx.value, true);
-  end loop;
-end;
-$$;
-
-revoke all on function public.mcp_apply_rls_context(jsonb) from public;
-grant execute on function public.mcp_apply_rls_context(jsonb) to service_role;
-
-create or replace function public.mcp_execute_sql(
+create or replace function public.mcp_execute_tool(
   p_role text,
   p_sql text,
   p_params jsonb default '[]'::jsonb,
@@ -423,164 +392,102 @@ create or replace function public.mcp_execute_sql(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public, extensions
+set search_path = public, pg_temp
 as $$
 declare
   allowed_roles constant text[] := array['waiter_agent', 'cfo_agent', 'legal_agent'];
-  normalized_sql text;
-  statement_keyword text;
-  substituted_sql text := p_sql;
+  final_sql text;
   param_count integer;
   idx integer;
-  param_value jsonb;
+  param jsonb;
   replacement text;
   result jsonb;
+  row_count integer;
+  context_entry record;
 begin
-  if p_role is null or p_role not in (select unnest(allowed_roles)) then
-    raise exception 'Role % is not permitted to execute MCP SQL', p_role using errcode = '42501';
+  if p_role is null or trim(p_role) = '' then
+    raise exception 'role is required';
   end if;
 
-  if p_sql is null or length(trim(p_sql)) = 0 then
-    raise exception 'SQL statement is required for MCP execution';
+  if not p_role = any(allowed_roles) then
+    raise exception 'role % is not permitted', p_role;
   end if;
 
-  if position(';' in p_sql) > 0 then
-    raise exception 'Multiple statements are not allowed in MCP SQL';
+  final_sql := trim(both ';' from coalesce(p_sql, ''));
+  if final_sql = '' then
+    raise exception 'sql statement is required';
   end if;
 
-  normalized_sql := lower(trim(p_sql));
-  statement_keyword := split_part(normalized_sql, ' ', 1);
-
-  if statement_keyword not in ('select', 'insert', 'update', 'delete', 'with') then
-    raise exception 'Unsupported SQL statement: %', statement_keyword;
+  if p_params is null then
+    p_params := '[]'::jsonb;
   end if;
 
-  if p_params is not null and jsonb_typeof(p_params) <> 'array' then
-    raise exception 'Params must be a JSON array';
+  if jsonb_typeof(p_params) <> 'array' then
+    raise exception 'params must be an array';
   end if;
 
-  perform public.mcp_apply_rls_context(p_rls_context);
+  if p_rls_context is not null then
+    for context_entry in
+      select key, value from jsonb_each_text(p_rls_context)
+    loop
+      if context_entry.key like 'app.%' then
+        perform set_config(context_entry.key, context_entry.value, true);
+      end if;
+    end loop;
+  end if;
 
   execute format('set local role %I', p_role);
 
   param_count := coalesce(jsonb_array_length(p_params), 0);
+  if param_count > 0 then
+    for idx in reverse 1..param_count loop
+      param := p_params -> (idx - 1);
+      if param is null or jsonb_typeof(param) <> 'object' then
+        raise exception 'invalid parameter payload for index %', idx;
+      end if;
 
-  for idx in reverse 1..param_count loop
-    param_value := p_params->(idx - 1);
+      if not param ? 'type' then
+        raise exception 'parameter type missing for index %', idx;
+      end if;
 
-    if param_value is null or param_value = 'null'::jsonb then
-      replacement := 'NULL';
-    else
-      case jsonb_typeof(param_value)
-        when 'number', 'boolean' then
-          replacement := param_value::text;
-        when 'string' then
-          replacement := quote_nullable(trim(both '"' from param_value::text));
-        else
-          replacement := quote_nullable(param_value::text);
-      end case;
-    end if;
+      if not param ? 'value' or param->'value' is null then
+        replacement := 'null';
+      else
+        case param->>'type'
+          when 'number' then
+            replacement := quote_nullable(param->>'value');
+          when 'jsonb' then
+            replacement := quote_nullable((param->'value')::text) || '::jsonb';
+          when 'timestamp' then
+            replacement := quote_nullable(param->>'value') || '::timestamptz';
+          when 'date' then
+            replacement := quote_nullable(param->>'value') || '::date';
+          when 'uuid' then
+            replacement := quote_nullable(param->>'value') || '::uuid';
+          else
+            replacement := quote_nullable(param->>'value');
+        end case;
+      end if;
 
-    substituted_sql := regexp_replace(substituted_sql, '\\$' || idx, replacement, 'g');
-  end loop;
+      final_sql := regexp_replace(final_sql, '\$' || idx::text, replacement, 'g');
+    end loop;
+  end if;
 
-  execute format(
-    'select coalesce(jsonb_agg(row_to_json(q)), ''[]''::jsonb) from (%s) as q',
-    substituted_sql
-  )
-  into result;
+  if final_sql ~* '^\s*(select|with)\b' or final_sql ~* '\breturning\b' then
+    execute format(
+      'select coalesce(jsonb_agg(row_to_json(t)), ''[]''::jsonb) from (%s) as t',
+      final_sql
+    )
+    into result;
+  else
+    execute final_sql;
+    get diagnostics row_count = row_count;
+    result := jsonb_build_object('row_count', row_count);
+  end if;
 
   return result;
 end;
 $$;
 
-revoke all on function public.mcp_execute_sql(text, text, jsonb, jsonb) from public;
-grant execute on function public.mcp_execute_sql(text, text, jsonb, jsonb) to service_role;
-
-create or replace function public.mcp_handle_pending_journal(
-  action text,
-  pending_journal_id uuid,
-  approver uuid,
-  notes text default null
-)
-returns jsonb
-language plpgsql
-security definer
-set search_path = public, extensions
-as $$
-declare
-  journal_record public.pending_journals%rowtype;
-  gl_entry_id uuid;
-  response jsonb;
-begin
-  if action not in ('approve', 'reject') then
-    raise exception 'Invalid action. Expected approve or reject';
-  end if;
-
-  execute 'set local role cfo_agent';
-
-  select *
-    into journal_record
-  from public.pending_journals
-  where id = pending_journal_id
-  for update;
-
-  if not found then
-    raise exception 'Pending journal not found';
-  end if;
-
-  if journal_record.status <> 'pending' then
-    raise exception format('Journal already %s', journal_record.status);
-  end if;
-
-  if action = 'approve' then
-    insert into public.gl_entries (
-      entry_date,
-      account_dr,
-      account_cr,
-      amount,
-      memo,
-      posted_by
-    )
-    values (
-      journal_record.entry_date,
-      journal_record.account_dr,
-      journal_record.account_cr,
-      journal_record.amount,
-      journal_record.memo,
-      approver
-    )
-    returning id into gl_entry_id;
-
-    update public.pending_journals
-      set status = 'approved',
-          approved_by = approver,
-          approved_at = now(),
-          approver_notes = coalesce(notes, approver_notes)
-      where id = journal_record.id;
-
-    response := jsonb_build_object(
-      'pending_journal_id', journal_record.id,
-      'status', 'approved',
-      'gl_entry_id', gl_entry_id
-    );
-  else
-    update public.pending_journals
-      set status = 'rejected',
-          approved_by = approver,
-          approved_at = now(),
-          approver_notes = coalesce(notes, approver_notes)
-      where id = journal_record.id;
-
-    response := jsonb_build_object(
-      'pending_journal_id', journal_record.id,
-      'status', 'rejected'
-    );
-  end if;
-
-  return response;
-end;
-$$;
-
-revoke all on function public.mcp_handle_pending_journal(text, uuid, uuid, text) from public;
-grant execute on function public.mcp_handle_pending_journal(text, uuid, uuid, text) to service_role;
+grant execute on function public.mcp_execute_tool(text, text, jsonb, jsonb)
+  to waiter_agent, cfo_agent, legal_agent, authenticated, service_role;
