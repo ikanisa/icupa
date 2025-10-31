@@ -139,6 +139,9 @@ export class RealtimeClient {
 
     const payload = JSON.stringify(event);
     this.log.debug({ event }, "→ openai");
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      throw new Error("Realtime socket is not connected");
+    }
     this.ws.send(payload);
   }
 
