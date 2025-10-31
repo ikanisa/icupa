@@ -1,10 +1,8 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { Card, CardContent } from "@icupa/ui/card";
 import { Button } from "@icupa/ui/button";
-import { Input } from "@icupa/ui/input";
-import { Badge } from "@icupa/ui/badge";
-import { Send, Bot, User, Sparkles } from "lucide-react";
+import { Textarea } from "@icupa/ui/textarea";
+import { Send, Bot, User } from "lucide-react";
 
 interface Message {
   id: string;
@@ -32,14 +30,17 @@ export function AIChatScreen() {
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const prefersReducedMotion = useReducedMotion();
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const endOfMessagesRef = useRef<HTMLDivElement | null>(null);
 
-  const sendMessage = async () => {
-    if (!inputValue.trim()) return;
+  const sendMessage = async (overrideContent?: string) => {
+    const messageText = (overrideContent ?? inputValue).trim();
+    if (!messageText) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
       type: "user",
-      content: inputValue,
+      content: messageText,
       timestamp: new Date()
     };
 
@@ -47,7 +48,6 @@ export function AIChatScreen() {
     setInputValue("");
     setIsTyping(true);
 
-    // Simulate AI response
     setTimeout(() => {
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -61,14 +61,14 @@ export function AIChatScreen() {
           "Any allergens?"
         ]
       };
-      
+
       setMessages(prev => [...prev, assistantMessage]);
       setIsTyping(false);
     }, 2000);
   };
 
   const handleSuggestionClick = (suggestion: string) => {
-    setInputValue(suggestion);
+    void sendMessage(suggestion);
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -76,177 +76,137 @@ export function AIChatScreen() {
     void sendMessage();
   };
 
-  return (
-    <div className="flex-1 flex flex-col p-4 pb-32">
-      {/* Chat Header */}
-      <motion.div
-        initial={prefersReducedMotion ? undefined : { opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-4"
-      >
-        <Card className="glass-card border-0">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-primary-gradient rounded-full flex items-center justify-center">
-                <Bot className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <div>
-                <h2 className="font-semibold">ICUPA Assistant</h2>
-                <p className="text-sm text-muted-foreground">AI-powered dining companion</p>
-              </div>
-              <Badge variant="outline" className="ml-auto bg-success/20 text-success border-success/30">
-                <Sparkles className="w-3 h-3 mr-1" />
-                Online
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
+  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      void sendMessage();
+    }
+  };
 
-      {/* Messages */}
+  useEffect(() => {
+    if (!textareaRef.current) return;
+    const element = textareaRef.current;
+    element.style.height = "auto";
+    const nextHeight = Math.max(element.scrollHeight, 60);
+    element.style.height = `${nextHeight}px`;
+  }, [inputValue]);
+
+  useEffect(() => {
+    if (!endOfMessagesRef.current) return;
+    endOfMessagesRef.current.scrollIntoView({
+      behavior: prefersReducedMotion ? "auto" : "smooth",
+      block: "end"
+    });
+  }, [messages, isTyping, prefersReducedMotion]);
+
+  return (
+    <div className="flex h-full min-h-0 flex-1 flex-col bg-[#343541] text-white">
       <div
-        className="flex-1 space-y-4 overflow-y-auto"
+        className="flex-1 overflow-y-auto"
         role="log"
         aria-live="polite"
         aria-relevant="additions text"
       >
-        {messages.map((message, index) => (
-          <motion.div
-            key={message.id}
-            initial={prefersReducedMotion ? undefined : { opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: prefersReducedMotion ? 0 : index * 0.1 }}
-            className={`flex ${message.type === "user" ? "justify-end" : "justify-start"}`}
-          >
-            <div className={`max-w-[80%] ${message.type === "user" ? "order-2" : "order-1"}`}>
-              <Card className={`glass-card border-0 ${
-                message.type === "user" 
-                  ? "bg-primary-gradient text-primary-foreground" 
-                  : ""
-              }`}>
-                <CardContent className="p-3">
-                  <div className="flex items-start gap-2">
-                    {message.type === "assistant" && (
-                      <Bot className="w-4 h-4 mt-0.5 text-primary" />
-                    )}
-                    {message.type === "user" && (
-                      <User className="w-4 h-4 mt-0.5 text-primary-foreground" />
-                    )}
-                    <div className="flex-1">
-                      <p className="text-sm leading-relaxed">{message.content}</p>
-                      <p className={`text-xs mt-1 ${
-                        message.type === "user" 
-                          ? "text-primary-foreground/70" 
-                          : "text-muted-foreground"
-                      }`}>
-                        {message.timestamp.toLocaleTimeString([], { 
-                          hour: '2-digit', 
-                          minute: '2-digit' 
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              {/* Suggestions */}
-              {message.suggestions && (
-                <motion.div
-                  initial={prefersReducedMotion ? undefined : { opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: prefersReducedMotion ? 0 : 0.3 }}
-                  className="mt-2 flex flex-wrap gap-2"
-                >
-                  {message.suggestions.map((suggestion, idx) => (
-                    <Button
-                      key={idx}
-                      variant="outline"
-                      size="sm"
-                      className="text-xs h-auto py-1.5 px-3 rounded-full bg-background/50 hover:bg-primary/10"
-                      type="button"
-                      onClick={() => handleSuggestionClick(suggestion)}
-                    >
-                      {suggestion}
-                    </Button>
-                  ))}
-                </motion.div>
-              )}
-            </div>
-          </motion.div>
-        ))}
+        {messages.map((message, index) => {
+          const isAssistant = message.type === "assistant";
 
-        {/* Typing Indicator */}
+          return (
+            <motion.div
+              key={message.id}
+              initial={prefersReducedMotion ? undefined : { opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: prefersReducedMotion ? 0 : index * 0.05 }}
+              className={`border-b border-white/5 ${isAssistant ? "bg-[#444654]" : "bg-transparent"}`}
+            >
+              <div className="mx-auto flex w-full max-w-3xl gap-4 px-6 py-8 text-sm leading-relaxed">
+                <div
+                  className={`mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md ${
+                    isAssistant ? "bg-[#10a37f] text-black" : "bg-[#2f2f36] text-white"
+                  }`}
+                  aria-hidden="true"
+                >
+                  {isAssistant ? <Bot className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                </div>
+                <div className="whitespace-pre-wrap text-sm text-white/90">
+                  {message.content}
+                  {message.suggestions && message.suggestions.length > 0 && (
+                    <div className="mt-4 grid gap-2 text-xs text-white/60 sm:grid-cols-2">
+                      {message.suggestions.map((suggestion, suggestionIndex) => (
+                        <button
+                          key={suggestionIndex}
+                          type="button"
+                          onClick={() => handleSuggestionClick(suggestion)}
+                          className="rounded-lg border border-white/10 bg-transparent px-3 py-2 text-left transition hover:border-white/20 hover:bg-white/5"
+                        >
+                          {suggestion}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          );
+        })}
+
         {isTyping && (
           <motion.div
-            initial={prefersReducedMotion ? undefined : { opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex justify-start"
+            initial={prefersReducedMotion ? undefined : { opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="border-b border-white/5 bg-[#444654]"
             role="status"
             aria-live="polite"
           >
-            <Card className="glass-card border-0">
-              <CardContent className="p-3">
-                <div className="flex items-center gap-2">
-                  <Bot className="w-4 h-4 text-primary" />
-                  <div className="flex gap-1">
-                    <motion.div
-                      animate={prefersReducedMotion ? { opacity: 1 } : { opacity: [0.3, 1, 0.3] }}
-                      transition={{ duration: prefersReducedMotion ? 0 : 1.5, repeat: prefersReducedMotion ? 0 : Infinity, delay: 0 }}
-                      className="w-2 h-2 bg-primary rounded-full"
-                    />
-                    <motion.div
-                      animate={prefersReducedMotion ? { opacity: 1 } : { opacity: [0.3, 1, 0.3] }}
-                      transition={{ duration: prefersReducedMotion ? 0 : 1.5, repeat: prefersReducedMotion ? 0 : Infinity, delay: prefersReducedMotion ? 0 : 0.2 }}
-                      className="w-2 h-2 bg-primary rounded-full"
-                    />
-                    <motion.div
-                      animate={prefersReducedMotion ? { opacity: 1 } : { opacity: [0.3, 1, 0.3] }}
-                      transition={{ duration: prefersReducedMotion ? 0 : 1.5, repeat: prefersReducedMotion ? 0 : Infinity, delay: prefersReducedMotion ? 0 : 0.4 }}
-                      className="w-2 h-2 bg-primary rounded-full"
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="mx-auto flex w-full max-w-3xl gap-4 px-6 py-8 text-sm leading-relaxed">
+              <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-[#10a37f] text-black" aria-hidden="true">
+                <Bot className="h-4 w-4" />
+              </div>
+              <div className="flex items-center gap-2 text-white/70">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-white/60" />
+                <span className="h-2 w-2 animate-pulse rounded-full bg-white/60 [animation-delay:150ms]" />
+                <span className="h-2 w-2 animate-pulse rounded-full bg-white/60 [animation-delay:300ms]" />
+              </div>
+            </div>
           </motion.div>
         )}
+
+        <div ref={endOfMessagesRef} />
       </div>
 
-      {/* Input */}
       <motion.div
-        initial={prefersReducedMotion ? undefined : { opacity: 0, y: 20 }}
+        initial={prefersReducedMotion ? undefined : { opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mt-4"
+        className="mx-auto w-full max-w-3xl px-6 pb-6 pt-4"
       >
-        <Card className="glass-card border-0">
-          <CardContent className="p-3">
-            <form className="flex gap-2" onSubmit={handleSubmit} aria-label="Send a message to the ICUPA assistant">
-              <label htmlFor="icupa-chat-input" className="sr-only">
-                Ask ICUPA anything
-              </label>
-              <Input
-                id="icupa-chat-input"
-                placeholder="Ask ICUPA anything..."
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                className="bg-background/50 border-border/50 rounded-xl"
-                aria-describedby="icupa-chat-helper"
-              />
-              <Button
-                type="submit"
-                disabled={!inputValue.trim() || isTyping}
-                className="bg-primary-gradient hover:opacity-90 transition-opacity rounded-xl px-4"
-                aria-label="Send message"
-              >
-                <Send className="w-4 h-4" aria-hidden="true" />
-                <span className="sr-only">Send</span>
-              </Button>
-            </form>
-            <p id="icupa-chat-helper" className="sr-only">
-              Press enter or use the send button to submit your question.
-            </p>
-          </CardContent>
-        </Card>
+        <form onSubmit={handleSubmit} aria-label="Send a message to the ICUPA assistant" className="space-y-3">
+          <label htmlFor="icupa-chat-input" className="sr-only">
+            Ask ICUPA anything
+          </label>
+          <div className="relative rounded-2xl border border-white/10 bg-[#40414f] px-4 pb-12 pt-3">
+            <Textarea
+              id="icupa-chat-input"
+              ref={textareaRef}
+              placeholder="Message ICUPA..."
+              value={inputValue}
+              onChange={(event) => setInputValue(event.target.value)}
+              onKeyDown={handleKeyDown}
+              className="min-h-[60px] w-full resize-none border-0 bg-transparent px-0 text-sm text-white placeholder:text-white/40 focus-visible:ring-0"
+              aria-describedby="icupa-chat-helper"
+            />
+            <Button
+              type="submit"
+              size="icon"
+              disabled={!inputValue.trim() || isTyping}
+              className="absolute bottom-3 right-3 flex h-9 w-9 items-center justify-center rounded-lg bg-[#19c37d] text-black transition hover:bg-[#15a86a] disabled:opacity-50"
+              aria-label="Send message"
+            >
+              <Send className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          </div>
+          <p id="icupa-chat-helper" className="text-center text-xs text-white/40">
+            ICUPA can make mistakes. Consider checking important information.
+          </p>
+        </form>
       </motion.div>
     </div>
   );
