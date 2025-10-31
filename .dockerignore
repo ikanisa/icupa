@@ -51,9 +51,6 @@ azure-pipelines.yml
 
 # Dependencies (will be installed in container)
 node_modules/
-pnpm-lock.yaml
-package-lock.json
-yarn.lock
 
 # Build artifacts (will be built in container)
 dist/
