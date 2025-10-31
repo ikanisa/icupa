@@ -6,10 +6,23 @@ ICUPA is a three-surface, multi-tenant Progressive Web Application that powers d
 
 ## Repository structure
 
+### Primary PWA Implementation (Production)
+
+The main ICUPA application is a **single Vite + React SPA** with three integrated surfaces:
+
 ```
 ├── public/                    # Static assets consumed by the PWA shell
-├── src/                       # React application code
-│   ├── components/            # Shared UI building blocks (client, merchant, admin shells)
+├── src/                       # React application code (PRIMARY IMPLEMENTATION)
+│   ├── components/
+│   │   ├── client/            # Diner/Client surface components
+│   │   ├── merchant/          # Merchant/Vendor surface components
+│   │   ├── admin/             # Admin panel components (includes AI agent management)
+│   │   └── ui/                # Shared design system components
+│   ├── modules/
+│   │   ├── routing/           # AppRouter with three surfaces: /, /merchant, /admin
+│   │   ├── client/            # Client surface pages
+│   │   ├── merchant/          # Merchant surface pages
+│   │   └── admin/             # Admin surface pages (AI config, analytics, compliance)
 │   ├── integrations/          # Supabase client + typed helpers
 │   ├── hooks/                 # Reusable React hooks
 │   ├── lib/                   # Utility modules (formatters, motion helpers, etc.)
@@ -33,6 +46,22 @@ ICUPA is a three-surface, multi-tenant Progressive Web Application that powers d
 ├── vite.config.ts             # Vite tooling & alias configuration
 └── .env.example               # Template for local environment variables
 ```
+
+**This Vite app is built and deployed by CI/CD** (`pnpm dev` → `pnpm build`).
+
+### Experimental Next.js Apps
+
+The repository also contains experimental Next.js implementations (not used in production):
+
+```
+├── apps/
+│   ├── client/                # Experimental standalone client PWA (Next.js)
+│   ├── vendor/                # Experimental standalone vendor/merchant PWA (Next.js)
+│   ├── admin/                 # Experimental standalone admin panel (Next.js)
+│   └── web/                   # Experimental unified Next.js app (imports from src/)
+```
+
+These apps are for migration exploration and are **not currently deployed**.
 
 ---
 
@@ -433,16 +462,54 @@ The diner pay screen now calls these Edge Functions, surfaces pending vs. captur
 
 ---
 
-## AI and agent experience roadmap
+## AI Agent Management & Architecture
 
-The UI includes dedicated surfaces for the AI waiter, allergen guardian, and merchant automation flows. As we wire the OpenAI Agents SDK, we will:
+### Three PWA Surfaces
 
-1. Register agents (waiter, upsell, inventory, compliance, etc.) inside a dedicated agents service (or Supabase Edge Functions) that consumes Supabase tools and honours guardrails (age gates, allergen blocks, availability filters).
-2. Enable retrieval using Supabase collections (`menu`, `allergens`, `policies`) so conversational answers cite menu knowledge cards.
-3. Capture telemetry in `agent_sessions` and `agent_events` tables to drive bandit learning, evaluations, and transparency dashboards.
-4. Surface per-tenant configuration (instructions, autonomy levels, budgets, experiments) through the admin UI while keeping kill-switches available across regions.
+ICUPA provides three distinct progressive web app surfaces, all accessible from the main Vite application:
 
-Refer back to this README as the authoritative overview when expanding the agents layer—the document will be updated alongside implementation milestones.
+1. **Client/Diner PWA** (`/`) - For diners ordering at restaurants
+   - Menu browsing with AI-powered search
+   - AI Waiter chat assistant
+   - Cart management and checkout
+   - Receipt viewing
+
+2. **Merchant/Vendor PWA** (`/merchant`) - For restaurant staff
+   - Kitchen Display System (KDS)
+   - Floor management
+   - Menu and inventory management
+   - Order tracking and analytics
+
+3. **Admin Panel** (`/admin`) - For platform administrators
+   - **AI Agent Configuration** - Full control over agent behavior
+   - Tenant and location management
+   - Analytics and compliance dashboards
+   - Feature flags and experiments
+
+### AI Agents Service Integration
+
+The **`agents-service/`** directory contains a standalone Fastify service that orchestrates AI agents:
+
+- **AI Waiter** - Conversational ordering assistant
+- **Allergen Guardian** - Safety-focused allergen checking
+- **Upsell Agent** - Intelligent recommendation engine
+
+**Admin Panel AI Management** (accessible at `/admin`):
+- Configure agent autonomy levels (0-3)
+- Set budget limits (session and daily)
+- Define custom instructions per agent
+- Enable/disable tools from allow-list
+- Track audit logs for all configuration changes
+- Monitor agent performance metrics
+
+The admin panel connects to the agents service via Supabase Edge Functions, allowing real-time configuration updates that propagate to all running agent instances.
+
+**Key Features:**
+- ✅ All AI agents are managed through the admin panel
+- ✅ Per-tenant configuration with override capabilities
+- ✅ Kill-switch support for emergency shutdowns
+- ✅ Comprehensive audit trails for compliance
+- ✅ Token usage tracking and budget enforcement
 
 ---
 
