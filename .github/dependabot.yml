@@ -24,6 +24,21 @@ updates:
     # Requires GitHub auto-merge to be enabled
     allow:
       - dependency-type: "all"
+    groups:
+      security-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "security"
+    ignore:
+      # Pin React 18 for now
+      - dependency-name: "react"
+        versions: ["19.x"]
+      - dependency-name: "react-dom"
+        versions: ["19.x"]
+      # Review Next.js major versions carefully
+      - dependency-name: "next"
+        update-types: ["version-update:semver-major"]
 
   # Agents service dependencies
   - package-ecosystem: "npm"
@@ -43,6 +58,12 @@ updates:
       - "dependencies"
       - "agents-service"
       - "automated"
+    groups:
+      security-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "security"
 
   # GitHub Actions
   - package-ecosystem: "github-actions"
@@ -61,6 +82,12 @@ updates:
       - "dependencies"
       - "github-actions"
       - "automated"
+    groups:
+      security-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "security"
 
   # Docker base images
   - package-ecosystem: "docker"
@@ -80,23 +107,9 @@ updates:
       - "dependencies"
       - "docker"
       - "automated"
-
-# Security updates - immediate notification
-# These override the schedule above
-groups:
-  security-updates:
-    patterns:
-      - "*"
-    update-types:
-      - "security"
-
-# Ignore specific dependencies that require manual updates
-ignore:
-  # Pin React 18 for now
-  - dependency-name: "react"
-    versions: ["19.x"]
-  - dependency-name: "react-dom"
-    versions: ["19.x"]
-  # Review Next.js major versions carefully
-  - dependency-name: "next"
-    update-types: ["version-update:semver-major"]
+    groups:
+      security-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "security"
