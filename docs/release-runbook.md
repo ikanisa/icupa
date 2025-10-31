@@ -1,122 +1,197 @@
-# Release Runbook - ICUPA Platform
+# Release Runbook
 
-**Version:** 1.0  
-**Last Updated:** 2025-10-29  
-**Owner:** Operations/SRE Team  
+This comprehensive runbook documents the complete process for building, testing, staging, deploying, and operating ICUPA in production environments.
 
----
+## Table of Contents
 
-## Overview
+- [Pre-Deployment Checklist](#pre-deployment-checklist)
+- [Environment Setup](#environment-setup)
+- [Build & Test](#build--test)
+- [Staging Deployment](#staging-deployment)
+- [Production Deployment](#production-deployment)
+- [Post-Deployment Verification](#post-deployment-verification)
+- [Rollback Procedures](#rollback-procedures)
+- [Monitoring & Alerts](#monitoring--alerts)
+- [On-Call Handoff](#on-call-handoff)
+- [Common Issues & Resolutions](#common-issues--resolutions)
 
-This runbook documents the standard operating procedures for deploying ICUPA to staging and production environments. It covers build validation, deployment steps, smoke testing, rollback procedures, and on-call handoff.
+## Pre-Deployment Checklist
 
----
+### Code Quality Gates
 
-## Release Checklist
+- [ ] All CI checks pass (lint, typecheck, build)
+- [ ] Test coverage meets threshold (≥80% or baseline +10%)
+- [ ] No high/critical security vulnerabilities (CodeQL, dependency audit)
+- [ ] No secrets in code (secret scanning passed)
+- [ ] Code review approved by required owners
+- [ ] Architecture boundaries respected (no circular dependencies)
+- [ ] Breaking changes documented with migration plan
 
-### Pre-Release (1 Week Before)
-- [ ] Review and triage all S0/S1 issues
-- [ ] Verify all critical tests pass
-- [ ] Update CHANGELOG.md with release notes
-- [ ] Tag release in Git: `vX.Y.Z`
-- [ ] Generate SBOM artifacts
-- [ ] Run security scan (CodeQL, dependency audit)
-- [ ] Review performance metrics from staging
-- [ ] Notify stakeholders of release window
+### Database & Schema
 
-### Release Day
-- [ ] Verify CI passes on release branch
-- [ ] Deploy to staging
-- [ ] Run smoke tests on staging
-- [ ] Load test staging (if major changes)
-- [ ] Get approval from Product/Engineering leads
-- [ ] Deploy to production
-- [ ] Run smoke tests on production
-- [ ] Monitor error rates and latency (1 hour)
-- [ ] Update status page
-- [ ] Send release notification
+- [ ] All migrations are forward-only and tested
+- [ ] Rollback strategy documented for each migration
+- [ ] Migration tested in staging environment
+- [ ] Indexes optimized for hot queries
+- [ ] RLS policies validated with test suite
 
-### Post-Release
-- [ ] Monitor alerts for 24 hours
-- [ ] Review error logs
-- [ ] Update documentation if needed
-- [ ] Close release issues
-- [ ] Retrospective (if issues occurred)
+### Documentation
 
----
+- [ ] Release notes prepared
+- [ ] Breaking changes documented
+- [ ] Migration guide updated (if needed)
+- [ ] Runbook updated with any new procedures
+- [ ] API contract changes documented
 
-## Build & Test Pipeline
+### Dependencies
 
-### 1. Local Validation (Developer)
+- [ ] All dependencies audited for vulnerabilities
+- [ ] Critical dependencies pinned to specific versions
+- [ ] No major version updates without compatibility testing
+- [ ] Transitive dependencies reviewed
+
+### Feature Flags
+
+- [ ] New features behind feature flags
+- [ ] Kill switches tested and operational
+- [ ] Gradual rollout plan defined
+- [ ] Rollback plan includes feature flag state
+
+## Environment Setup
+
+### Local Development
 
 ```bash
-# Install dependencies
+# 1. Install dependencies
 pnpm install
 
-# Run linter
-pnpm lint
+# 2. Set up environment variables
+cp .env.example .env.local
+# Edit .env.local with your values
 
-# Run type checker
-pnpm typecheck
+# 3. Start Supabase locally (requires Docker)
+supabase start
+supabase db reset --local --yes
+supabase seed --local --yes
 
-# Run unit tests
-pnpm test
-
-# Run E2E tests (optional for developers)
-pnpm test:e2e
-
-# Build for production
-VITE_SUPABASE_URL=<staging-url> \
-VITE_SUPABASE_ANON_KEY=<staging-key> \
-pnpm build
+# 4. Start development servers
+pnpm dev           # Web app on port 8080
+pnpm dev:agents    # Agents service on port 8787
 ```
 
-### 2. CI Validation (Automated)
+### Staging Environment
 
-CI runs on all PRs and commits to `main`:
-- **Lint:** ESLint with max-warnings=0
-- **Type Check:** TypeScript compilation
-- **Build:** Production bundle with staging env vars
-- **Tests:** Vitest unit tests
-- **Coverage:** (After implementation) Minimum 80% threshold
-- **Secret Scan:** Check for leaked credentials
-- **SBOM:** (After implementation) Generate artifacts
+Staging should mirror production as closely as possible:
 
-### 3. Security Validation
+- Same database version (PostgreSQL 15+)
+- Same Supabase version
+- Same Node.js version (18.18.2+)
+- Same resource limits (CPU, memory)
+- Separate Supabase project (staging)
+- Separate secrets and API keys (non-production)
+
+### Production Environment
+
+**Supabase Project:**
+- Project ID: `<prod-project-id>`
+- Region: `<region>`
+- Database: PostgreSQL 15+ with pgvector
+- Storage: Multi-region replication enabled
+
+**Hosting:**
+- Web App: Vercel/Netlify with CDN
+- Agents Service: Cloud Run/ECS with auto-scaling
+- Edge Functions: Supabase Edge Functions (Deno)
+
+## Build & Test
+
+### 1. Install Dependencies
+
+```bash
+# Use pnpm for consistent dependency resolution
+pnpm install --frozen-lockfile
+```
+
+### 2. Lint & Type Check
+
+```bash
+# Lint all code
+pnpm lint
+
+# Type check
+pnpm typecheck
+
+# Format check (optional in CI)
+pnpm format:check
+```
+
+### 3. Run Unit Tests
+
+```bash
+# Run all unit tests
+pnpm test
+
+# Run with coverage
+pnpm test --coverage
+
+# Verify coverage meets threshold
+pnpm test --coverage --coverageThreshold='{"global":{"lines":80}}'
+```
+
+### 4. Build Application
+
+```bash
+# Set required environment variables
+export VITE_SUPABASE_URL=<staging-or-prod-url>
+export VITE_SUPABASE_ANON_KEY=<staging-or-prod-key>
+
+# Build web app
+pnpm build
+
+# Build agents service
+cd agents-service && pnpm build
+```
+
+### 5. Run E2E Tests
+
+```bash
+# Install Playwright browsers (first time only)
+npx playwright install --with-deps
+
+# Run E2E tests against staging
+PLAYWRIGHT_BASE_URL=https://staging.icupa.app pnpm test:e2e
+
+# Generate HTML report
+npx playwright show-report tests/playwright/artifacts/phase10/playwright/html
+```
+
+### 6. Run SQL Tests
+
+```bash
+# Requires Supabase CLI and local Supabase running
+pnpm supabase:test
+```
+
+### 7. Security Scans
 
 ```bash
 # Dependency audit
 pnpm audit
 
-# Update vulnerable dependencies
-pnpm update <package>
-
-# Verify no high-severity CVEs remain
+# Check for high/critical vulnerabilities
 pnpm audit --audit-level=high
+
+# Secret scanning (in CI)
+node tools/scripts/check-client-secrets.mjs
 ```
 
----
+## Staging Deployment
 
-## Deployment Procedures
-
-### Architecture Components
-
-1. **Web PWA** - Static bundle (Vercel/Netlify/CDN)
-2. **Agents Service** - Containerized (Docker/K8s)
-3. **Supabase Edge Functions** - Deno runtime
-4. **Database Migrations** - PostgreSQL
-
-### Staging Deployment
-
-#### A. Deploy Database Migrations
+### 1. Deploy Database Migrations
 
 ```bash
-# Connect to Supabase
-export SUPABASE_ACCESS_TOKEN=<staging-token>
-supabase login
-
 # Link to staging project
-supabase link --project-ref <staging-ref>
+supabase link --project-ref <staging-project-ref>
 
 # Review pending migrations
 supabase db diff
@@ -124,493 +199,649 @@ supabase db diff
 # Apply migrations
 supabase db push
 
-# Run SQL tests
-supabase db test
+# Verify migration success
+supabase db remote list-migrations
 ```
 
-#### B. Deploy Edge Functions
+### 2. Deploy Edge Functions
 
 ```bash
-# Deploy all functions (no JWT verification for staging)
-./scripts/supabase/deploy-functions.sh --project <staging-ref>
+# Deploy all edge functions
+./scripts/supabase/deploy-functions.sh --project <staging-project-ref>
 
 # Or deploy specific function
-supabase functions deploy payments --project-ref <staging-ref> --no-verify-jwt
+supabase functions deploy <function-name> --project-ref <staging-project-ref>
+
+# Verify deployment
+curl https://<staging-project-ref>.functions.supabase.co/<function-name>/health
 ```
 
-#### C. Deploy Agents Service
+### 3. Update Secrets
+
+```bash
+# Set edge function secrets
+supabase secrets set OPENAI_API_KEY=<staging-key> --project-ref <staging-project-ref>
+supabase secrets set STRIPE_SECRET_KEY=<staging-key> --project-ref <staging-project-ref>
+
+# Verify secrets (don't expose values)
+supabase secrets list --project-ref <staging-project-ref>
+```
+
+### 4. Deploy Web Application
+
+```bash
+# Build with staging environment
+export VITE_SUPABASE_URL=https://<staging-project-ref>.supabase.co
+export VITE_SUPABASE_ANON_KEY=<staging-anon-key>
+pnpm build
+
+# Deploy to Vercel/Netlify (via Git push or CLI)
+# Example for Vercel:
+vercel deploy --prod --token $VERCEL_TOKEN
+```
+
+### 5. Deploy Agents Service
 
 ```bash
 # Build Docker image
 cd agents-service
-docker build -t icupa-agents:staging .
+docker build -t icupa-agents-service:staging .
 
-# Push to registry
-docker tag icupa-agents:staging <registry>/icupa-agents:staging
-docker push <registry>/icupa-agents:staging
+# Push to container registry
+docker tag icupa-agents-service:staging <registry>/icupa-agents-service:staging
+docker push <registry>/icupa-agents-service:staging
 
-# Deploy to staging K8s/Cloud Run
-kubectl apply -f deployments/staging/agents-service.yaml
-# OR
-gcloud run deploy agents-service --image=<registry>/icupa-agents:staging
+# Deploy to Cloud Run/ECS
+# Example for Cloud Run:
+gcloud run deploy icupa-agents-service \
+  --image <registry>/icupa-agents-service:staging \
+  --platform managed \
+  --region <region> \
+  --set-env-vars "SUPABASE_URL=https://<staging-project-ref>.supabase.co" \
+  --set-env-vars "SUPABASE_SERVICE_ROLE_KEY=<staging-service-role-key>"
 ```
 
-#### D. Deploy Web PWA
+### 6. Smoke Tests
 
 ```bash
-# Build production bundle
-VITE_SUPABASE_URL=<staging-url> \
-VITE_SUPABASE_ANON_KEY=<staging-key> \
+# Run smoke tests against staging
+BASE_URL=https://staging.icupa.app pnpm test:e2e --grep @smoke
+```
+
+## Production Deployment
+
+### Pre-Production Checklist
+
+- [ ] Staging deployment successful
+- [ ] Smoke tests passed in staging
+- [ ] Performance tests passed (if applicable)
+- [ ] Security scan completed
+- [ ] Rollback plan reviewed
+- [ ] On-call engineer notified
+- [ ] Change window scheduled (if applicable)
+- [ ] Stakeholders notified
+
+### 1. Database Migrations (Production)
+
+```bash
+# ⚠️ CRITICAL: Take database backup before migrations
+# Supabase automatic backups enabled? Verify!
+
+# Link to production project
+supabase link --project-ref <prod-project-ref>
+
+# Review migrations one final time
+supabase db diff
+
+# Apply migrations (monitor closely)
+supabase db push
+
+# Verify migration success
+supabase db remote list-migrations
+
+# Test critical queries
+psql $DATABASE_URL -c "SELECT COUNT(*) FROM orders WHERE status = 'pending';"
+```
+
+### 2. Deploy Edge Functions (Production)
+
+```bash
+# Deploy to production
+./scripts/supabase/deploy-functions.sh --project <prod-project-ref>
+
+# Verify each function
+for func in menu/ingest menu/embed_items payments/process; do
+  curl -I https://<prod-project-ref>.functions.supabase.co/$func/health
+done
+
+# Update scheduler URLs if needed
+./scripts/supabase/update-scheduler-url.sh \
+  --project <prod-project-ref> \
+  --url https://<prod-project-ref>.functions.supabase.co/menu/embed_items
+```
+
+### 3. Update Secrets (Production)
+
+```bash
+# Set production secrets
+supabase secrets set OPENAI_API_KEY=<prod-key> --project-ref <prod-project-ref>
+supabase secrets set STRIPE_SECRET_KEY=<prod-key> --project-ref <prod-project-ref>
+supabase secrets set STRIPE_WEBHOOK_SECRET=<prod-secret> --project-ref <prod-project-ref>
+
+# For Rwanda: Mobile Money credentials
+supabase secrets set MOMO_API_KEY=<prod-key> --project-ref <prod-project-ref>
+supabase secrets set AIRTEL_API_KEY=<prod-key> --project-ref <prod-project-ref>
+```
+
+### 4. Deploy Web Application (Production)
+
+```bash
+# Build with production environment
+export VITE_SUPABASE_URL=https://<prod-project-ref>.supabase.co
+export VITE_SUPABASE_ANON_KEY=<prod-anon-key>
+export NODE_ENV=production
 pnpm build
 
-# Deploy to Vercel (automatic via Git push)
-git push origin main
+# Deploy (example for Vercel)
+vercel deploy --prod
 
-# OR deploy to CDN
-aws s3 sync dist/ s3://icupa-staging-web/ --delete
-aws cloudfront create-invalidation --distribution-id <id> --paths "/*"
+# Verify deployment
+curl -I https://icupa.app
 ```
 
-### Production Deployment
-
-**IMPORTANT:** Production deploys require approval from Engineering Lead and Product Owner.
-
-#### Pre-Production Checklist
-- [ ] Staging deployment successful
-- [ ] Smoke tests pass on staging
-- [ ] No S0/S1 issues open
-- [ ] Deployment window scheduled (low-traffic period)
-- [ ] On-call engineer assigned and notified
-- [ ] Rollback plan reviewed
-
-#### Production Deploy Steps
-
-**Same as staging, but with production credentials:**
-
-1. **Database Migrations** (10 minutes)
-   ```bash
-   supabase link --project-ref <prod-ref>
-   supabase db push
-   supabase db test
-   ```
-
-2. **Edge Functions** (15 minutes)
-   ```bash
-   ./scripts/supabase/deploy-functions.sh --project <prod-ref> --verify-jwt
-   ```
-
-3. **Agents Service** (10 minutes)
-   ```bash
-   docker build -t icupa-agents:vX.Y.Z .
-   docker push <registry>/icupa-agents:vX.Y.Z
-   kubectl apply -f deployments/production/agents-service.yaml
-   ```
-
-4. **Web PWA** (5 minutes)
-   ```bash
-   VITE_SUPABASE_URL=<prod-url> \
-   VITE_SUPABASE_ANON_KEY=<prod-key> \
-   pnpm build
-   # Deploy via Vercel or CDN sync
-   ```
-
-**Total Deployment Time:** ~40 minutes
-
----
-
-## Smoke Tests
-
-### Automated Smoke Tests
-
-Run after each deployment:
+### 5. Deploy Agents Service (Production)
 
 ```bash
-# Set base URL
-export BASE_URL=https://staging.icupa.app  # or production
+# Build and tag production image
+cd agents-service
+docker build -t icupa-agents-service:$(git rev-parse --short HEAD) .
+docker tag icupa-agents-service:$(git rev-parse --short HEAD) <registry>/icupa-agents-service:latest
+docker push <registry>/icupa-agents-service:latest
 
-# Health checks
-./scripts/ops/health-check.sh
+# Deploy with zero-downtime strategy
+gcloud run deploy icupa-agents-service \
+  --image <registry>/icupa-agents-service:latest \
+  --platform managed \
+  --region <region> \
+  --min-instances 1 \
+  --max-instances 10 \
+  --cpu 2 \
+  --memory 4Gi \
+  --set-env-vars "SUPABASE_URL=https://<prod-project-ref>.supabase.co" \
+  --set-env-vars "SUPABASE_SERVICE_ROLE_KEY=<prod-service-role-key>" \
+  --set-env-vars "OPENAI_API_KEY=<prod-key>" \
+  --no-traffic  # Deploy without sending traffic
 
-# Playwright critical path tests
-PLAYWRIGHT_BASE_URL=$BASE_URL pnpm test:e2e --grep "@smoke"
+# Gradually migrate traffic
+gcloud run services update-traffic icupa-agents-service \
+  --to-revisions=LATEST=10  # Start with 10%
+
+# Monitor for 5-10 minutes, then increase
+gcloud run services update-traffic icupa-agents-service \
+  --to-revisions=LATEST=50
+
+# Monitor again, then fully migrate
+gcloud run services update-traffic icupa-agents-service \
+  --to-revisions=LATEST=100
 ```
 
-### Manual Smoke Tests
-
-#### 1. Web PWA (5 minutes)
-- [ ] Navigate to homepage
-- [ ] Scan QR code (use test table session)
-- [ ] Browse menu
-- [ ] Add item to cart
-- [ ] Proceed to checkout
-- [ ] Verify payment screen loads
-- [ ] Check allergen warnings display
-
-#### 2. Agents Service (3 minutes)
-- [ ] Hit health endpoint: `curl https://<agents-url>/health`
-- [ ] Test waiter agent: `POST /agents/waiter` with sample message
-- [ ] Verify response contains grounded reply
-- [ ] Check agent telemetry logged in database
-
-#### 3. Edge Functions (5 minutes)
-- [ ] Test table session creation
-- [ ] Test payment checkout (Stripe test card)
-- [ ] Test receipt generation (should queue)
-- [ ] Verify webhook endpoints return 200
-
-#### 4. Database (2 minutes)
-- [ ] Run query: `SELECT COUNT(*) FROM auth.users;`
-- [ ] Check RLS policies: `SELECT COUNT(*) FROM items WHERE tenant_id = '<test>';`
-- [ ] Verify pg_cron jobs: `SELECT * FROM cron.job;`
-
----
-
-## Monitoring & Validation
-
-### Key Metrics to Watch (First Hour)
-
-| Metric | Threshold | Action if Exceeded |
-|--------|-----------|-------------------|
-| Error Rate | >2% | Investigate logs, consider rollback |
-| Response Time (p95) | >5s | Check database, edge function logs |
-| Payment Success Rate | <98% | Check Stripe, payment logs |
-| Receipt Generation | >10s p95 | Check fiscalization queue |
-| Agent Hallucination | >1% | Kill switch agent, review prompts |
-| Database CPU | >80% | Scale up, check slow queries |
-| Container Restarts | >3 in 10min | Check logs, rollback if unstable |
-
-### Monitoring Dashboards
-
-1. **Service Health Dashboard**
-   - HTTP request rate
-   - Error rate by endpoint
-   - Response time (p50, p95, p99)
-   - Success rate by service
-
-2. **Business Metrics Dashboard**
-   - Orders created per minute
-   - Payment conversion rate
-   - Average order value
-   - Receipt generation latency
-
-3. **Database Dashboard**
-   - Connection pool usage
-   - Query latency
-   - Table sizes
-   - Replication lag (if applicable)
-
-### Log Analysis
+### 6. Enable Feature Flags (Gradual Rollout)
 
 ```bash
-# Check recent errors (last 5 minutes)
-# For agents service:
-kubectl logs deployment/agents-service --since=5m | grep ERROR
+# Example: Enable AI waiter for 10% of sessions
+# Update agent_runtime_configs table
+psql $DATABASE_URL <<EOF
+UPDATE agent_runtime_configs 
+SET value = jsonb_set(value, '{rollout_percentage}', '10')
+WHERE key = 'ai.waiter.enabled';
+EOF
 
-# For Edge Functions (via Supabase dashboard):
-# Logs → Functions → Select function → Filter by level=ERROR
-
-# For Web PWA (client errors):
-# Check Sentry/LogRocket or browser console
+# Monitor metrics, then increase rollout
+# 10% → 25% → 50% → 100% over several hours/days
 ```
 
----
+## Post-Deployment Verification
+
+### Automated Checks
+
+```bash
+# Run smoke tests against production
+PLAYWRIGHT_BASE_URL=https://icupa.app pnpm test:e2e --grep @smoke
+
+# Health check endpoints
+curl https://icupa.app/health
+curl https://<prod-project-ref>.functions.supabase.co/menu/ingest/health
+curl https://agents-service-url.com/health
+```
+
+### Manual Verification
+
+**Diner Experience:**
+1. Scan QR code → verify menu loads
+2. Browse menu → verify images and prices
+3. Add items to cart → verify cart state
+4. Interact with AI waiter → verify responses
+5. Proceed to checkout → verify payment flow
+
+**Merchant Portal:**
+1. Login via WhatsApp OTP
+2. View KDS → verify order display
+3. Upload menu → verify ingestion
+4. View analytics → verify data
+
+**Admin Console:**
+1. Login via magic link
+2. View tenants → verify data
+3. View AI metrics → verify telemetry
+4. Test kill switches → verify controls
+
+### Metrics to Monitor
+
+```sql
+-- Active sessions in last 5 minutes
+SELECT COUNT(DISTINCT session_id) 
+FROM sessions 
+WHERE last_activity > NOW() - INTERVAL '5 minutes';
+
+-- Orders created in last hour
+SELECT COUNT(*) 
+FROM orders 
+WHERE created_at > NOW() - INTERVAL '1 hour';
+
+-- Failed payments in last hour
+SELECT COUNT(*) 
+FROM payment_attempts 
+WHERE status = 'failed' 
+AND created_at > NOW() - INTERVAL '1 hour';
+
+-- AI agent errors in last hour
+SELECT COUNT(*) 
+FROM agent_events 
+WHERE level = 'error' 
+AND created_at > NOW() - INTERVAL '1 hour';
+```
+
+### Performance Baselines
+
+Expected performance (P95):
+- Menu load: < 2s
+- Cart operations: < 500ms
+- AI waiter response: < 5s
+- Checkout flow: < 3s
+- Payment confirmation: < 10s
+
+Monitor using:
+```bash
+# Lighthouse performance audit
+pnpm test:perf
+
+# Custom performance monitoring
+# Check src/lib/performance.ts for Web Vitals tracking
+```
 
 ## Rollback Procedures
 
-### When to Rollback
+### Web Application Rollback
 
-Rollback immediately if:
-- Error rate >5% sustained for >5 minutes
-- Payment success rate drops below 90%
-- Critical functionality broken (unable to place orders)
-- Security vulnerability introduced
-- Database corruption detected
-
-### Rollback Steps
-
-#### 1. Web PWA Rollback (2 minutes)
-
+**Vercel/Netlify:**
 ```bash
-# Vercel: Revert to previous deployment
-vercel rollback <previous-deployment-url>
+# Rollback to previous deployment
+vercel rollback <deployment-url>
 
-# OR CDN: Sync previous version
-aws s3 sync s3://icupa-backups/web-vX.Y.Z-1/ s3://icupa-prod-web/ --delete
-aws cloudfront create-invalidation --distribution-id <id> --paths "/*"
+# Or via dashboard: Deployments → Select previous → Promote to Production
 ```
 
-#### 2. Agents Service Rollback (5 minutes)
+### Agents Service Rollback
 
+**Cloud Run:**
 ```bash
-# Kubernetes: Roll back to previous deployment
-kubectl rollout undo deployment/agents-service
+# List revisions
+gcloud run revisions list --service icupa-agents-service
 
-# Verify rollback
-kubectl rollout status deployment/agents-service
-
-# OR manually deploy previous version
-kubectl set image deployment/agents-service agents=<registry>/icupa-agents:vX.Y.Z-1
+# Rollback to previous revision
+gcloud run services update-traffic icupa-agents-service \
+  --to-revisions=<previous-revision>=100
 ```
 
-#### 3. Edge Functions Rollback (10 minutes)
-
-**Note:** Supabase doesn't support automatic function versioning. Manual redeployment required.
+### Database Migration Rollback
 
 ```bash
-# Checkout previous release tag
-git checkout vX.Y.Z-1
+# ⚠️ CRITICAL: Database rollbacks are risky
+# Always prefer forward-fixing migrations
 
-# Redeploy functions
-./scripts/supabase/deploy-functions.sh --project <prod-ref> --verify-jwt
+# If absolutely necessary, restore from backup:
+# 1. Contact Supabase support or use dashboard
+# 2. Restore to snapshot from before migration
+# 3. Verify data integrity
+# 4. Redeploy previous application version
 
-# Return to current branch
+# For minor issues, consider forward-fixing migration:
+supabase migration new fix_previous_migration
+# Edit the new migration to fix issues
+supabase db push
+```
+
+### Edge Functions Rollback
+
+```bash
+# Redeploy previous version from Git
+git checkout <previous-commit>
+./scripts/supabase/deploy-functions.sh --project <prod-project-ref>
 git checkout main
 ```
 
-#### 4. Database Rollback (15-30 minutes)
+### Feature Flag Rollback
 
-**CAUTION:** Database rollbacks are risky. Only rollback if data corruption occurred.
+```sql
+-- Disable feature immediately
+UPDATE agent_runtime_configs 
+SET value = jsonb_set(value, '{enabled}', 'false')
+WHERE key = 'ai.waiter.enabled';
 
-```bash
-# Connect to production
-supabase link --project-ref <prod-ref>
-
-# Review rollback migration
-cat supabase/migrations/YYYYMMDD_<migration>.down.sql
-
-# Apply rollback (ONLY if safe)
-supabase migration repair <migration-id>
-
-# OR restore from backup if data loss
-supabase db dump --file=backup.sql
-# Contact Supabase support for backup restoration
+-- Or use kill switch endpoint
+curl -X POST https://icupa.app/api/kill-switch \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -d '{"feature": "ai.waiter", "enabled": false}'
 ```
 
-**Alternative:** For critical issues, consider:
-- **Roll Forward:** Fix issue in hotfix and deploy
-- **Feature Flag:** Disable problematic feature without full rollback
-- **Agent Kill Switch:** Disable AI features if agents misbehaving
+### Rollback Decision Matrix
 
----
+| Severity | Symptoms | Action |
+|----------|----------|--------|
+| **Critical** | Site down, data loss, security breach | Immediate full rollback + incident response |
+| **High** | Major feature broken, payment failures | Rollback affected component + hotfix |
+| **Medium** | Minor feature issues, degraded performance | Disable feature flag + scheduled fix |
+| **Low** | UI glitch, non-critical bug | Forward fix in next deployment |
 
-## Communication & Handoff
+## Monitoring & Alerts
 
-### Deployment Notification Template
+### Key Metrics to Watch
 
-**Slack/Email:**
+**Application Metrics:**
+- Request rate (req/s)
+- Error rate (%)
+- Response time (P50, P95, P99)
+- Availability (uptime %)
 
+**Business Metrics:**
+- Active sessions
+- Orders per hour
+- Successful payments
+- AI waiter usage
+- Menu views
+
+**Infrastructure Metrics:**
+- CPU usage (%)
+- Memory usage (%)
+- Database connections
+- Storage usage (GB)
+
+### Alert Thresholds
+
+```yaml
+alerts:
+  - name: high_error_rate
+    condition: error_rate > 5%
+    window: 5m
+    severity: critical
+    
+  - name: slow_response_time
+    condition: p95_latency > 3s
+    window: 10m
+    severity: high
+    
+  - name: database_connection_pool_exhausted
+    condition: db_connections > 80%
+    window: 5m
+    severity: high
+    
+  - name: payment_failure_spike
+    condition: payment_failures > 10 in 5m
+    window: 5m
+    severity: critical
+    
+  - name: ai_agent_errors
+    condition: agent_errors > 20 in 10m
+    window: 10m
+    severity: medium
 ```
-🚀 ICUPA Production Deployment - vX.Y.Z
 
-Status: ✅ Successful | ⚠️ Monitoring | ❌ Rolled Back
+### Monitoring Dashboards
 
-Changes:
-- Feature A: Description
-- Fix B: Description
-- Update C: Description
+1. **Application Health Dashboard**
+   - Request rates by endpoint
+   - Error rates by type
+   - Response time distribution
+   - Active users/sessions
 
-Smoke Tests: ✅ Passed
-Error Rate: 0.5% (normal)
-Response Time: 1.2s p95 (good)
+2. **Business KPIs Dashboard**
+   - Orders created (hourly/daily)
+   - Revenue (hourly/daily)
+   - Conversion rates
+   - AI waiter engagement
 
-Next Steps:
-- Monitor for 1 hour
-- On-call: @engineer-name
-- Rollback plan: Ready
+3. **Infrastructure Dashboard**
+   - Resource utilization
+   - Database performance
+   - Storage usage
+   - Network traffic
 
-Documentation: https://github.com/ikanisa/icupa/releases/tag/vX.Y.Z
+### Logging Strategy
+
+**Log Levels:**
+- `ERROR`: Application errors, unhandled exceptions
+- `WARN`: Degraded performance, retries, deprecated features
+- `INFO`: Request/response, business events
+- `DEBUG`: Detailed debugging (disabled in production)
+
+**Log Format (JSON):**
+```json
+{
+  "timestamp": "2025-10-29T18:00:00Z",
+  "level": "INFO",
+  "service": "agents-service",
+  "trace_id": "abc123",
+  "user_id": "user_xyz",
+  "message": "AI waiter request processed",
+  "duration_ms": 1234,
+  "metadata": {
+    "agent": "waiter",
+    "tokens_used": 450
+  }
+}
 ```
 
-### On-Call Handoff
+**PII Scrubbing:**
+- Never log passwords, tokens, or OTPs
+- Redact PII (phone numbers, emails) in logs
+- Use correlation IDs for debugging without exposing user data
 
-**Context for On-Call Engineer:**
+## On-Call Handoff
 
-1. **What Was Deployed:**
-   - Version: vX.Y.Z
-   - Components: Web, Agents, Edge Functions, Database
-   - Major Changes: [List features/fixes]
+### Handoff Checklist
 
-2. **Known Issues:**
-   - [List any expected issues or warnings]
-   - [Workarounds or mitigations]
+- [ ] Review recent deployments and changes
+- [ ] Check current alerts and incidents
+- [ ] Review known issues and workarounds
+- [ ] Verify monitoring dashboards are accessible
+- [ ] Confirm access to production systems
+- [ ] Review escalation procedures
+- [ ] Share contact information
 
-3. **Monitoring:**
-   - Primary Dashboard: [Link]
-   - Alert Channels: #icupa-alerts
-   - Escalation: @engineering-lead
+### On-Call Responsibilities
 
-4. **Rollback Decision Tree:**
-   - If error rate >5%: Rollback immediately
-   - If payment issues: Contact Stripe support first
-   - If agent issues: Use kill switch, then investigate
+1. **Respond to alerts** within SLA:
+   - Critical: 15 minutes
+   - High: 30 minutes
+   - Medium: 2 hours
 
-5. **Key Contacts:**
-   - Engineering Lead: [Name/Phone]
-   - Product Owner: [Name/Phone]
-   - Supabase Support: support@supabase.io
-   - Stripe Support: [Support link]
+2. **Monitor dashboards** regularly:
+   - Check every 2 hours during business hours
+   - On-call phone for critical alerts 24/7
 
----
+3. **Incident management**:
+   - Acknowledge alert
+   - Assess severity
+   - Mitigate (rollback, kill switch, scaling)
+   - Document incident
+   - Post-mortem for critical incidents
 
-## Incident Response
-
-### Severity Levels
-
-- **P0 (Critical):** Service down, payments failing, data loss
-- **P1 (High):** Degraded performance, some features broken
-- **P2 (Medium):** Minor bugs, non-critical features affected
-- **P3 (Low):** Cosmetic issues, no user impact
-
-### Response Times
-
-| Severity | Response Time | Resolution Target |
-|----------|---------------|-------------------|
-| P0 | 5 minutes | 1 hour |
-| P1 | 15 minutes | 4 hours |
-| P2 | 1 hour | 24 hours |
-| P3 | 24 hours | 1 week |
+4. **Communicate**:
+   - Update stakeholders on critical incidents
+   - Document issues in incident log
+   - Escalate if needed
 
 ### Escalation Path
 
-1. **On-Call Engineer** (first responder)
-   - Assess severity
-   - Attempt mitigation
-   - Update status page
+1. **On-call engineer** (first responder)
+2. **Tech lead** (if issue not resolved in 1 hour)
+3. **Engineering manager** (for business impact)
+4. **CTO** (for critical outages or security incidents)
 
-2. **Engineering Lead** (if not resolved in 30min)
-   - Coordinate team response
-   - Make rollback decision
-   - Communicate with stakeholders
+### Contact Information
 
-3. **CTO/VP Engineering** (if P0 >1 hour)
-   - Executive escalation
-   - External communication
-   - Post-mortem planning
+```yaml
+on_call:
+  primary: +XXX-XXX-XXXX
+  backup: +XXX-XXX-XXXX
 
----
+escalation:
+  tech_lead: lead@icupa.app
+  eng_manager: manager@icupa.app
+  cto: cto@icupa.app
 
-## Post-Deployment Review
-
-### Success Criteria
-
-- [ ] All smoke tests passed
-- [ ] Error rate <1% for 24 hours
-- [ ] No rollback required
-- [ ] Performance metrics within SLOs
-- [ ] No critical bugs reported
-- [ ] Monitoring alerts functioning
-
-### Post-Mortem (If Issues Occurred)
-
-Conduct within 48 hours of incident:
-
-1. **Timeline:** What happened and when?
-2. **Root Cause:** Why did it happen?
-3. **Impact:** Who was affected? How many users?
-4. **Response:** What actions were taken?
-5. **Lessons Learned:** What worked well? What didn't?
-6. **Action Items:** How do we prevent this?
-
-**Document in:** `docs/postmortems/YYYY-MM-DD-<incident>.md`
-
----
-
-## Useful Commands Reference
-
-### Supabase
-
-```bash
-# Login
-supabase login
-
-# Link project
-supabase link --project-ref <ref>
-
-# Check status
-supabase status
-
-# View logs
-supabase functions logs <function-name>
-
-# Database migrations
-supabase db push
-supabase db reset
-supabase db test
-
-# Secrets management
-supabase secrets list
-supabase secrets set KEY=value
+external_vendors:
+  supabase_support: support@supabase.com
+  openai_support: support@openai.com
+  payment_support: support@stripe.com
 ```
 
-### Docker/Kubernetes
+## Common Issues & Resolutions
 
+### Issue: High Database Connection Count
+
+**Symptoms:**
+- Errors: "too many connections"
+- Slow queries
+- Timeouts
+
+**Resolution:**
 ```bash
-# Build and tag
-docker build -t icupa-agents:vX.Y.Z .
-docker tag icupa-agents:vX.Y.Z <registry>/icupa-agents:vX.Y.Z
+# Check connection count
+psql $DATABASE_URL -c "SELECT count(*) FROM pg_stat_activity;"
 
-# Deploy
-kubectl apply -f deployments/production/agents-service.yaml
-kubectl rollout status deployment/agents-service
+# Kill idle connections
+psql $DATABASE_URL -c "
+SELECT pg_terminate_backend(pid)
+FROM pg_stat_activity
+WHERE state = 'idle' AND state_change < NOW() - INTERVAL '5 minutes';
+"
 
-# Rollback
-kubectl rollout undo deployment/agents-service
-
-# Logs
-kubectl logs deployment/agents-service --tail=100 -f
+# Long-term: Increase connection pool size or enable connection pooling
 ```
 
-### pnpm
+### Issue: AI Agent Timeouts
 
+**Symptoms:**
+- AI waiter not responding
+- Timeout errors
+- High latency
+
+**Resolution:**
 ```bash
-# Install
-pnpm install
+# Check OpenAI API status
+curl https://status.openai.com/api/v2/status.json
 
-# Lint and type check
-pnpm lint
-pnpm typecheck
+# Check agent service logs
+gcloud logging read "resource.type=cloud_run_revision AND severity=ERROR" --limit 50
 
-# Test
-pnpm test
-pnpm test:e2e
-
-# Build
-pnpm build
+# If OpenAI is down, enable AI kill switch
+curl -X POST https://icupa.app/api/kill-switch \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -d '{"feature": "ai.waiter", "enabled": false}'
 ```
+
+### Issue: Payment Failures
+
+**Symptoms:**
+- Payment confirmation not received
+- Orders stuck in "pending" state
+
+**Resolution:**
+```bash
+# Check payment provider status
+curl https://status.stripe.com/api/v2/status.json
+
+# Verify webhook endpoint is accessible
+curl -I https://<prod-project-ref>.functions.supabase.co/payments/webhook
+
+# Check webhook secrets are correct
+supabase secrets list --project-ref <prod-project-ref>
+
+# Manually reconcile payment (if needed)
+psql $DATABASE_URL -c "
+UPDATE orders 
+SET status = 'completed', payment_status = 'paid'
+WHERE id = '<order-id>' AND payment_confirmed_externally = true;
+"
+```
+
+### Issue: Menu Not Loading
+
+**Symptoms:**
+- Blank menu screen
+- 404 errors for menu endpoint
+
+**Resolution:**
+```bash
+# Check if embeddings are stale
+psql $DATABASE_URL -c "
+SELECT MAX(updated_at) FROM menu_embeddings;
+"
+
+# Trigger manual embedding refresh
+curl -X POST https://<prod-project-ref>.functions.supabase.co/menu/embed_items \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY"
+
+# Check RLS policies
+psql $DATABASE_URL -c "
+SELECT * FROM pg_policies WHERE tablename = 'menu_items';
+"
+```
+
+### Issue: High Memory Usage (Agents Service)
+
+**Symptoms:**
+- OOM errors
+- Container restarts
+- Slow response times
+
+**Resolution:**
+```bash
+# Check memory usage
+gcloud run services describe icupa-agents-service --format="value(status.url)"
+
+# Increase memory allocation
+gcloud run services update icupa-agents-service --memory 8Gi
+
+# Check for memory leaks in logs
+gcloud logging read "resource.type=cloud_run_revision AND textPayload:'heap'" --limit 100
+
+# Scale out instead of up (if applicable)
+gcloud run services update icupa-agents-service --max-instances 20
+```
+
+## Additional Resources
+
+- [Architecture Documentation](./ARCHITECTURE.md)
+- [Security Policy](../SECURITY.md)
+- [Backend Contract](./backend-contract.md)
+- [Observability Guide](./observability.md)
+- [Testing Guide](./testing.md)
+- [Go-Live Runbook](./runbooks/go-live.md) (original)
 
 ---
 
-## Appendix
-
-### A. Environment Variables
-
-**Staging:**
-- `VITE_SUPABASE_URL`: https://staging-<ref>.supabase.co
-- `VITE_SUPABASE_ANON_KEY`: <staging-anon-key>
-- `AGENTS_BASE_URL`: https://staging-agents.icupa.app
-
-**Production:**
-- `VITE_SUPABASE_URL`: https://<prod-ref>.supabase.co
-- `VITE_SUPABASE_ANON_KEY`: <prod-anon-key>
-- `AGENTS_BASE_URL`: https://agents.icupa.app
-
-### B. Deployment Schedule
-
-Recommended deployment windows:
-- **Staging:** Anytime (low risk)
-- **Production:** Tuesday/Wednesday, 10:00-14:00 UTC (low-traffic hours for Rwanda/Malta)
-- **Avoid:** Fridays (weekend incident risk), Mondays (high traffic)
-
-### C. Useful Links
-
-- **GitHub Repo:** https://github.com/ikanisa/icupa
-- **Supabase Dashboard:** https://supabase.com/dashboard/project/<ref>
-- **Monitoring:** [Add monitoring URL]
-- **Status Page:** [Add status page URL]
-- **Documentation:** https://github.com/ikanisa/icupa/tree/main/docs
-
----
-
-**Document Version:** 1.0  
-**Next Review:** After first 3 production deployments  
-**Maintained By:** Operations Team
+**Last Updated**: 2025-10-29  
+**Maintained By**: @ikanisa/devops
+**Review Frequency**: After each major release or quarterly

@@ -1,0 +1,33 @@
+{
+  "name": "@icupa/voice-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Production-ready voice agent connecting Twilio to OpenAI Realtime API with MCP tools",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "dev": "tsx watch --env-file=.env src/index.ts",
+    "start": "node --enable-source-maps dist/index.js",
+    "build": "tsc --project tsconfig.json",
+    "lint": "tsc --noEmit --project tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.58.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "openai": "^5.23.1",
+    "ws": "^8.18.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.16.5",
+    "@types/ws": "^8.5.13",
+    "tsx": "^4.19.2",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}
