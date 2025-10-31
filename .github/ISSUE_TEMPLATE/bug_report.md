@@ -1,62 +1,77 @@
 ---
 name: Bug Report
-about: Report a bug to help us improve ICUPA
+about: Create a report to help us improve
 title: '[BUG] '
-labels: bug
+labels: 'bug, needs-triage'
 assignees: ''
 ---
 
 ## Bug Description
+
 <!-- A clear and concise description of what the bug is -->
 
 ## Steps to Reproduce
+
 1. Go to '...'
 2. Click on '...'
 3. Scroll down to '...'
 4. See error
 
 ## Expected Behavior
-<!-- What you expected to happen -->
+
+<!-- A clear and concise description of what you expected to happen -->
 
 ## Actual Behavior
-<!-- What actually happened -->
 
-## Screenshots/Logs
-<!-- If applicable, add screenshots or error logs to help explain your problem -->
+<!-- A clear and concise description of what actually happened -->
 
-```
-Paste error logs here
-```
+## Screenshots
+
+<!-- If applicable, add screenshots to help explain your problem -->
 
 ## Environment
-- **OS:** [e.g., Ubuntu 22.04, macOS 14, Windows 11]
-- **Node Version:** [e.g., 18.18.2, 20.11.1]
-- **pnpm Version:** [e.g., 10.0.0]
-- **Browser:** [e.g., Chrome 120, Safari 17] (if applicable)
-- **ICUPA Version/Commit:** [e.g., v0.1.0, commit abc123]
+
+**Desktop/Mobile:**
+- OS: [e.g. iOS, Windows, macOS, Android]
+- Browser: [e.g. Chrome 120, Safari 17]
+- Version: [e.g. 22]
+
+**ICUPA Version:**
+- Branch/Commit: [e.g. main, commit abc123]
+
+**Node Environment (if applicable):**
+- Node version: [e.g. 18.18.2]
+- pnpm version: [e.g. 10.0.0]
 
 ## Additional Context
+
 <!-- Add any other context about the problem here -->
 
-## Severity
-<!-- Remove the ones that don't apply -->
-- [ ] P0 - Critical (service down, data loss, security issue)
-- [ ] P1 - High (major feature broken, no workaround)
-- [ ] P2 - Medium (feature partially working, workaround exists)
-- [ ] P3 - Low (minor issue, cosmetic)
+## Error Messages
 
-## Area
-<!-- Remove the ones that don't apply -->
-- [ ] Frontend (Web PWA)
-- [ ] Backend (Supabase/Edge Functions)
-- [ ] Database
-- [ ] Agents Service
-- [ ] Mobile
-- [ ] Infrastructure/DevOps
-- [ ] Documentation
+<!-- If applicable, paste any error messages here -->
 
-## Checklist
-- [ ] I have searched existing issues to avoid duplicates
-- [ ] I have included reproduction steps
-- [ ] I have included error messages/logs
-- [ ] I have specified the environment details
+```
+Paste error messages here
+```
+
+## Logs
+
+<!-- If applicable, paste relevant logs here -->
+
+<details>
+<summary>Click to expand logs</summary>
+
+```
+Paste logs here
+```
+
+</details>
+
+## Possible Solution
+
+<!-- Optional: suggest a fix/reason for the bug -->
+
+## Related Issues
+
+<!-- Link any related issues here -->

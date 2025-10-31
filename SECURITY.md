@@ -1,139 +1,118 @@
 # Security Policy
 
-## Supported Versions
-
-We release patches for security vulnerabilities in the following versions:
-
-| Version | Supported          |
-| ------- | ------------------ |
-| 0.1.x   | :white_check_mark: |
-
 ## Reporting a Vulnerability
 
-The ICUPA team takes security bugs seriously. We appreciate your efforts to responsibly disclose your findings.
+The ICUPA team takes security seriously. If you discover a security vulnerability, please follow these steps:
 
-### Where to Report
+### How to Report
 
-**Please do not report security vulnerabilities through public GitHub issues.**
+**DO NOT** create a public GitHub issue for security vulnerabilities.
 
-Instead, please report security vulnerabilities via email to:
+Instead, please report security vulnerabilities by emailing: **security@icupa.app**
 
-**security@icupa.app** (or contact repository maintainers directly)
-
-Include the following information:
-- Type of issue (e.g., buffer overflow, SQL injection, cross-site scripting)
-- Full paths of source file(s) related to the manifestation of the issue
-- Location of the affected source code (tag/branch/commit or direct URL)
-- Any special configuration required to reproduce the issue
-- Step-by-step instructions to reproduce the issue
-- Proof-of-concept or exploit code (if possible)
-- Impact of the issue, including how an attacker might exploit it
+Include the following information in your report:
+- Description of the vulnerability
+- Steps to reproduce the issue
+- Potential impact
+- Any suggested fixes (if applicable)
 
 ### What to Expect
 
-- **Initial Response:** Within 48 hours, we will acknowledge receipt of your vulnerability report
-- **Triage:** Within 5 business days, we will provide an initial assessment and expected timeline
-- **Fix Development:** We will work on a fix and coordinate a disclosure timeline with you
-- **Public Disclosure:** Once a fix is available, we will release a security advisory and credit you (unless you prefer to remain anonymous)
+1. **Acknowledgment**: We will acknowledge receipt of your report within 48 hours.
+2. **Assessment**: We will assess the vulnerability and determine its severity within 5 business days.
+3. **Updates**: We will keep you informed of our progress as we work on a fix.
+4. **Resolution**: Once the vulnerability is fixed, we will notify you and publicly disclose the issue (with credit to you, if desired).
 
 ### Disclosure Policy
 
-- Let us know as soon as possible upon discovery of a potential security issue
-- Provide us a reasonable amount of time to fix the issue before public disclosure (typically 90 days)
-- Make a good faith effort to avoid privacy violations, destruction of data, and interruption or degradation of our services
+- We ask that you do not publicly disclose the vulnerability until we have had a chance to address it.
+- We will work with you to understand the scope of the issue and develop a fix.
+- Once fixed, we will coordinate the public disclosure with you.
 
-### Safe Harbor
+## Supported Versions
 
-We support safe harbor for security researchers who:
-- Make a good faith effort to avoid privacy violations, data destruction, and service disruption
-- Only interact with accounts they own or with explicit permission of the account holder
-- Do not exploit a security vulnerability beyond the minimum necessary to demonstrate it
+We release patches for security vulnerabilities for the following versions:
 
-We will not pursue legal action against researchers who follow these guidelines.
+| Version | Supported          |
+| ------- | ------------------ |
+| main    | :white_check_mark: |
+| < main  | :x:                |
 
-## Security Best Practices for Contributors
+We recommend always using the latest version from the `main` branch in production.
 
-### Code Review
-- All code changes require review by at least one maintainer
-- Security-sensitive changes require review by security team
-- Automated security scans (CodeQL, dependency audit) must pass
+## Security Best Practices
 
-### Dependencies
-- Keep dependencies up to date
-- Review Dependabot alerts weekly
-- Use `pnpm audit` before releases
-- Avoid dependencies with known high-severity CVEs
+### For Contributors
 
-### Secrets Management
-- Never commit secrets, API keys, or credentials to Git
-- Use environment variables for all secrets
-- Use Supabase Vault or similar for production secrets
-- Rotate secrets annually or after suspected compromise
+When contributing to ICUPA:
 
-### Authentication & Authorization
-- Use Supabase RLS policies for all data access
-- Validate JWT tokens on all Edge Functions
-- Use row-level security for multi-tenant isolation
-- Implement rate limiting on authentication endpoints
+1. **Never commit secrets**: Use environment variables for sensitive data
+2. **Review dependencies**: Check for known vulnerabilities before adding new dependencies
+3. **Follow secure coding practices**: 
+   - Validate all inputs
+   - Use parameterized queries (we use Supabase with proper RLS)
+   - Implement proper authentication and authorization
+   - Sanitize outputs to prevent XSS
 
-### MCP Agent Security (Model Context Protocol)
-- **Least-Privilege Roles:** Each AI agent (waiter, CFO, legal) has dedicated PostgreSQL roles with minimal grants
-- **Row-Level Security:** RLS policies scope data access per agent (e.g., venue_id for waiter, assigned_to for legal)
-- **Audit Logging:** All MCP tool executions logged to `mcp_audit_log` with parameters and outcomes
-- **Parameterized Queries:** All SQL in tool manifests uses `:param` placeholders, never string concatenation
-- **Human-in-the-Loop:** High-value operations (e.g., CFO journal entries >$10k) require approval via Edge Functions
-- **Secret Rotation:** OAuth2 client secrets must be rotated every 90 days
-- **Emergency Revocation:** Revoke agent roles via `DROP ROLE` or disable via RLS policy updates
-- **Tool Manifest Security Lint:** Run `pnpm security:lint-mcp` to detect dangerous SQL patterns (DELETE, DROP, TRUNCATE)
-- **No Service Role in App Code:** Application code must never use `service_role` key - agents use dedicated roles only
+### For Deployers
 
-### Input Validation
-- Validate all user input on both client and server
-- Use Zod schemas for type-safe validation
-- Sanitize user input before display (XSS prevention)
-- Use parameterized queries (Supabase handles this)
+When deploying ICUPA:
 
-### HTTPS/TLS
-- Enforce HTTPS in production
-- Use secure cookies (httpOnly, secure, sameSite)
-- Implement HSTS headers
-- Pin certificate expectations where appropriate
+1. **Use HTTPS**: Always use TLS in production
+2. **Rotate secrets regularly**: Especially API keys and tokens
+3. **Keep dependencies updated**: Monitor for security updates
+4. **Use strong authentication**: Enable MFA where possible
+5. **Monitor logs**: Watch for suspicious activity
+6. **Backup regularly**: Maintain secure backups of your data
 
 ## Security Features
 
-### Built-in Security
-- ✅ **Row-Level Security (RLS):** PostgreSQL RLS policies enforce tenant isolation
-- ✅ **JWT Authentication:** Supabase handles secure session management
-- ✅ **Webhook Signatures:** Stripe, MoMo, Airtel webhooks verified
-- ✅ **Secret Scanning:** CI checks for leaked credentials
-- ✅ **Dependency Audits:** Automated checks in CI pipeline
+ICUPA implements several security features:
 
-### Planned Security Enhancements
-- 🔄 **CodeQL SAST:** Static analysis in CI (in progress)
-- 🔄 **Dependabot:** Automated dependency updates (in progress)
-- 🔄 **Container Scanning:** Trivy/Snyk for Docker images (planned)
-- 🔄 **CSP Headers:** Content-Security-Policy for XSS mitigation (planned)
-- 🔄 **Rate Limiting:** Per-endpoint and per-tenant limits (planned)
+- **Row Level Security (RLS)**: Database access is controlled at the row level
+- **Secret scanning**: CI pipeline checks for accidentally committed secrets
+- **Authentication**: Supabase Auth with multiple providers (WhatsApp OTP, magic links)
+- **Session management**: Secure session handling with `x-icupa-session` headers
+- **PII protection**: Logs are scrubbed of personally identifiable information
+- **Age gates**: For alcohol and age-restricted content
+- **Allergen safety**: AI guardrails for allergen information
 
-## Security Contacts
+## Scope
 
-- **Security Team:** security@icupa.app
-- **Engineering Lead:** [To be added]
-- **CTO/CISO:** [To be added]
+The following are in scope for security reports:
 
-## Acknowledgments
+- Authentication and authorization bypasses
+- SQL injection
+- Cross-site scripting (XSS)
+- Cross-site request forgery (CSRF)
+- Server-side request forgery (SSRF)
+- Remote code execution
+- Data exposure
+- PII leakage in logs or responses
 
-We thank the following security researchers for responsibly disclosing vulnerabilities:
+The following are generally out of scope:
 
-- [No disclosures yet]
+- Issues in third-party dependencies (report these upstream)
+- Social engineering attacks
+- Physical attacks
+- Denial of service attacks
+- Issues requiring physical access to a user's device
 
-## Further Information
+## Security Updates
+
+Security updates will be:
+
+1. Applied to the `main` branch immediately
+2. Documented in our release notes
+3. Announced via GitHub security advisories
+4. Communicated to known deployers
+
+## Additional Resources
 
 - [OWASP Top 10](https://owasp.org/www-project-top-ten/)
+- [Supabase Security Best Practices](https://supabase.com/docs/guides/platform/security)
 - [CWE Top 25](https://cwe.mitre.org/top25/)
-- [Supabase Security](https://supabase.com/docs/guides/platform/security)
 
----
+## Questions?
 
-**Last Updated:** 2025-10-29  
-**Version:** 1.0
+If you have questions about this security policy, please contact: **security@icupa.app**

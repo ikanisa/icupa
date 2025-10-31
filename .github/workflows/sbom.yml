@@ -1,102 +1,124 @@
-name: Generate SBOM
+name: SBOM Generation
 
 on:
+  push:
+    branches: [main]
+    tags:
+      - 'v*'
   release:
     types: [published]
   workflow_dispatch:
-  push:
-    branches: [ "main" ]
-    paths:
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'agents-service/package.json'
-      - 'agents-service/package-lock.json'
 
 permissions:
   contents: write
 
 jobs:
-  sbom:
+  generate-sbom:
     name: Generate Software Bill of Materials
     runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v5
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v6
-      with:
-        node-version: '18.18.2'
-    
-    - name: Setup pnpm
-      uses: pnpm/action-setup@v4
-      with:
-        version: '10'
-        run_install: false
-    
-    - name: Install dependencies
-      run: pnpm install --frozen-lockfile
-    
-    - name: Install CycloneDX generator
-      run: npm install -g @cyclonedx/cyclonedx-npm
-    
-    - name: Generate SBOM for root workspace
-      continue-on-error: true
-      run: |
-        mkdir -p docs/sbom
-        cyclonedx-npm --output-format JSON --output-file docs/sbom/icupa-root.json || echo "Root SBOM generation had warnings"
-    
-    - name: Generate SBOM for agents service
-      continue-on-error: true
-      run: |
-        cd agents-service
-        cyclonedx-npm --output-format JSON --output-file ../docs/sbom/agents-service.json || echo "Agents SBOM generation had warnings"
-        cd ..
-    
-    - name: Generate SBOM summary
-      run: |
-        cat > docs/sbom/README.md << 'EOF'
-        # Software Bill of Materials (SBOM)
-        
-        Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
-        Format: CycloneDX 1.4 (JSON)
-        
-        ## Files
-        
-        - `icupa-root.json` - Root workspace dependencies
-        - `agents-service.json` - Agents service dependencies
-        
-        ## Validation
-        
-        To validate these SBOMs:
-        
-        ```bash
-        npm install -g @cyclonedx/cyclonedx-cli
-        cyclonedx-cli validate --input-file docs/sbom/icupa-root.json
-        ```
-        
-        ## Usage
-        
-        These SBOMs can be used for:
-        - Dependency tracking
-        - Vulnerability scanning
-        - License compliance
-        - Supply chain security
-        EOF
-    
-    - name: Commit SBOMs
-      if: github.event_name == 'push'
-      run: |
-        git config --global user.name 'github-actions[bot]'
-        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-        git add docs/sbom/
-        git diff --staged --quiet || git commit -m "chore: update SBOM [skip ci]"
-        git push
-    
-    - name: Upload SBOM artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: sbom-${{ github.sha }}
-        path: docs/sbom/
-        retention-days: 90
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.18.2'
+          
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: '10'
+          run_install: false
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Generate SBOM (CycloneDX)
+        run: |
+          # Install CycloneDX CLI
+          npm install -g @cyclonedx/cyclonedx-npm
+          
+          # Generate SBOM in multiple formats
+          cyclonedx-npm --output-format JSON --output-file sbom-cyclonedx.json
+          cyclonedx-npm --output-format XML --output-file sbom-cyclonedx.xml
+      
+      - name: Generate SBOM (SPDX)
+        run: |
+          # Install SPDX SBOM Generator
+          curl -Lo sbom-tool https://github.com/microsoft/sbom-tool/releases/latest/download/sbom-tool-linux-x64
+          chmod +x sbom-tool
+          
+          # Generate SPDX SBOM
+          ./sbom-tool generate -b . -bc . -pn icupa -pv 1.0.0 -ps ikanisa -nsb https://github.com/ikanisa/icupa || true
+      
+      - name: Create SBOM directory
+        run: |
+          mkdir -p sbom
+          mv sbom-cyclonedx.json sbom/ || true
+          mv sbom-cyclonedx.xml sbom/ || true
+          mv _manifest/spdx_2.2/*.json sbom/sbom-spdx.json || true
+          
+          # Create human-readable summary
+          cat > sbom/README.md << 'EOF'
+          # Software Bill of Materials (SBOM)
+          
+          This directory contains the Software Bill of Materials for ICUPA.
+          
+          ## Files
+          
+          - `sbom-cyclonedx.json` - CycloneDX JSON format
+          - `sbom-cyclonedx.xml` - CycloneDX XML format
+          - `sbom-spdx.json` - SPDX JSON format
+          
+          ## Usage
+          
+          These SBOMs can be used for:
+          - Vulnerability scanning
+          - License compliance
+          - Supply chain security
+          - Dependency tracking
+          
+          ## Tools
+          
+          - View with: https://cyclonedx.github.io/sbom-viewer/
+          - Scan with: Grype, Trivy, or other SBOM scanners
+          
+          ## Generated
+          
+          Date: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          Commit: ${GITHUB_SHA}
+          Branch: ${GITHUB_REF_NAME}
+          EOF
+      
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom/
+          retention-days: 90
+      
+      - name: Create SBOM summary
+        run: |
+          echo "## 📦 SBOM Generated" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Software Bill of Materials has been generated successfully." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Formats" >> $GITHUB_STEP_SUMMARY
+          echo "- CycloneDX JSON" >> $GITHUB_STEP_SUMMARY
+          echo "- CycloneDX XML" >> $GITHUB_STEP_SUMMARY
+          echo "- SPDX JSON" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Download artifacts to view SBOMs." >> $GITHUB_STEP_SUMMARY
+      
+      - name: Attach SBOM to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            sbom/sbom-cyclonedx.json
+            sbom/sbom-cyclonedx.xml
+            sbom/sbom-spdx.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
