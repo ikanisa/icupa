@@ -1,65 +1,85 @@
-name: CodeQL Analysis
+name: "CodeQL Security Analysis"
 
 on:
   push:
-    branches: [main]
+    branches: [ "main" ]
   pull_request:
-    branches: [main]
+    branches: [ "main" ]
   schedule:
-    # Run weekly on Mondays at 00:00 UTC
-    - cron: '0 0 * * 1'
+    # Run at 2 AM UTC every Monday
+    - cron: '0 2 * * 1'
 
 permissions:
+  actions: read
   contents: read
   security-events: write
-  actions: read
 
 jobs:
   analyze:
-    name: Analyze Code
+    name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
     timeout-minutes: 360
     
     strategy:
       fail-fast: false
       matrix:
-        language: ['javascript', 'typescript']
+        language: ['javascript-typescript']
+        # CodeQL supports: 'cpp', 'csharp', 'go', 'java-kotlin', 'javascript-typescript', 'python', 'ruby', 'swift'
     
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: ${{ matrix.language }}
-          # Specify queries: security-extended includes more checks
-          queries: security-extended,security-and-quality
-          
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18.18.2'
-          
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: '10'
-          run_install: false
-      
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-        
-      - name: Build project
-        run: |
-          export VITE_SUPABASE_URL=https://placeholder.supabase.co
-          export VITE_SUPABASE_ANON_KEY=placeholder-key
-          pnpm build
-        continue-on-error: true
-      
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
-        with:
-          category: "/language:${{ matrix.language }}"
-          # Upload results even if some queries fail
-          upload: true
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18.18.2'
+        cache: 'pnpm'
+    
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: '10'
+        run_install: false
+    
+    # Initialize CodeQL tools for scanning
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: ${{ matrix.language }}
+        # If you wish to specify custom queries, you can do so here or in a config file.
+        # By default, queries listed here will override any specified in a config file.
+        # Prefix the list here with "+" to use these queries and those in the config file.
+        queries: +security-and-quality
+        config: |
+          paths-ignore:
+            - '**/node_modules'
+            - '**/dist'
+            - '**/build'
+            - '**/*.test.ts'
+            - '**/*.test.tsx'
+            - '**/*.spec.ts'
+            - '**/*.spec.tsx'
+            - 'test-results'
+            - 'coverage'
+    
+    # Install dependencies (needed for TypeScript analysis)
+    - name: Install dependencies
+      run: pnpm install --frozen-lockfile
+    
+    # Autobuild attempts to build any compiled languages (C/C++, C#, Go, or Java).
+    # For JavaScript/TypeScript, this step is optional but helps with analysis
+    - name: Build project
+      env:
+        VITE_SUPABASE_URL: https://placeholder.supabase.co
+        VITE_SUPABASE_ANON_KEY: placeholder-key
+      run: |
+        pnpm typecheck || echo "Type check warnings ignored for CodeQL"
+        pnpm build || echo "Build warnings ignored for CodeQL"
+    
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+      with:
+        category: "/language:${{matrix.language}}"
+        # Upload results even if there are errors
+        upload: always

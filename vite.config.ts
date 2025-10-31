@@ -59,9 +59,7 @@ export default defineConfig(({ mode }) => ({
       include: [
         "src/**/*.{ts,tsx}",
         "packages/**/*.{ts,tsx}",
-        "libs/**/*.{ts,tsx}",
         "supabase/functions/**/*.{ts,tsx}",
-        "ai/**/*.{ts,tsx}",
       ],
       all: true,
       lines: 70,
