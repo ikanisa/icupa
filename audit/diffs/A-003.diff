@@ -1,0 +1,223 @@
+--- a/apps/vendor/app/layout.tsx
++++ b/apps/vendor/app/layout.tsx
+@@
+-import { Providers } from './providers';
++import { Providers } from './providers';
++import { ServiceWorkerManager } from '../components/service-worker-manager';
+@@
+-      <body className={cn('min-h-screen text-foreground antialiased')}>
+-        <Providers>{children}</Providers>
+-      </body>
++      <body className={cn('min-h-screen text-foreground antialiased')}>
++        <Providers>
++          <ServiceWorkerManager scope="/" swPath="/sw.js" />
++          {children}
++        </Providers>
++      </body>
+     </html>
+   );
+ }
++
++--- /dev/null
+++++ b/apps/vendor/components/service-worker-manager.tsx
++"use client";
++
++import { useEffect } from 'react';
++
++type Props = {
++  scope: string;
++  swPath: string;
++};
++
++export function ServiceWorkerManager({ scope, swPath }: Props) {
++  useEffect(() => {
++    if (!('serviceWorker' in navigator)) {
++      return;
++    }
++
++    let refreshListener: ((event: MessageEvent) => void) | null = null;
++
++    const register = async () => {
++      try {
++        const registration = await navigator.serviceWorker.register(swPath, { scope });
++        refreshListener = (event: MessageEvent) => {
++          if (event.data?.type === 'ICUPA_SW_UPDATE_READY') {
++            void registration.update();
++          }
++        };
++        navigator.serviceWorker.addEventListener('message', refreshListener);
++      } catch (error) {
++        console.error('[pwa] failed to register service worker', error);
++      }
++    };
++
++    void register();
++
++    return () => {
++      if (refreshListener) {
++        navigator.serviceWorker.removeEventListener('message', refreshListener);
++      }
++    };
++  }, [scope, swPath]);
++
++  return null;
++}
++
++--- /dev/null
+++++ b/apps/vendor/public/sw.js
++self.addEventListener('install', (event) => {
++  event.waitUntil(
++    caches.open('icupa-vendor-precache-v1').then((cache) =>
++      cache.addAll([
++        '/',
++        '/manifest.webmanifest',
++        '/offline',
++        '/icons/icon-192.png',
++        '/icons/icon-512.png'
++      ])
++    )
++  );
++  self.skipWaiting();
++});
++
++self.addEventListener('activate', (event) => {
++  event.waitUntil(
++    caches
++      .keys()
++      .then((keys) =>
++        Promise.all(
++          keys
++            .filter((key) => !key.startsWith('icupa-vendor-precache'))
++            .map((key) => caches.delete(key))
++        )
++      )
++  );
++  self.clients.claim();
++});
++
++self.addEventListener('fetch', (event) => {
++  if (event.request.method !== 'GET') {
++    return;
++  }
++
++  event.respondWith(
++    caches.match(event.request).then((cached) =>
++      cached ||
++      fetch(event.request).catch(() =>
++        caches.match('/offline')
++      )
++    )
++  );
++});
++
++--- a/apps/admin/app/layout.tsx
+++++ b/apps/admin/app/layout.tsx
+@@
+-import { Providers } from './providers';
++import { Providers } from './providers';
++import { ServiceWorkerManager } from '../components/service-worker-manager';
+@@
+-      <body className={cn('min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-foreground antialiased')}>
+-        <Providers>{children}</Providers>
+-      </body>
++      <body className={cn('min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-foreground antialiased')}>
++        <Providers>
++          <ServiceWorkerManager scope="/admin/" swPath="/sw.js" />
++          {children}
++        </Providers>
++      </body>
+     </html>
+   );
+ }
++
++--- /dev/null
+++++ b/apps/admin/components/service-worker-manager.tsx
++"use client";
++
++import { useEffect } from 'react';
++
++type Props = {
++  scope: string;
++  swPath: string;
++};
++
++export function ServiceWorkerManager({ scope, swPath }: Props) {
++  useEffect(() => {
++    if (!('serviceWorker' in navigator)) {
++      return;
++    }
++
++    let refreshListener: ((event: MessageEvent) => void) | null = null;
++
++    const register = async () => {
++      try {
++        const registration = await navigator.serviceWorker.register(swPath, { scope });
++        refreshListener = (event: MessageEvent) => {
++          if (event.data?.type === 'ICUPA_SW_UPDATE_READY') {
++            void registration.update();
++          }
++        };
++        navigator.serviceWorker.addEventListener('message', refreshListener);
++      } catch (error) {
++        console.error('[admin-pwa] failed to register service worker', error);
++      }
++    };
++
++    void register();
++
++    return () => {
++      if (refreshListener) {
++        navigator.serviceWorker.removeEventListener('message', refreshListener);
++      }
++    };
++  }, [scope, swPath]);
++
++  return null;
++}
++
++--- /dev/null
+++++ b/apps/admin/public/sw.js
++self.addEventListener('install', (event) => {
++  event.waitUntil(
++    caches.open('icupa-admin-precache-v1').then((cache) =>
++      cache.addAll([
++        '/',
++        '/manifest.webmanifest',
++        '/offline',
++        '/icons/icon-192.png',
++        '/icons/icon-512.png'
++      ])
++    )
++  );
++  self.skipWaiting();
++});
++
++self.addEventListener('activate', (event) => {
++  event.waitUntil(
++    caches
++      .keys()
++      .then((keys) =>
++        Promise.all(
++          keys
++            .filter((key) => !key.startsWith('icupa-admin-precache'))
++            .map((key) => caches.delete(key))
++        )
++      )
++  );
++  self.clients.claim();
++});
++
++self.addEventListener('fetch', (event) => {
++  if (event.request.method !== 'GET') {
++    return;
++  }
++
++  event.respondWith(
++    caches.match(event.request).then((cached) =>
++      cached ||
++      fetch(event.request).catch(() =>
++        caches.match('/offline')
++      )
++    )
++  );
++});
