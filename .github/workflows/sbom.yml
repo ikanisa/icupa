@@ -100,3 +100,12 @@ jobs:
         name: sbom-${{ github.sha }}
         path: docs/sbom/
         retention-days: 90
+
+    - name: Attach SBOMs to release
+      if: github.event_name == 'release'
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          docs/sbom/icupa-root.json
+          docs/sbom/agents-service.json
+          docs/sbom/README.md
