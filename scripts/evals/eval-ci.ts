@@ -4,8 +4,8 @@
  * Runs evaluations in CI environment
  */
 import { join } from "path";
-import { runEvals, calculatePassRate, printEvalSummary } from "../ai/evals/runner";
-import { respond } from "../ai/responses/router";
+import { runEvals, calculatePassRate, printEvalSummary } from "../../ai/evals/runner";
+import { respond } from "../../ai/responses/router";
 
 async function main() {
   console.log("Starting AI agent evaluations...\n");
