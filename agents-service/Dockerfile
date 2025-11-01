@@ -2,7 +2,7 @@
 
 # Pin base image to specific digest for security
 # Update monthly by checking: docker pull node:20-slim && docker inspect node:20-slim
-FROM node:20-slim@sha256:a22f79e64de59efd3533828aecc9817bfdc1cd37dde598aa27d6065e7b1f0abc AS deps
+FROM node:25-slim@sha256:73c71bd9db92852f70cf6c8446a75fa7bdfc087d4158207ddc7682691a8a5352 AS deps
 WORKDIR /usr/src/app
 
 # Create non-root user early
@@ -23,7 +23,7 @@ COPY --chown=node:node agents-service/src ./src
 USER node
 RUN npm run build
 
-FROM node:20-slim@sha256:a22f79e64de59efd3533828aecc9817bfdc1cd37dde598aa27d6065e7b1f0abc AS runtime
+FROM node:25-slim@sha256:73c71bd9db92852f70cf6c8446a75fa7bdfc087d4158207ddc7682691a8a5352 AS runtime
 WORKDIR /usr/src/app
 ENV NODE_ENV=production
 
