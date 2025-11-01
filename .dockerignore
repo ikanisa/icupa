@@ -95,6 +95,5 @@ artifacts/
 .stylelintrc*
 prettier.config.*
 eslint.config.*
-tsconfig.json
 jest.config.*
 vitest.config.*
