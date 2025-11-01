@@ -379,6 +379,13 @@ create policy cfo_pending_journals_read on public.pending_journals
   for select
   using (current_role = 'cfo_agent');
 
+-- CFO can update pending journals during approval workflow
+drop policy if exists cfo_pending_journals_update on public.pending_journals;
+create policy cfo_pending_journals_update on public.pending_journals
+  for update
+  using (current_role = 'cfo_agent')
+  with check (current_role = 'cfo_agent');
+
 -- ============================================================================
 -- 8. SECURE TOOL EXECUTION FUNCTION
 -- ============================================================================

@@ -172,10 +172,11 @@ serve(async (req) => {
 
       // Update pending journal status
       const approvalUpdate = await executeAsCfo(
-        "update public.pending_journals set status = 'approved', approved_by = $1, approved_at = now() where id = $2",
+        "update public.pending_journals set status = 'approved', approved_by = $1, approved_at = now(), approver_notes = $3 where id = $2",
         [
           { type: "uuid", value: approverId },
           { type: "uuid", value: pending_journal_id },
+          { type: "string", value: approver_notes ?? null },
         ],
       );
 
@@ -203,10 +204,11 @@ serve(async (req) => {
     } else if (action === "reject") {
       // Update pending journal status to rejected
       const rejectionUpdate = await executeAsCfo(
-        "update public.pending_journals set status = 'rejected', approved_by = $1, approved_at = now() where id = $2",
+        "update public.pending_journals set status = 'rejected', approved_by = $1, approved_at = now(), approver_notes = $3 where id = $2",
         [
           { type: "uuid", value: approverId },
           { type: "uuid", value: pending_journal_id },
+          { type: "string", value: approver_notes ?? null },
         ],
       );
 
@@ -216,26 +218,19 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-    );
 
-    if (rpcError) {
-      console.error("Journal approval RPC failed", rpcError);
-      return new Response(JSON.stringify({ error: "Failed to process journal", details: rpcError.message }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: "Journal entry rejected",
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        result: rpcResult,
-      }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
   } catch (error) {
     console.error("Error in approve_journal:", error);
     return new Response(
