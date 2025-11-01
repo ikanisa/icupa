@@ -434,7 +434,9 @@ declare
   idx integer;
   param_value jsonb;
   replacement text;
-  result jsonb;
+  has_returning boolean;
+  result jsonb := '[]'::jsonb;
+  rec record;
 begin
   if p_role is null or p_role not in (select unnest(allowed_roles)) then
     raise exception 'Role % is not permitted to execute MCP SQL', p_role using errcode = '42501';
@@ -484,11 +486,15 @@ begin
     substituted_sql := regexp_replace(substituted_sql, '\\$' || idx, replacement, 'g');
   end loop;
 
-  execute format(
-    'select coalesce(jsonb_agg(row_to_json(q)), ''[]''::jsonb) from (%s) as q',
-    substituted_sql
-  )
-  into result;
+  has_returning := normalized_sql ~ '\\breturning\\b';
+
+  if statement_keyword in ('select', 'with') or has_returning then
+    for rec in execute substituted_sql loop
+      result := result || jsonb_build_array(to_jsonb(rec));
+    end loop;
+  else
+    execute substituted_sql;
+  end if;
 
   return result;
 end;
