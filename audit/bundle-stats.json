@@ -1,0 +1,32 @@
+{
+  "staff": {
+    "routes": {
+      "/": { "jsKb": 350, "cssKb": 45, "lcpTargetMs": 2500 },
+      "/orders": { "jsKb": 420, "cssKb": 52, "lcpTargetMs": 2600 },
+      "/inventory": { "jsKb": 380, "cssKb": 48, "lcpTargetMs": 2700 }
+    },
+    "current": {
+      "jsKb": 520,
+      "cssKb": 70,
+      "thirdPartyRequests": 6
+    }
+  },
+  "admin": {
+    "routes": {
+      "/": { "jsKb": 360, "cssKb": 50, "lcpTargetMs": 2600 },
+      "/analytics": { "jsKb": 400, "cssKb": 60, "lcpTargetMs": 2700 },
+      "/tenants": { "jsKb": 380, "cssKb": 55, "lcpTargetMs": 2700 }
+    },
+    "current": {
+      "jsKb": 580,
+      "cssKb": 80,
+      "thirdPartyRequests": 8
+    }
+  },
+  "actions": [
+    "Enable Next.js bundle analyzer per app",
+    "Lazy load analytics charts",
+    "Move sample data mocks behind dynamic import",
+    "Adopt route-level code splitting and Suspense placeholders"
+  ]
+}
