@@ -22,7 +22,7 @@ export function gradeToolArgs(
   expected: Expected
 ): number {
   if (!expected.expected_tools || expected.expected_tools.length === 0) {
-    return 1; // No tools expected, pass if no tools called
+    return actualToolCalls.length === 0 ? 1 : 0; // No tools expected, pass only if none called
   }
 
   // Check if expected tools were called
