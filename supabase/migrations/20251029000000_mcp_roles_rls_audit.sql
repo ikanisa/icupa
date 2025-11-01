@@ -428,6 +428,7 @@ as $$
 declare
   allowed_roles constant text[] := array['waiter_agent', 'cfo_agent', 'legal_agent'];
   normalized_sql text;
+  sanitized_sql text;
   statement_keyword text;
   substituted_sql text := p_sql;
   param_count integer;
@@ -451,6 +452,13 @@ begin
   end if;
 
   normalized_sql := lower(trim(p_sql));
+  sanitized_sql := normalized_sql;
+  sanitized_sql := regexp_replace(sanitized_sql, '/\\*.*?\\*/', ' ', 'gs');
+  sanitized_sql := regexp_replace(sanitized_sql, '--[^\n]*', ' ', 'g');
+  sanitized_sql := regexp_replace(sanitized_sql, '\\$[a-z0-9_]*\\$.*?\\$[a-z0-9_]*\\$', ' ', 'gis');
+  sanitized_sql := regexp_replace(sanitized_sql, '\\$\\$.*?\\$\\$', ' ', 'gs');
+  sanitized_sql := regexp_replace(sanitized_sql, '''([^'']|'''')*''', ' ', 'g');
+
   statement_keyword := split_part(normalized_sql, ' ', 1);
 
   if statement_keyword not in ('select', 'insert', 'update', 'delete', 'with') then
@@ -486,7 +494,8 @@ begin
     substituted_sql := regexp_replace(substituted_sql, '\\$' || idx, replacement, 'g');
   end loop;
 
-  has_returning := normalized_sql ~ '\\breturning\\b';
+  has_returning := statement_keyword in ('insert', 'update', 'delete')
+    and sanitized_sql ~ '\\breturning\\b';
 
   if statement_keyword in ('select', 'with') or has_returning then
     for rec in execute substituted_sql loop
