@@ -36,7 +36,7 @@ if (shouldSkipValidation && !(isCiEnvironment || isLocalEnvironment)) {
 const isFallbackAllowed =
   shouldSkipValidation &&
   (isCiEnvironment || isLocalEnvironment) &&
-  !isNodeProduction;
+  (!isNodeProduction || isCiEnvironment);
 
 const fallbackServiceEnv = isFallbackAllowed
   ? supabaseServiceEnvSchema.parse({
