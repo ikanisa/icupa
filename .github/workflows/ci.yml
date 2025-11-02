@@ -209,10 +209,96 @@ jobs:
           VITE_SUPABASE_URL: https://placeholder.supabase.co
           VITE_SUPABASE_ANON_KEY: placeholder-key
 
+      - name: Enforce coverage threshold
+        run: node scripts/ci/enforce-coverage.mjs
+
+      - name: Upload coverage summary
+        uses: actions/upload-artifact@v5
+        with:
+          name: unit-test-coverage
+          path: coverage/
+          retention-days: 7
+
+  app-quality:
+    name: App quality (${{ matrix.app }})
+    runs-on: ubuntu-latest
+    needs: install
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: admin
+            package: '@ecotrips/admin'
+            unitPattern: 'apps/ecotrips/apps/admin'
+            e2ePattern: 'tests/playwright/specs/admin.*.spec.ts'
+          - app: client
+            package: '@ecotrips/client'
+            unitPattern: 'apps/ecotrips/apps/client'
+            e2ePattern: 'tests/playwright/specs/client.*.spec.ts'
+          - app: supplier
+            package: '@ecotrips/supplier'
+            unitPattern: 'apps/ecotrips/apps/supplier'
+            e2ePattern: 'tests/playwright/specs/merchant.*.spec.ts'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Restore pnpm store cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Restore node_modules cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            */*/node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/pnpm-lock.yaml') }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint ${{ matrix.app }}
+        run: pnpm --filter ${{ matrix.package }} run lint --if-present
+
+      - name: Typecheck ${{ matrix.app }}
+        run: pnpm --filter ${{ matrix.package }} run typecheck --if-present
+
+      - name: Unit tests for ${{ matrix.app }}
+        run: pnpm test -- ${{ matrix.unitPattern }}
+
+      - name: Build ${{ matrix.app }}
+        run: pnpm --filter ${{ matrix.package }} run build --if-present
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: E2E tests for ${{ matrix.app }}
+        run: pnpm test:e2e -- ${{ matrix.e2ePattern }}
+
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: [lint, typecheck, test]
+    needs: [lint, typecheck, test, app-quality]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -272,7 +358,7 @@ jobs:
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
-    needs: [lint, typecheck, test, build]
+    needs: [lint, typecheck, test, app-quality, build]
     if: always()
     steps:
       - name: Check all jobs
@@ -280,6 +366,7 @@ jobs:
           if [[ "${{ needs.lint.result }}" == "success" ]] && \
              [[ "${{ needs.typecheck.result }}" == "success" ]] && \
              [[ "${{ needs.test.result }}" == "success" ]] && \
+             [[ "${{ needs.app-quality.result }}" == "success" ]] && \
              [[ "${{ needs.build.result }}" == "success" ]]; then
             echo "✅ All CI checks passed!"
             exit 0

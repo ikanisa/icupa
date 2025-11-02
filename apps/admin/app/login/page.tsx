@@ -4,24 +4,38 @@ import Link from 'next/link';
 import { useState, type FormEvent } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Button, Input, Label, LiquidGlassCard, useToast } from '@icupa/ui';
-import { requestAdminMagicLink } from '../../lib/api';
+import { loadClientEnv } from '@icupa/config/env';
+import { getSupabaseBrowserClient } from '../../lib/supabase-browser';
 
 export default function AdminLogin() {
   const [email, setEmail] = useState('');
   const { toast } = useToast();
+  const env = loadClientEnv();
 
   const mutation = useMutation({
-    mutationFn: (payload: { email: string }) => requestAdminMagicLink(payload.email),
+    mutationFn: async ({ email: inputEmail }: { email: string }) => {
+      const supabase = getSupabaseBrowserClient();
+      const { error } = await supabase.auth.signInWithOtp({
+        email: inputEmail,
+        options: {
+          emailRedirectTo: `${env.NEXT_PUBLIC_APP_URL ?? ''}/auth/callback`,
+        },
+      });
+      if (error) {
+        throw error;
+      }
+      return { status: 'sent' as const };
+    },
     onSuccess: () => {
       toast({
         title: 'Magic link sent',
         description: 'Check your inbox for a secure sign-in link. Links expire after ten minutes.',
       });
     },
-    onError: () => {
+    onError: (error) => {
       toast({
         title: 'Unable to send magic link',
-        description: 'Verify SMTP credentials and Supabase Edge Function availability.',
+        description: error instanceof Error ? error.message : 'Verify Supabase auth configuration and retry.',
         variant: 'destructive',
       });
     },
@@ -42,8 +56,8 @@ export default function AdminLogin() {
         <div className="space-y-2 text-center">
           <h1 className="text-3xl font-semibold text-white">Admin magic link</h1>
           <p className="text-white/70">
-            Enter an approved email address to receive a one-time sign-in link. The production flow connects to the
-            `auth/admin_email_magiclink` Supabase Edge Function.
+            Enter an approved email address to receive a one-time sign-in link. The magic link validates against Supabase auth
+            and redirects back to this console once verified.
           </p>
         </div>
         <form className="space-y-6" aria-label="Admin magic link form" onSubmit={handleSubmit}>
