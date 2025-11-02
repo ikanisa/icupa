@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { startTransition, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Badge,
@@ -21,8 +21,8 @@ import {
   Textarea,
   useToast,
 } from '@icupa/ui';
-import { fetchAgentSettings, patchAgentSettings } from '../../../lib/api';
-import type { AgentSetting } from '../../../data/sample';
+import { fetchAgentSettings, updateAgentSetting } from '../../../lib/api';
+import type { AgentSetting } from '../../../lib/types';
 import { ShieldAlert, Sparkles } from 'lucide-react';
 
 const autonomyCopy: Record<AgentSetting['autonomy'], string> = {
@@ -40,16 +40,20 @@ export default function AiSettingsPage() {
   const [selectedAgent, setSelectedAgent] = useState<string | undefined>();
 
   useEffect(() => {
-    if (settings?.length) {
+    if (!settings?.length) {
+      return;
+    }
+
+    startTransition(() => {
       setDrafts(Object.fromEntries(settings.map((setting) => [setting.id, setting])));
       setSelectedAgent((prev) => prev ?? settings[0]?.id);
-    }
+    });
   }, [settings]);
 
   const current = useMemo(() => (selectedAgent ? drafts[selectedAgent] : undefined), [drafts, selectedAgent]);
 
   const mutation = useMutation({
-    mutationFn: patchAgentSettings,
+    mutationFn: ({ id, data }: { id: string; data: Partial<AgentSetting> }) => updateAgentSetting(id, data),
     onSuccess: (_data, variables) => {
       toast({
         title: 'Agent settings queued',
@@ -85,10 +89,12 @@ export default function AiSettingsPage() {
     if (!current) return;
     mutation.mutate({
       id: current.id,
-      autonomy: current.autonomy,
-      budgetUsd: current.budgetUsd,
-      instructions: current.instructions,
-      tools: current.tools,
+      data: {
+        autonomy: current.autonomy,
+        dailyBudgetUsd: current.dailyBudgetUsd,
+        instructions: current.instructions,
+        tools: current.tools,
+      },
     });
   };
 
@@ -164,12 +170,12 @@ export default function AiSettingsPage() {
                           <Label className="text-white">Budget ceiling (USD/day)</Label>
                           <Input
                             inputMode="numeric"
-                            value={draft.budgetUsd}
-                            onChange={(event) =>
+                          value={draft.dailyBudgetUsd}
+                          onChange={(event) =>
                               updateDraft(agent.id, {
-                                budgetUsd: Number.parseInt(event.target.value || '0', 10),
+                                dailyBudgetUsd: Number.parseInt(event.target.value || '0', 10),
                               })
-                            }
+                          }
                             className="border-white/20 bg-white/5 text-white placeholder:text-white/40"
                           />
                         </div>
