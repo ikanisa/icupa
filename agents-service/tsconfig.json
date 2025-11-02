@@ -1,4 +1,5 @@
 {
+  "extends": "@icupa/config/tsconfig/node",
   "compilerOptions": {
     "target": "ES2022",
     "module": "CommonJS",

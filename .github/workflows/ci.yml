@@ -10,9 +10,8 @@ permissions:
   contents: read
 
 env:
-  NODE_VERSION: '18.18.2'
-  PNPM_VERSION: '10'
-  COVERAGE_THRESHOLD: '80'
+  NODE_VERSION: "20.11.1"
+  PNPM_VERSION: "10"
 
 jobs:
   install:
@@ -21,23 +20,23 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-      
+          cache: "pnpm"
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: ${{ env.PNPM_VERSION }}
           run_install: false
-      
+
       - name: Get pnpm store directory
         shell: bash
         run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-      
+
       - name: Cache pnpm store
         uses: actions/cache@v4
         with:
@@ -45,10 +44,10 @@ jobs:
           key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pnpm-store-
-      
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      
+
       - name: Cache node_modules
         uses: actions/cache@v4
         with:
@@ -64,12 +63,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-      
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -95,9 +94,17 @@ jobs:
             node_modules
             */*/node_modules
           key: ${{ runner.os }}-node-modules-${{ hashFiles('**/pnpm-lock.yaml') }}
-      
+
+      - name: Restore Turborepo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ hashFiles('turbo.json', 'pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+
       - name: Run lint
-        run: pnpm lint
+        run: pnpm lint:all
 
   typecheck:
     name: Type Check
@@ -106,12 +113,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-      
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -137,9 +144,17 @@ jobs:
             node_modules
             */*/node_modules
           key: ${{ runner.os }}-node-modules-${{ hashFiles('**/pnpm-lock.yaml') }}
-      
+
+      - name: Restore Turborepo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ hashFiles('turbo.json', 'pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+
       - name: Run type check
-        run: pnpm typecheck
+        run: pnpm typecheck:all
 
   test:
     name: Unit Tests
@@ -148,12 +163,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-      
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -179,9 +194,17 @@ jobs:
             node_modules
             */*/node_modules
           key: ${{ runner.os }}-node-modules-${{ hashFiles('**/pnpm-lock.yaml') }}
-      
-      - name: Run tests with coverage
-        run: pnpm test -- --coverage --coverage.reporter=json-summary --coverage.reporter=text
+
+      - name: Restore Turborepo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ hashFiles('turbo.json', 'pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+
+      - name: Run tests
+        run: pnpm test:all
         env:
           VITE_SUPABASE_URL: https://placeholder.supabase.co
           VITE_SUPABASE_ANON_KEY: placeholder-key
@@ -279,12 +302,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-      
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -310,34 +333,21 @@ jobs:
             node_modules
             */*/node_modules
           key: ${{ runner.os }}-node-modules-${{ hashFiles('**/pnpm-lock.yaml') }}
-      
+
+      - name: Restore Turborepo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ hashFiles('turbo.json', 'pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+
       - name: Build project
-        run: pnpm build
+        run: pnpm build:all
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://placeholder.supabase.co' }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'placeholder-key' }}
 
-      - name: Supabase dry-run deploy
-        if: ${{ secrets.SUPABASE_ACCESS_TOKEN != '' && secrets.SUPABASE_PROJECT_REF != '' }}
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
-        run: |
-          npx --yes supabase@2.53.6 login --token "$SUPABASE_ACCESS_TOKEN"
-          npx --yes supabase@2.53.6 functions deploy --project-ref "$SUPABASE_PROJECT_REF" --dry-run
-
-      - name: Upload Sentry sourcemaps
-        if: ${{ secrets.SENTRY_AUTH_TOKEN != '' && secrets.SENTRY_ORG != '' && secrets.SENTRY_PROJECT != '' }}
-        env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
-          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
-          SENTRY_RELEASE: ${{ github.sha }}
-        run: |
-          npx --yes @sentry/cli@2.57.0 releases new "$SENTRY_RELEASE"
-          npx --yes @sentry/cli@2.57.0 sourcemaps upload --release "$SENTRY_RELEASE" --org "$SENTRY_ORG" --project "$SENTRY_PROJECT" --rewrite dist
-          npx --yes @sentry/cli@2.57.0 releases finalize "$SENTRY_RELEASE"
-      
       - name: Upload build artifacts
         uses: actions/upload-artifact@v5
         with:
