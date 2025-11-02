@@ -2,6 +2,7 @@
   "name": "icupa-monorepo",
   "private": true,
   "version": "0.1.0",
+  "packageManager": "pnpm@10.4.0",
   "type": "module",
   "workspaces": [
     "apps/*",
@@ -9,20 +10,24 @@
     "agents-service"
   ],
   "scripts": {
+    "prepare": "husky install",
     "dev": "vite",
     "dev:client": "pnpm --filter @ecotrips/client dev",
     "dev:admin": "pnpm --filter @ecotrips/admin dev",
     "dev:supplier": "pnpm --filter @ecotrips/supplier dev",
-    "build:all": "pnpm -r build",
+    "build:all": "turbo run build --cache-dir .turbo",
     "dev:agents": "npm --prefix agents-service run dev",
     "dev:voice-agent": "pnpm --filter @icupa/voice-agent dev",
     "prebuild": "node scripts/ci/check-supabase-env.mjs",
     "pretest": "node scripts/ci/reset-supabase-test-db.mjs",
     "build": "tsc -b && vite build",
     "build:dev": "vite build --mode development",
-    "lint": "eslint . --max-warnings=0",
+    "lint": "pnpm lint:repo",
+    "lint:repo": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
+    "lint:all": "turbo run lint --cache-dir .turbo",
     "typecheck": "tsc -b --pretty false",
+    "typecheck:all": "turbo run typecheck --cache-dir .turbo",
     "preview": "vite preview --port 5000",
     "dev:ocr:converter": "node apps/ocr-converter/server.mjs",
     "dev:all": "bash scripts/dev/dev-all.sh",
@@ -36,6 +41,7 @@
     "supabase:reset": "npx --yes supabase db reset",
     "supabase:test": "npx --yes supabase db test",
     "test": "vitest run",
+    "test:all": "turbo run test --cache-dir .turbo",
     "test:mcp": "vitest run tests/mcp",
     "test:accessibility": "vitest run tests/accessibility",
     "security:lint-mcp": "node scripts/security/lint-mcp-tools.mjs",
@@ -47,7 +53,9 @@
     "format:check": "prettier --check .",
     "verify": "npm run lint && npm run typecheck && npm run test",
     "verify:full": "npm run verify && npm run test:e2e && npm run supabase:test",
-    "presupabase:test": "node scripts/ci/reset-supabase-test-db.mjs"
+    "presupabase:test": "node scripts/ci/reset-supabase-test-db.mjs",
+    "perf:k6": "npx --yes k6 run tests/perf/k6-smoke.js",
+    "perf:artillery": "npx --yes artillery run tests/perf/artillery-order-flow.yml"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -112,7 +120,11 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@icupa/config": "workspace:*",
+    "@commitlint/cli": "^19.5.0",
+    "@commitlint/config-conventional": "^19.5.0",
     "@eslint/js": "^9.32.0",
+    "@axe-core/playwright": "^4.11.0",
     "@playwright/test": "^1.56.1",
     "@tailwindcss/typography": "^0.5.16",
     "@testing-library/jest-dom": "^6.8.0",
@@ -135,7 +147,9 @@
     "postcss": "^8.5.6",
     "prettier": "^3.5.1",
     "supabase": "^2.53.6",
+    "@sentry/cli": "^2.37.0",
     "tailwindcss": "^3.4.17",
+    "turbo": "^2.5.8",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
     "vite": "^5.4.19",
@@ -152,6 +166,6 @@
     ]
   },
   "engines": {
-    "node": ">=18.18.0 || ^20.9.0 || >=21.1.0"
+    "node": ">=20.10.0 <21"
   }
 }

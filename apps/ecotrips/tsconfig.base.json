@@ -1,4 +1,5 @@
 {
+  "extends": "@icupa/config/tsconfig/next",
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["dom", "dom.iterable", "es2022"],
@@ -18,13 +19,7 @@
     "types": ["node"],
     "baseUrl": "."
   },
-  "include": [
-    "app/**/*",
-    "apps/**/*",
-    "packages/**/*",
-    "supabase/functions/**/*",
-    "tools/**/*"
-  ],
+  "include": ["app/**/*", "apps/**/*", "packages/**/*", "supabase/functions/**/*", "tools/**/*"],
   "exclude": ["node_modules"],
   "references": [
     { "path": "./app/tsconfig.json" },

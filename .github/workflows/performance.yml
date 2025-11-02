@@ -8,9 +8,9 @@ on:
   workflow_dispatch:
     inputs:
       url:
-        description: 'URL to benchmark (defaults to staging)'
+        description: "URL to benchmark (defaults to staging)"
         required: false
-        default: 'https://staging.icupa.app'
+        default: "https://staging.icupa.app"
 
 permissions:
   contents: read
@@ -20,39 +20,39 @@ jobs:
   lighthouse:
     name: Lighthouse Performance Audit
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '18.18.2'
-      
+          node-version: "20.11.1"
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: '10'
+          version: "10"
           run_install: false
-      
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      
+
       - name: Build project (for local testing)
         if: github.event_name == 'pull_request'
-        run: pnpm build
+        run: pnpm build:all
         env:
           VITE_SUPABASE_URL: https://placeholder.supabase.co
           VITE_SUPABASE_ANON_KEY: placeholder-key
-      
+
       - name: Start preview server
         if: github.event_name == 'pull_request'
         run: |
           pnpm preview --port 5000 &
           sleep 10
           curl -I http://localhost:5000 || exit 1
-      
+
       - name: Run Lighthouse CI
         run: |
           npm install -g @lhci/cli@0.15.1
@@ -60,7 +60,7 @@ jobs:
         env:
           LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
           LHCI_BUILD_CONTEXT__CURRENT_BRANCH: ${{ github.ref_name }}
-      
+
       - name: Upload Lighthouse results
         uses: actions/upload-artifact@v5
         if: always()
@@ -68,42 +68,42 @@ jobs:
           name: lighthouse-results
           path: .lighthouseci/
           retention-days: 30
-  
+
   web-vitals:
     name: Web Vitals Check
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
-    
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '18.18.2'
-      
+          node-version: "20.11.1"
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: '10'
+          version: "10"
           run_install: false
-      
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      
+
       - name: Build project
-        run: pnpm build
+        run: pnpm build:all
         env:
           VITE_SUPABASE_URL: https://placeholder.supabase.co
           VITE_SUPABASE_ANON_KEY: placeholder-key
-      
+
       - name: Analyze bundle size
         run: |
           # Create bundle analysis
           echo "## Bundle Size Analysis" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           if [ -d "dist/assets" ]; then
             echo "### JavaScript Bundles" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -132,13 +132,13 @@ jobs:
               fi
             done
           fi
-      
+
       - name: Check bundle size limits
         run: |
           # Define size limits (in KB)
           MAX_JS_SIZE=500
           MAX_CSS_SIZE=100
-          
+
           # Check JS bundles
           for file in dist/assets/*.js; do
             if [ -f "$file" ]; then
@@ -150,7 +150,7 @@ jobs:
               fi
             fi
           done
-          
+
           # Check CSS bundles
           for file in dist/assets/*.css; do
             if [ -f "$file" ]; then
@@ -167,33 +167,33 @@ jobs:
     name: Bundle Analysis
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
-    
+
     steps:
       - name: Checkout base
         uses: actions/checkout@v4
         with:
           ref: ${{ github.base_ref }}
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '18.18.2'
-      
+          node-version: "20.11.1"
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: '10'
+          version: "10"
           run_install: false
-      
+
       - name: Install base dependencies
         run: pnpm install --frozen-lockfile
-      
+
       - name: Build base
-        run: pnpm build
+        run: pnpm build:all
         env:
           VITE_SUPABASE_URL: https://placeholder.supabase.co
           VITE_SUPABASE_ANON_KEY: placeholder-key
-      
+
       - name: Get base bundle size
         id: base
         run: |
@@ -201,19 +201,19 @@ jobs:
             base_size=$(du -sb dist/assets | cut -f1)
             echo "size=$base_size" >> $GITHUB_OUTPUT
           fi
-      
+
       - name: Checkout PR
         uses: actions/checkout@v4
-      
+
       - name: Install PR dependencies
         run: pnpm install --frozen-lockfile
-      
+
       - name: Build PR
-        run: pnpm build
+        run: pnpm build:all
         env:
           VITE_SUPABASE_URL: https://placeholder.supabase.co
           VITE_SUPABASE_ANON_KEY: placeholder-key
-      
+
       - name: Get PR bundle size
         id: pr
         run: |
@@ -221,43 +221,43 @@ jobs:
             pr_size=$(du -sb dist/assets | cut -f1)
             echo "size=$pr_size" >> $GITHUB_OUTPUT
           fi
-      
+
       - name: Compare bundle sizes
         uses: actions/github-script@v8
         with:
           script: |
             const baseSize = parseInt('${{ steps.base.outputs.size }}');
             const prSize = parseInt('${{ steps.pr.outputs.size }}');
-            
+
             if (!baseSize || !prSize) {
               console.log('Could not determine bundle sizes');
               return;
             }
-            
+
             const diff = prSize - baseSize;
             const diffPercent = ((diff / baseSize) * 100).toFixed(2);
             const diffKB = (diff / 1024).toFixed(2);
-            
+
             const formatSize = (bytes) => {
               if (bytes < 1024) return bytes + ' B';
               if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
               return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
             };
-            
+
             const emoji = diff > 0 ? '📈' : diff < 0 ? '📉' : '➡️';
             const warning = Math.abs(diffPercent) > 5 ? '⚠️ ' : '';
-            
+
             const body = `## ${emoji} Bundle Size Comparison
-            
+
             | Metric | Size |
             |--------|------|
             | Base | ${formatSize(baseSize)} |
             | PR | ${formatSize(prSize)} |
             | Diff | ${warning}${diffKB} KB (${diffPercent}%) |
-            
+
             ${Math.abs(diffPercent) > 5 ? '⚠️ **Warning**: Bundle size changed by more than 5%' : ''}
             `;
-            
+
             github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,

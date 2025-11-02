@@ -1,60 +1,94 @@
 import { createClient } from '@supabase/supabase-js';
-import type { TypedSupabaseClient, SupabaseClientOptions } from './types';
-import { loadClientEnv, loadServerEnv } from '@icupa/config/env';
+import { loadClientEnv, loadServerEnv } from '@icupa/config';
+import type { SupabaseClientOptions, TypedSupabaseClient } from './types';
 
-const resolveCredentials = (overrides?: SupabaseClientOptions, isServer = false) => {
+interface SupabaseCredentials {
+  url: string;
+  key: string;
+}
+
+const resolveCredentials = (overrides: SupabaseClientOptions | undefined, isServer: boolean): SupabaseCredentials => {
   if (isServer) {
-    const env = loadServerEnv();
+    const env = loadServerEnv(overrides?.env);
     return {
       url: overrides?.supabaseUrl ?? env.NEXT_PUBLIC_SUPABASE_URL,
       key: overrides?.supabaseKey ?? env.SUPABASE_SERVICE_ROLE_KEY ?? env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     };
   }
 
-  const env = loadClientEnv();
+  const env = loadClientEnv(overrides?.env);
   return {
     url: overrides?.supabaseUrl ?? env.NEXT_PUBLIC_SUPABASE_URL,
     key: overrides?.supabaseKey ?? env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   };
 };
 
-const withSessionHeaders = (options?: SupabaseClientOptions) => {
-  if (!options?.getHeaders) {
-    return undefined;
+const resolveFetch = (overrides?: SupabaseClientOptions): typeof fetch | undefined => {
+  const baseFetch = overrides?.options?.global?.fetch ?? (typeof fetch === 'function' ? fetch : undefined);
+
+  if (!overrides?.getHeaders) {
+    return baseFetch;
   }
-  return async (input: RequestInfo | URL, init?: RequestInit) => {
-    const headers = new Headers(init?.headers);
-    const extra = options.getHeaders();
+
+  if (!baseFetch) {
+    throw new Error('A fetch implementation is required to attach Supabase session headers.');
+  }
+
+  return async (input, init) => {
+    const headers = new Headers(overrides.options?.global?.headers ?? undefined);
+
+    if (init?.headers) {
+      new Headers(init.headers).forEach((value, key) => {
+        headers.set(key, value);
+      });
+    }
+
+    const extra = overrides.getHeaders();
     Object.entries(extra).forEach(([key, value]) => {
-      if (value) {
+      if (typeof value === 'string' && value.length > 0) {
         headers.set(key, value);
       }
     });
-    return fetch(input, {
+
+    return baseFetch(input, {
       ...init,
       headers,
     });
   };
 };
 
+const buildClientOptions = (overrides: SupabaseClientOptions | undefined, isServer: boolean) => {
+  const baseOptions = overrides?.options ?? {};
+  const { auth: baseAuth, global: baseGlobal, ...other } = baseOptions;
+
+  const auth = {
+    ...(isServer
+      ? { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+      : { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }),
+    ...baseAuth,
+  };
+
+  const fetchOverride = resolveFetch(overrides);
+  const global =
+    baseGlobal || fetchOverride
+      ? { ...(baseGlobal ?? {}), ...(fetchOverride ? { fetch: fetchOverride } : {}) }
+      : undefined;
+
+  return {
+    ...other,
+    auth,
+    ...(global ? { global } : {}),
+  };
+};
+
 export const createBrowserSupabaseClient = (overrides?: SupabaseClientOptions): TypedSupabaseClient => {
-  const { url, key } = resolveCredentials(overrides, false);
-  return createClient(url, key, {
-    global: {
-      fetch: withSessionHeaders(overrides),
-    },
-  });
+  const credentials = resolveCredentials(overrides, false);
+  const options = buildClientOptions(overrides, false);
+  return createClient(credentials.url, credentials.key, options);
 };
 
 export const createServerSupabaseClient = (overrides?: SupabaseClientOptions): TypedSupabaseClient => {
-  const { url, key } = resolveCredentials(overrides, true);
-  return createClient(url, key, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-    global: {
-      fetch: withSessionHeaders(overrides),
-    },
-  });
+  const credentials = resolveCredentials(overrides, true);
+  const options = buildClientOptions(overrides, true);
+  return createClient(credentials.url, credentials.key, options);
 };

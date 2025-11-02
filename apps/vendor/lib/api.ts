@@ -1,4 +1,4 @@
-import { loadClientEnv } from '@icupa/config/env';
+import { loadClientEnv } from '@icupa/config';
 import {
   kpiMetrics,
   slaSignals,
