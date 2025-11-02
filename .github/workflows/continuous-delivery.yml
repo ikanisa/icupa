@@ -111,12 +111,37 @@ jobs:
           kubeconfig: ${{ secrets.KUBECONFIG_B64 }}
 
       - name: Render Helm chart values
+        env:
+          HELM_NAMESPACE: icupa
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_AGENTS_URL: ${{ secrets.NEXT_PUBLIC_AGENTS_URL }}
+          NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_JWT_SECRET: ${{ secrets.SUPABASE_JWT_SECRET }}
+          MEILI_MASTER_KEY: ${{ secrets.MEILI_MASTER_KEY }}
+          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+          MINIO_ROOT_USER: ${{ secrets.MINIO_ROOT_USER }}
+          MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
         run: |
           mkdir -p ./artifacts
-          cat <<'VALS' > ./artifacts/values.overrides.yaml
-# Override defaults here when deploying via workflow_dispatch
+          cat <<VALS > ./artifacts/values.overrides.yaml
 global:
-  namespace: icupa
+  namespace: ${HELM_NAMESPACE}
+  config:
+    NEXT_PUBLIC_SUPABASE_URL: "${NEXT_PUBLIC_SUPABASE_URL}"
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: "${NEXT_PUBLIC_SUPABASE_ANON_KEY}"
+    NEXT_PUBLIC_AGENTS_URL: "${NEXT_PUBLIC_AGENTS_URL}"
+    NEXT_PUBLIC_APP_URL: "${NEXT_PUBLIC_APP_URL}"
+  secrets:
+    OPENAI_API_KEY: "${OPENAI_API_KEY}"
+    SUPABASE_SERVICE_ROLE_KEY: "${SUPABASE_SERVICE_ROLE_KEY}"
+    SUPABASE_JWT_SECRET: "${SUPABASE_JWT_SECRET}"
+    MEILI_MASTER_KEY: "${MEILI_MASTER_KEY}"
+    REDIS_PASSWORD: "${REDIS_PASSWORD}"
+    MINIO_ROOT_USER: "${MINIO_ROOT_USER}"
+    MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD}"
 VALS
 
       - name: Deploy backend workloads

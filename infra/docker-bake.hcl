@@ -77,7 +77,7 @@ target "ocr-converter" {
 
 target "ecotrips" {
   inherits = ["common"]
-  dockerfile = "apps/ecotrips/Dockerfile"
+  dockerfile = "apps/ecotrips/Dockerfile.distroless"
   tags = [
     "${REGISTRY}/${IMAGE_NAMESPACE}/ecotrips:latest",
     "${REGISTRY}/${IMAGE_NAMESPACE}/ecotrips:${GITHUB_SHA}"
