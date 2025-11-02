@@ -139,6 +139,17 @@ These apps are for migration exploration and are **not currently deployed**.
    npm run typecheck
    ```
 
+## UI development & regression safety nets
+
+- **Storybook for shared primitives** lives under `packages/ui`. Start it with `pnpm storybook:ui` to explore the design system and accessibility knobs.
+- **Visual regression & a11y hooks** run through Storybook’s test runner: `pnpm --filter @icupa/ui storybook:test`. This executes automated axe checks and captures deterministic screenshots for each story.
+
+## Performance, PWA & bundle budgets
+
+- **Enforce bundle budgets** using `pnpm check:budgets`. The script builds the app and fails if any JS/CSS chunk exceeds 320kb or the total payload exceeds 2.5mb.
+- **Lighthouse CI** runs via `npm run test:perf` with assertions targeting ≥90 performance and ≥95 PWA scores. Use `npm run analyze:pwa` locally for a quick shell-style audit.
+- **Service worker & offline shell** register automatically at startup. Toasts announce updates/offline readiness via the `usePwaNotifications` hook.
+
 ---
 
 ## Environment variables

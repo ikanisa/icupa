@@ -1,9 +1,9 @@
 import { useMemo } from "react";
 import { AlertCircle, FileText, Loader2, Printer, RefreshCcw } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import { Button } from "@icupa/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@icupa/ui/card";
+import { Badge } from "@icupa/ui/badge";
+import { Separator } from "@icupa/ui/separator";
 import {
   Page,
   PageActions,
@@ -13,7 +13,7 @@ import {
   PageTitle,
 } from "@/components/layout/Page";
 import { classNames } from "@/styles/theme";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@icupa/ui/use-toast";
 import { cn } from "@/lib/utils";
 import { useMerchantReceipts } from "./hooks/useMerchantReceipts";
 

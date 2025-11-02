@@ -1,3 +1,44 @@
-import config from "@icupa/config/eslint";
+import js from "@eslint/js";
+import globals from "globals";
+import reactHooks from "eslint-plugin-react-hooks";
+import reactRefresh from "eslint-plugin-react-refresh";
+import jsxA11y from "eslint-plugin-jsx-a11y";
+import tseslint from "typescript-eslint";
 
-export default config;
+export default tseslint.config(
+  { ignores: ["dist", "**/.next/**"] },
+  {
+    extends: [js.configs.recommended, ...tseslint.configs.recommended, jsxA11y.configs.recommended],
+    files: ["**/*.{ts,tsx}"],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: globals.browser,
+    },
+    plugins: {
+      "react-hooks": reactHooks,
+      "react-refresh": reactRefresh,
+      "jsx-a11y": jsxA11y,
+    },
+    rules: {
+      ...reactHooks.configs.recommended.rules,
+      "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
+      "@typescript-eslint/no-unused-vars": "off",
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-empty-object-type": "off",
+      "@typescript-eslint/no-require-imports": "off",
+    },
+  },
+  {
+    // UI component modules often export helpers/types alongside components;
+    // suppress react-refresh warning for these and for app layout.
+    files: [
+      "src/components/ui/**/*.{ts,tsx}",
+      "packages/ui/src/**/*.{ts,tsx}",
+      "apps/web/app/layout.tsx",
+      "**/app/layout.tsx",
+    ],
+    rules: {
+      "react-refresh/only-export-components": "off",
+    },
+  },
+);

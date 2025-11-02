@@ -2,8 +2,8 @@ import { useEffect, useRef } from "react";
 import type { RealtimePostgresInsertPayload } from "@supabase/supabase-js";
 
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/components/ui/use-toast";
-import { ToastAction } from "@/components/ui/toast";
+import { toast } from "@icupa/ui/use-toast";
+import { ToastAction } from "@icupa/ui/toast";
 
 interface UseReceiptNotificationsOptions {
   tableSessionId: string | null | undefined;

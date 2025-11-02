@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@icupa/ui/card";
+import { Button } from "@icupa/ui/button";
+import { Badge } from "@icupa/ui/badge";
 import {
   CreditCard,
   Smartphone,
@@ -18,13 +18,13 @@ import {
   QrCode,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
+import { Separator } from "@icupa/ui/separator";
 import { formatCurrency } from "@/lib/currency";
 import type { RegionCode } from "@/data/menu";
 import type { SplitMode } from "@/stores/cart-store";
 import { supabase } from "@/integrations/supabase/client";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@icupa/ui/use-toast";
 import {
   DEFAULT_FAILURE_MESSAGE,
   type PaymentStatus,

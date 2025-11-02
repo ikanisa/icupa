@@ -16,6 +16,8 @@ export const SupabaseSessionProvider = ({ children }: SupabaseSessionProviderPro
   useEffect(() => {
     let active = true;
 
+    void supabase.auth.startAutoRefresh();
+
     const syncSession = async () => {
       const { data } = await supabase.auth.getSession();
       if (!active) {
@@ -55,12 +57,14 @@ export const SupabaseSessionProvider = ({ children }: SupabaseSessionProviderPro
         window.removeEventListener("focus", updateTableSession);
         window.removeEventListener("storage", handleStorage);
         window.removeEventListener(TABLE_SESSION_EVENT, handleCustomEvent);
+        void supabase.auth.stopAutoRefresh();
       };
     }
 
     return () => {
       active = false;
       authListener.subscription.unsubscribe();
+      void supabase.auth.stopAutoRefresh();
     };
   }, []);
 

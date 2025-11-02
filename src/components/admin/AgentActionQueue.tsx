@@ -1,10 +1,10 @@
 import { formatDistanceToNow } from "date-fns";
 import { useAgentActionMutation, useAgentActionQueue, type AgentActionQueueItem } from "@/hooks/useAgentActionQueue";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useToast } from "@/components/ui/use-toast";
+import { Card } from "@icupa/ui/card";
+import { Button } from "@icupa/ui/button";
+import { Badge } from "@icupa/ui/badge";
+import { Skeleton } from "@icupa/ui/skeleton";
+import { useToast } from "@icupa/ui/use-toast";
 
 interface AgentActionQueueProps {
   tenantId: string | null;

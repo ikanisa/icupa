@@ -2,9 +2,9 @@ import { useMemo } from "react";
 import { useTenantKpis, TenantKpiSnapshot } from "@/hooks/useTenantKpis";
 import { ReconciliationPanel } from "@/components/admin/ReconciliationPanel";
 import { OfflineSyncTelemetryPanel } from "@/components/admin/OfflineSyncTelemetryPanel";
-import { Card } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { Card } from "@icupa/ui/card";
+import { Skeleton } from "@icupa/ui/skeleton";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@icupa/ui/chart";
 import { Line, LineChart, XAxis, YAxis, CartesianGrid } from "recharts";
 import { formatCurrency } from "@/lib/currency";
 
