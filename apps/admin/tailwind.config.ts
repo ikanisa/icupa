@@ -1,9 +1,9 @@
 import type { Config } from 'tailwindcss';
 import { icupaTailwindPreset } from '@icupa/config/tailwind-preset';
 
-const config: Config = {
+const config = {
   presets: [icupaTailwindPreset],
-  darkMode: ['class'],
+  darkMode: ['class', '.dark'],
   content: [
     './app/**/*.{ts,tsx}',
     './components/**/*.{ts,tsx}',
@@ -12,6 +12,6 @@ const config: Config = {
   theme: {
     extend: {},
   },
-};
+} satisfies Config;
 
 export default config;

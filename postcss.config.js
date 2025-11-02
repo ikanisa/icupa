@@ -8,7 +8,7 @@ const disableAutoprefixer =
 
 export default {
   plugins: {
-    tailwindcss: {},
+    '@tailwindcss/postcss': {},
     ...(disableAutoprefixer ? {} : { autoprefixer: {} }),
   },
 };

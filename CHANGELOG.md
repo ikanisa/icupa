@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Admin Console (2025-11-02)
+
+- Documented the admin console deployment settings, including Vercel build commands, secret mappings, and domain aliases for `apps/admin`.【F:deployments/admin/README.md†L1-L81】
+- Added an operator runbook covering monitoring, feature flag procedures, rollback guidance, and rollout notes for the admin surface.【F:docs/runbooks/admin.md†L1-L49】
+
 #### AI Agents Infrastructure (2025-10-30)
 
 - **AI Package** - Complete AI agent framework with OpenAI Responses and Realtime API integration
@@ -54,6 +59,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Updated `.env.example` with new environment variables for WhatsApp, SIP, and observability
 - Updated `vite.config.ts` to include `ai/` directory in test paths
+
+### Fixed
+
+#### Admin Console Tooling (2025-11-02)
+
+- Updated Tailwind v4 integration for the admin workspace by adopting `@tailwindcss/postcss`, aligning dark-mode presets, and swapping the gradient utility for a static background colour to unblock builds.【F:apps/admin/postcss.config.mjs†L1-L6】【F:postcss.config.js†L1-L12】【F:packages/ui/src/styles.css†L1-L71】【F:apps/admin/tailwind.config.ts†L1-L15】
+- Normalised shared configuration by extending the Tailwind preset and Zod enums so admin feature toggles compile cleanly with TypeScript type checking enabled.【F:packages/config/tailwind-preset.ts†L1-L69】【F:packages/types/src/apps.ts†L1-L18】
 
 ### Security
 
