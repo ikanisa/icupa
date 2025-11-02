@@ -9,7 +9,7 @@
 - Each agent run logs to `agent_events` (see `services/telemetry.ts`) with input summary, tools used, usage, and cost. Budget guards live alongside these helpers.
 - Feature flags / kill switches read from `agent_runtime_configs`; ensure monitoring dashboards highlight when autonomy is disabled per tenant.
 
-## Web app (apps/web)
+## Web app (apps/staff-pwa)
 
 - Client toast/telemetry helpers live under `src/lib/` and `src/hooks/useBackgroundSyncToast`.
 - Use `console.warn` only for actionable warnings; prefer `console.error` with sanitized payloads in error paths.

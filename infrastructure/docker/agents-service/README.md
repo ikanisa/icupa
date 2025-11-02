@@ -23,19 +23,19 @@ This folder contains an opinionated container stack for running `agents-service`
 1. Copy the template environment files and fill in secrets:
 
    ```bash
-   cp deployments/agents-service/.env.example deployments/agents-service/.env
-   cp deployments/agents-service/agents-service.env.example deployments/agents-service/agents-service.env
-   cp deployments/agents-service/oauth2-proxy.env.example deployments/agents-service/oauth2-proxy.env
+   cp infrastructure/docker/agents-service/.env.example infrastructure/docker/agents-service/.env
+   cp infrastructure/docker/agents-service/agents-service.env.example infrastructure/docker/agents-service/agents-service.env
+   cp infrastructure/docker/agents-service/oauth2-proxy.env.example infrastructure/docker/agents-service/oauth2-proxy.env
    ```
 
-2. Update `deployments/agents-service/.env` with the public hostname, ACME contact email, and OTLP exporter target.
+2. Update `infrastructure/docker/agents-service/.env` with the public hostname, ACME contact email, and OTLP exporter target.
 3. Populate `agents-service.env` with the OpenAI API key, Supabase service-role key, vector store IDs, and budget guardrails (`AGENT_SESSION_BUDGET_USD`, `AGENT_DAILY_BUDGET_USD`).
 4. Set up the OAuth client in `oauth2-proxy.env`. The redirect URI must match `https://${AGENTS_PUBLIC_HOST}/oauth2/callback`.
 
 ## Build and Deploy
 
 ```bash
-cd deployments/agents-service
+cd infrastructure/docker/agents-service
 # Build and push (optional); local deploy just runs compose up
 DOCKER_BUILDKIT=1 docker compose build
 DOCKER_BUILDKIT=1 docker compose up -d

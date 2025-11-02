@@ -6,7 +6,7 @@ This directory contains infrastructure-related configuration and documentation f
 
 - **MCP Integration**: Model Context Protocol setup for AI agents (see `../mcp/` and `../docs/ai-agents/`)
 - **Database**: Supabase migrations and schemas (see `../supabase/`)
-- **Deployments**: Deployment configurations (see `../deployments/`)
+- **Deployments**: Deployment configurations (see `../infrastructure/`)
 
 ## Related Documentation
 

@@ -73,13 +73,13 @@ graph TB
 
 | Surface    | Location                                    | Description                                                                 |
 |------------|---------------------------------------------|-----------------------------------------------------------------------------|
-| Diner PWA  | `apps/web/src/app/(client)` & `src/modules/diner` | Anonymous table experience (menu browsing, cart, pay, AI waiter)           |
-| Merchant   | `apps/web/src/app/(merchant)` & `src/modules/merchant` | WhatsApp-authenticated portal (KDS, menu ingestion, onboarding)            |
-| Admin      | `apps/web/src/app/(admin)` & `src/modules/admin` | Email magic-link console for tenants, AI guardrails, analytics             |
+| Diner PWA  | `apps/staff-pwa/src/app/(client)` & `src/modules/diner` | Anonymous table experience (menu browsing, cart, pay, AI waiter)           |
+| Merchant   | `apps/staff-pwa/src/app/(merchant)` & `src/modules/merchant` | WhatsApp-authenticated portal (KDS, menu ingestion, onboarding)            |
+| Admin      | `apps/admin-pwa/app/(console)` & `apps/admin-pwa/src/modules/admin` | Email magic-link console for tenants, AI guardrails, analytics             |
 | Agents API | `agents-service/`                        | Fastify service wrapping the OpenAI Agents SDK with guardrails & telemetry |
 | Supabase   | `supabase/`                                  | Schema migrations, storage policies, edge functions, tests                 |
 
-> **Note**: The `modules/*` directories are being introduced during the refactor to group shared code by feature area. Existing components are gradually being moved from `apps/web/src/components`.
+> **Note**: The `modules/*` directories are being introduced during the refactor to group shared code by feature area. Existing components are gradually being moved from `apps/staff-pwa/src/components`.
 
 ### Monorepo Structure
 
@@ -87,9 +87,9 @@ graph TB
 graph LR
     subgraph "Workspace Root"
         subgraph "apps/"
-            Web[web<br/>Main SPA]
+            StaffPWA[staff-pwa<br/>Staff PWA]
             Client[client<br/>Diner app]
-            Admin[admin<br/>Admin portal]
+            AdminPWA[admin-pwa<br/>Admin portal]
             Vendor[vendor<br/>Vendor app]
             Agents[agents-service<br/>AI Backend]
             OCR[ocr-converter<br/>Menu OCR]
@@ -378,7 +378,7 @@ src/
 
 ## Runtime responsibilities
 
-### Web app (`apps/web`)
+### Staff PWA (`apps/staff-pwa`)
 
 - Uses Vite + React + Tailwind + Radix for UI.
 - `src/integrations/supabase/` creates the browser client; headers automatically forward `x-icupa-session` for RLS.
@@ -415,8 +415,12 @@ src/
 
 ### Shared packages (`packages/`)
 
+- `ui` – Shared component library consumed by all PWAs.
 - `ingestion-utils` – OCR merge/dedupe logic, price sanity heuristics, schema typings.
-- Future home for `agent-utils` (tool schemas, safety validators) and UI kits.
+- `domain` – Placeholder exports for domain primitives shared across services.
+- `data-access` – Placeholder clients for Supabase, HTTP APIs, and future data stores.
+- `agents` – Placeholder orchestrators for agent behaviours.
+- `workers` – Placeholder background job entry points for queue processors.
 
 ## Cross-cutting concerns
 
@@ -432,7 +436,7 @@ As the refactor progresses, aim for:
 
 ```
 apps/
-  web/
+  staff-pwa/
     src/
       app/
       modules/
@@ -445,6 +449,12 @@ apps/
       hooks/
       integrations/
       styles/
+  admin-pwa/
+    app/
+      (console)/
+    src/
+      modules/
+        admin/
   agents-service/
     src/
       index.ts
@@ -487,7 +497,7 @@ Keep this document aligned with reality to help onboarding engineers find the ri
 
 | Service | Primary Language | Key Files | Documentation |
 |---------|-----------------|-----------|---------------|
-| Web App | TypeScript/React | `src/**`, `apps/web/**` | `README.md` |
+| Staff PWA | TypeScript/React | `src/**`, `apps/staff-pwa/**` | `README.md` |
 | Agents Service | TypeScript/Node | `agents-service/**` | `agents-service/README.md` |
 | Edge Functions | TypeScript/Deno | `supabase/functions/**` | `docs/backend-contract.md` |
 | Shared Packages | TypeScript | `packages/**` | Individual `README.md` files |

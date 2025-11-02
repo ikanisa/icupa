@@ -89,7 +89,7 @@ External Integrations:
 
 ### Service Dependencies
 
-#### 1. **Web PWA (apps/web, src/)**
+#### 1. **Web PWA (apps/staff-pwa, src/)**
 - **Tech Stack:** React 18.3, TypeScript 5.8, Vite 5.4, Tailwind 3.4
 - **Dependencies:** ~99 production packages
 - **Key Libraries:** Radix UI, TanStack Query, React Router, Framer Motion

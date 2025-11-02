@@ -369,7 +369,7 @@ This taskpack operationalises automated menu OCR using OpenAI vision models whil
 - Database migration introducing `menu_ingestions` and `menu_items_staging` tables with RLS enabled and indexed (`supabase/migrations/XXXX_menu_ingestion.sql`).
 - Supabase storage buckets `raw_menus` (private) and `menu_images` (public or signed).
 - Edge Functions handling ingestion lifecycle: `ingest_menu_start`, `ingest_menu_process`, `ingest_menu_publish` under `supabase/functions/`.
-- Merchant app workflow covering Upload → Draft Review → Publish within `apps/web/src/app/(merchant)/merchant/menu/`.
+- Merchant app workflow covering Upload → Draft Review → Publish within `apps/staff-pwa/src/app/(merchant)/merchant/menu/`.
 - Structured Outputs integration with OpenAI Responses API (vision) and batch-processing design notes.
 - Tests and observability counters charting ingestion throughput, failures, and item confidence distribution.
 
@@ -438,9 +438,9 @@ This taskpack operationalises automated menu OCR using OpenAI vision models whil
 - Enable merchants to upload menus, review extracted items, and publish updates without leaving the PWA.
 
 **Deliverables**
-- Upload screen `apps/web/src/app/(merchant)/merchant/menu/upload/page.tsx`: drag-and-drop picker, file guards, status/progress UI. Calls `ingest_menu_start`, streams file to signed URL, initiates processing.
-- Draft review screen `apps/web/src/app/(merchant)/merchant/menu/review/[ingestion_id]/page.tsx`: page thumbnails, editable table for items (price, description, allergens, tags, is_alcohol, confidence). Supports merging with existing catalogue items and flagging anomalies (missing price, high price).
-- Menu hub `apps/web/src/app/(merchant)/merchant/menu/page.tsx`: list active ingestions with statuses (`uploaded`, `processing`, `awaiting_review`, `failed`) and entry points to upload/review.
+- Upload screen `apps/staff-pwa/src/app/(merchant)/merchant/menu/upload/page.tsx`: drag-and-drop picker, file guards, status/progress UI. Calls `ingest_menu_start`, streams file to signed URL, initiates processing.
+- Draft review screen `apps/staff-pwa/src/app/(merchant)/merchant/menu/review/[ingestion_id]/page.tsx`: page thumbnails, editable table for items (price, description, allergens, tags, is_alcohol, confidence). Supports merging with existing catalogue items and flagging anomalies (missing price, high price).
+- Menu hub `apps/staff-pwa/src/app/(merchant)/merchant/menu/page.tsx`: list active ingestions with statuses (`uploaded`, `processing`, `awaiting_review`, `failed`) and entry points to upload/review.
 - Persist review edits back to staging tables via Edge Function or Supabase RPC.
 
 **Acceptance criteria**
@@ -484,7 +484,7 @@ This taskpack operationalises automated menu OCR using OpenAI vision models whil
 - Provide automated coverage and telemetry for ingestion quality and performance.
 
 **Deliverables**
-- Unit tests for dedupe/merge utilities, schema validator, price conversions (`tests/` or `apps/web/__tests__`).
+- Unit tests for dedupe/merge utilities, schema validator, price conversions (`tests/` or `apps/staff-pwa/__tests__`).
 - E2E tests simulating merchant upload→publish flow with mocked OpenAI responses (e.g., Playwright + MSW).
 - Load/latency tests for Edge Functions to validate OCR scaling (consider k6/Deno benchmarks).
 - Observability hooks emitting events: `ingestion.started`, `ingestion.processed`, `ingestion.awaiting_review`, `ingestion.published`, `ingestion.failed`; counters for `pages_processed`, `items_extracted`, `items_conf_ge_0_8` (Expose via `agents-service/src/observability.ts` or Supabase logs).

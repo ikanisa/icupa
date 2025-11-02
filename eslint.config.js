@@ -32,7 +32,7 @@ export default tseslint.config(
     files: [
       "src/components/ui/**/*.{ts,tsx}",
       "packages/ui/src/**/*.{ts,tsx}",
-      "apps/web/app/layout.tsx",
+      "apps/staff-pwa/app/layout.tsx",
       "**/app/layout.tsx",
     ],
     rules: {

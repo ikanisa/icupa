@@ -14,8 +14,8 @@ VITE_AGENTS_URL,Client (Vite app),Runtime,no,,Preferred Agents service base URL 
 VITE_API_AGENTS_URL,Client (Vite app),Runtime,no,,Fallback Agents base URL key for backwards compatibility.
 PUBLIC_AGENTS_URL,Client (Vite app),Runtime,no,,Generic agents URL key supported by helper utilities.
 AGENTS_URL,Server (Node/CI),Runtime,no,,Last-resort Agents URL read from process.env.
-NEXT_PUBLIC_MAPS_DEEPLINK_BASE,Client (apps/web),Runtime,no,https://maps.google.com/?q=,Base URL for location deep links on marketing site.
-NEXT_PUBLIC_VAPID_PUBLIC_KEY,Client (apps/web),Runtime,no,,Public key for push subscriptions when marketing site runs service worker.
+NEXT_PUBLIC_MAPS_DEEPLINK_BASE,Client (apps/staff-pwa),Runtime,no,https://maps.google.com/?q=,Base URL for location deep links on marketing site.
+NEXT_PUBLIC_VAPID_PUBLIC_KEY,Client (apps/staff-pwa),Runtime,no,,Public key for push subscriptions when marketing site runs service worker.
 OCR_CONVERTER_TOKEN,Server (apps/ocr-converter),Runtime,no,,Shared secret required by OCR converter shim.
 PORT,Server (apps/ocr-converter),Runtime,no,8789,Port for OCR converter local server.
 AGENT_TIMEOUT_MS,Server (agents-service),Runtime,no,45000,Overrides per-request timeout when proxying to OpenAI Agents.

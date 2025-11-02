@@ -14,7 +14,7 @@ Thanks for helping evolve the ICUPA platform. Before opening a pull request, ple
 - Format TypeScript files with `npm run format` (which runs Prettier).
 - Lint and auto-fix issues with `npm run lint:fix`.
 - Keep changes additive unless you have explicit alignment with the project owners.
-- Prefer co-locating hooks, components, and tests inside their feature "module" folders (`apps/web/src/modules/…` once the refactor lands).
+- Prefer co-locating hooks, components, and tests inside their feature "module" folders (`apps/staff-pwa/src/modules/…` once the refactor lands).
 
 ### Pre-commit hooks
 

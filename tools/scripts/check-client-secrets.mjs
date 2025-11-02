@@ -39,7 +39,8 @@ const SERVER_ONLY_ENV_VARS = [
 const CLIENT_DIRS = [
   "apps/ecotrips/app",
   "src",
-  "apps/admin",
+  "apps/admin-pwa",
+  "apps/staff-pwa",
   "public",
 ];
 

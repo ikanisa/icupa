@@ -25,15 +25,16 @@
     "baseUrl": ".",
     "rootDirs": [
       ".",
-      "../packages/ui/src",
-      "../packages/config"
+      "../../packages/ui/src",
+      "../../packages/config"
     ],
     "paths": {
       "@/components/*": [
         "./components/*"
       ],
       "@/lib/*": [
-        "./lib/*"
+        "./lib/*",
+        "../../src/lib/*"
       ],
       "@/hooks/*": [
         "./hooks/*"
@@ -45,22 +46,49 @@
         "./stores/*"
       ],
       "@icupa/ui": [
-        "../packages/ui/src"
+        "../../packages/ui/src"
       ],
       "@icupa/ui/*": [
-        "../packages/ui/src/*"
+        "../../packages/ui/src/*"
       ],
       "@icupa/config": [
-        "../packages/config"
+        "../../packages/config/src"
       ],
       "@icupa/config/*": [
-        "../packages/config/*"
+        "../../packages/config/src/*"
+      ],
+      "@icupa/config/tailwind-preset": [
+        "../../packages/config/tailwind-preset.ts"
       ],
       "@icupa/ingestion-utils": [
-        "../packages/ingestion-utils/src"
+        "../../packages/ingestion-utils/src"
       ],
       "@icupa/ingestion-utils/*": [
-        "../packages/ingestion-utils/src/*"
+        "../../packages/ingestion-utils/src/*"
+      ],
+      "@icupa/domain": [
+        "../../packages/domain/src"
+      ],
+      "@icupa/domain/*": [
+        "../../packages/domain/src/*"
+      ],
+      "@icupa/data-access": [
+        "../../packages/data-access/src"
+      ],
+      "@icupa/data-access/*": [
+        "../../packages/data-access/src/*"
+      ],
+      "@icupa/agents": [
+        "../../packages/agents/src"
+      ],
+      "@icupa/agents/*": [
+        "../../packages/agents/src/*"
+      ],
+      "@icupa/workers": [
+        "../../packages/workers/src"
+      ],
+      "@icupa/workers/*": [
+        "../../packages/workers/src/*"
       ]
     },
     "plugins": [

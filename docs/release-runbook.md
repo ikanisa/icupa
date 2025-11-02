@@ -150,7 +150,7 @@ docker tag icupa-agents:staging <registry>/icupa-agents:staging
 docker push <registry>/icupa-agents:staging
 
 # Deploy to staging K8s/Cloud Run
-kubectl apply -f deployments/staging/agents-service.yaml
+kubectl apply -f infrastructure/k8s/agents-service/staging.yaml
 # OR
 gcloud run deploy agents-service --image=<registry>/icupa-agents:staging
 ```
@@ -203,7 +203,7 @@ aws cloudfront create-invalidation --distribution-id <id> --paths "/*"
    ```bash
    docker build -t icupa-agents:vX.Y.Z .
    docker push <registry>/icupa-agents:vX.Y.Z
-   kubectl apply -f deployments/production/agents-service.yaml
+   kubectl apply -f infrastructure/k8s/agents-service/production.yaml
    ```
 
 4. **Web PWA** (5 minutes)
@@ -550,7 +550,7 @@ docker build -t icupa-agents:vX.Y.Z .
 docker tag icupa-agents:vX.Y.Z <registry>/icupa-agents:vX.Y.Z
 
 # Deploy
-kubectl apply -f deployments/production/agents-service.yaml
+kubectl apply -f infrastructure/k8s/agents-service/production.yaml
 kubectl rollout status deployment/agents-service
 
 # Rollback

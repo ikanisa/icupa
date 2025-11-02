@@ -19,8 +19,8 @@
     "agents-service"
   ],
   "apps": {
-    "admin": {
-      "path": "apps/admin",
+    "admin-pwa": {
+      "path": "apps/admin-pwa",
       "framework": "nextjs",
       "entry": "Next.js App Router",
       "commands": {
@@ -49,8 +49,8 @@
         "start": "next start"
       }
     },
-    "web": {
-      "path": "apps/web",
+    "staff-pwa": {
+      "path": "apps/staff-pwa",
       "framework": "nextjs",
       "entry": "Next.js App Router",
       "commands": {
@@ -83,6 +83,10 @@
     "packages/db",
     "packages/ingestion-utils",
     "packages/types",
-    "packages/ui"
+    "packages/ui",
+    "packages/domain",
+    "packages/data-access",
+    "packages/agents",
+    "packages/workers"
   ]
 }
