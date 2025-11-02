@@ -5,6 +5,7 @@ import '@icupa/ui/styles.css';
 import './globals.css';
 import './env.server';
 import { Providers } from './providers';
+import { ServiceWorkerRegistrar } from './service-worker-registrar';
 
 export const metadata: Metadata = {
   title: 'ICUPA Vendor PWA',
@@ -22,6 +23,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en" suppressHydrationWarning>
       <body className={cn('min-h-screen text-foreground antialiased')}>
         <Providers>{children}</Providers>
+        <ServiceWorkerRegistrar />
       </body>
     </html>
   );
