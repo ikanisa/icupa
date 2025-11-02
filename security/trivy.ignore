@@ -1,0 +1,3 @@
+# Example Trivy suppression file
+# Format: <VulnerabilityID># expires: YYYY-MM-DD | issue: security-suppression-<id>
+# CVE-2025-0001# expires: 2025-03-31 | issue: security-suppression-42

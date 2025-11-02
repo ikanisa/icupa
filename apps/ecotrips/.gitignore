@@ -31,3 +31,5 @@ supabase/.temp/
 # Misc
 *.swp
 supabase/config.toml.bak
+
+!.env.example

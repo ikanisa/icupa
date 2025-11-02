@@ -137,3 +137,7 @@ We thank the following security researchers for responsibly disclosing vulnerabi
 
 **Last Updated:** 2025-10-29  
 **Version:** 1.0
+
+## Vulnerability Suppression Governance
+
+All temporary suppressions for automated scanners must follow the [Vulnerability Management & Exception Process](docs/security/vulnerability-management.md). Pull requests that add new ignores must link to an approved `security-suppression` issue and include an expiry date not exceeding 30 days.

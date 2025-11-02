@@ -1,0 +1,30 @@
+config:
+  target: "http://localhost:8787"
+  phases:
+    - duration: 300
+      arrivalRate: 10
+      rampTo: 30
+      name: Ramp up to steady load
+  defaults:
+    headers:
+      Content-Type: application/json
+scenarios:
+  - name: Anonymous browse and order
+    flow:
+      - get:
+          url: "/health"
+      - post:
+          url: "/agents/waiter"
+          json:
+            message: "Show me menu"
+            tenantId: "demo-tenant"
+            locationId: "demo-location"
+          capture:
+            - json: "$.sessionId"
+              as: "sessionId"
+      - post:
+          url: "/agent-feedback"
+          json:
+            sessionId: "{{ sessionId }}"
+            agentType: "waiter"
+            rating: "thumbs_up"

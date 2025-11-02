@@ -47,7 +47,9 @@
     "format:check": "prettier --check .",
     "verify": "npm run lint && npm run typecheck && npm run test",
     "verify:full": "npm run verify && npm run test:e2e && npm run supabase:test",
-    "presupabase:test": "node scripts/ci/reset-supabase-test-db.mjs"
+    "presupabase:test": "node scripts/ci/reset-supabase-test-db.mjs",
+    "perf:k6": "npx --yes k6 run tests/perf/k6-smoke.js",
+    "perf:artillery": "npx --yes artillery run tests/perf/artillery-order-flow.yml"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
