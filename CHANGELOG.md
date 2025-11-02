@@ -50,6 +50,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `@opentelemetry/sdk-node` - Distributed tracing
   - `@opentelemetry/exporter-trace-otlp-http` - Telemetry export
 
+#### Tooling & CI (2025-02-14)
+
+- **Workspace & Tooling**
+  - Enforced Node.js 20 via `.nvmrc` and pnpm engine configuration.
+  - Centralised ESLint, Prettier, and TypeScript presets in `@icupa/config` for all apps and packages.
+  - Introduced Turborepo with caching-aware pipelines for linting, type-checking, testing, and builds.
+- **Developer Experience**
+  - Added Husky commit hooks with Commitlint integration and refreshed `.gitattributes` defaults.
+  - Documented the new contribution flow, tooling commands, and release expectations in `CONTRIBUTING.md`.
+- **CI Enhancements**
+  - Updated CI jobs to run against Node 20 and leverage Turborepo commands.
+  - Refreshed performance workflows to reuse cached builds for Lighthouse and bundle-size analysis.
+  - Ensured dependency auditing runs on the updated toolchain.
+
 ### Changed
 
 - Updated `.env.example` with new environment variables for WhatsApp, SIP, and observability

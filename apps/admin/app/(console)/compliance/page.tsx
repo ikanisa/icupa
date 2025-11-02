@@ -16,21 +16,43 @@ import {
   TableHeader,
   TableRow,
 } from '@icupa/ui';
-import { AlertTriangle, CheckCircle, FileWarning, Shield } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Shield } from 'lucide-react';
 import { fetchComplianceOverview } from '../../../lib/api';
-import type { ComplianceIncident, ComplianceMetric } from '../../../data/sample';
+import type { ComplianceIncident, ComplianceMetric } from '../../../lib/types';
 
-const statusTone: Record<ComplianceIncident['status'], { label: string; className: string }> = {
+const metricIcons: Record<string, ComponentType<{ className?: string }>> = {
+  open_tasks: Shield,
+  due_soon: AlertTriangle,
+  completion: CheckCircle,
+};
+
+const severityTone: Record<ComplianceIncident['severity'], string> = {
+  low: 'border-sky-500/40 bg-sky-500/10 text-sky-100',
+  medium: 'border-amber-500/40 bg-amber-500/10 text-amber-100',
+  high: 'border-rose-500/40 bg-rose-500/10 text-rose-100',
+  critical: 'border-rose-500/40 bg-rose-500/10 text-rose-100',
+};
+
+const statusTone: Record<string, { label: string; className: string }> = {
   mitigated: { label: 'Mitigated', className: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-100' },
   investigating: { label: 'Investigating', className: 'border-amber-500/40 bg-amber-500/10 text-amber-100' },
   pending_vendor: { label: 'Pending vendor', className: 'border-sky-500/40 bg-sky-500/10 text-sky-100' },
 };
 
-const metricIcons: Record<ComplianceMetric['id'], ComponentType<{ className?: string }>> = {
-  fiscal_coverage: Shield,
-  allergen_incidents: CheckCircle,
-  privacy_requests: FileWarning,
-};
+function getStatusBadge(status: string) {
+  return (
+    statusTone[status] ?? {
+      label: status.replace(/_/g, ' '),
+      className: 'border-white/15 bg-white/5 text-white/70',
+    }
+  );
+}
+
+function formatDate(value: string | null) {
+  if (!value) return '—';
+  const date = new Date(value);
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
 
 export default function CompliancePage() {
   const { data } = useQuery({ queryKey: ['admin-compliance'], queryFn: fetchComplianceOverview });
@@ -53,7 +75,7 @@ export default function CompliancePage() {
 
       <div className="grid gap-4 md:grid-cols-3">
         {metrics.map((metric) => {
-          const Icon = metricIcons[metric.id];
+          const Icon = metricIcons[metric.id] ?? Shield;
           return (
             <Card key={metric.id} className="glass-surface border-white/10 bg-white/5">
               <CardHeader className="flex items-center justify-between">
@@ -97,35 +119,43 @@ export default function CompliancePage() {
           <Table>
             <TableHeader>
               <TableRow className="border-white/10 text-white/80">
-                <TableHead className="w-[160px]">Incident</TableHead>
+                <TableHead className="w-[200px]">Incident</TableHead>
                 <TableHead>Tenant</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Opened</TableHead>
-                <TableHead>Owner</TableHead>
+                <TableHead>Severity</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Opened</TableHead>
+                <TableHead>Due</TableHead>
+                <TableHead>Summary</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {incidents.map((incident) => {
-                const tone = statusTone[incident.status];
+                const status = getStatusBadge(incident.status);
                 return (
                   <TableRow key={incident.id} className="border-white/5">
-                    <TableCell className="font-medium text-white">{incident.id}</TableCell>
-                    <TableCell className="text-white/70">{incident.tenant}</TableCell>
-                    <TableCell className="text-white/70">{incident.type}</TableCell>
-                    <TableCell className="text-white/70">
-                      {new Date(incident.openedAt).toLocaleString(undefined, {
-                        month: 'short',
-                        day: 'numeric',
-                      })}
-                    </TableCell>
-                    <TableCell className="text-white/70">{incident.owner}</TableCell>
+                    <TableCell className="font-medium text-white">{incident.title}</TableCell>
+                    <TableCell className="text-white/70">{incident.tenantId ?? 'Global'}</TableCell>
                     <TableCell>
-                      <Badge className={tone.className}>{tone.label}</Badge>
+                      <Badge className={severityTone[incident.severity] ?? 'border-white/15 bg-white/5 text-white/70'}>
+                        {incident.severity.toUpperCase()}
+                      </Badge>
                     </TableCell>
+                    <TableCell>
+                      <Badge className={status.className}>{status.label}</Badge>
+                    </TableCell>
+                    <TableCell className="text-white/70">{formatDate(incident.openedAt)}</TableCell>
+                    <TableCell className="text-white/70">{formatDate(incident.dueAt)}</TableCell>
+                    <TableCell className="text-xs text-white/60">{incident.summary}</TableCell>
                   </TableRow>
                 );
               })}
+              {incidents.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} className="py-8 text-center text-sm text-white/60">
+                    All compliance tasks are clear. Supabase will surface new incidents here as they arrive.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>

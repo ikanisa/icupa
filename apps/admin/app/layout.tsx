@@ -5,6 +5,7 @@ import '@icupa/ui/styles.css';
 import './globals.css';
 import './env.server';
 import { Providers } from './providers';
+import { ServiceWorkerRegistrar } from './service-worker-registrar';
 
 export const metadata: Metadata = {
   title: 'ICUPA Admin Console',
@@ -22,6 +23,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en" suppressHydrationWarning>
       <body className={cn('min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-foreground antialiased')}>
         <Providers>{children}</Providers>
+        <ServiceWorkerRegistrar />
       </body>
     </html>
   );

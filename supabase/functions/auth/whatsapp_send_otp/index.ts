@@ -35,6 +35,28 @@ function sanitizePhone(input?: string | null): string | null {
   return trimmed;
 }
 
+function maskPhone(input?: string | null): string {
+  if (!input) {
+    return "unknown";
+  }
+
+  const sanitized = sanitizePhone(input) ?? input.trim();
+  const e164Match = sanitized.match(/^(\+[0-9]{1,3})([0-9]+)([0-9]{2})$/);
+
+  if (e164Match) {
+    const [, prefix, middle, suffix] = e164Match;
+    const maskedMiddle = "\u2022".repeat(Math.max(2, middle.length));
+    return `${prefix} ${maskedMiddle} ${suffix}`;
+  }
+
+  const visibleStart = sanitized.slice(0, Math.min(4, sanitized.length));
+  const visibleEnd = sanitized.slice(-2);
+  const hiddenLength = Math.max(2, sanitized.length - visibleStart.length - visibleEnd.length);
+  const hidden = "\u2022".repeat(hiddenLength);
+
+  return `${visibleStart}${hidden ? ` ${hidden}` : ""}${visibleEnd ? ` ${visibleEnd}` : ""}`.trim();
+}
+
 function generateOtp(): string {
   const number = Math.floor(100000 + Math.random() * 900000);
   return String(number);

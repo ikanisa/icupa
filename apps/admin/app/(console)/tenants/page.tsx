@@ -21,7 +21,7 @@ import {
 } from '@icupa/ui';
 import { CheckCircle2, CircleDashed, CircleSlash2, Users } from 'lucide-react';
 import { fetchTenants } from '../../../lib/api';
-import type { TenantRecord } from '../../../data/sample';
+import type { TenantRecord } from '../../../lib/types';
 
 const statusConfig: Record<
   TenantRecord['status'],
