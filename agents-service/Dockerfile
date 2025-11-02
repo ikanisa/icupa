@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:20-bookworm-slim AS deps
+FROM node:25-bookworm-slim AS deps
 WORKDIR /usr/src/app
 ENV NODE_ENV=production
 
