@@ -1,6 +1,7 @@
 {
   "extends": "@icupa/config/tsconfig/next",
   "compilerOptions": {
+    "baseUrl": ".",
     "jsx": "preserve",
     "lib": ["dom", "dom.iterable", "esnext"],
     "module": "esnext",
