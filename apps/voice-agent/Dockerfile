@@ -1,56 +1,34 @@
-# Build stage
-FROM node:20-alpine AS builder
+# syntax=docker/dockerfile:1.7
 
-WORKDIR /app
+FROM node:20-bookworm-slim AS build
+ENV PNPM_HOME=/pnpm
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable pnpm && pnpm --version
+WORKDIR /repo
 
-# Copy package files
-COPY package*.json ./
-COPY pnpm-lock.yaml ./
-COPY .npmrc ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/voice-agent/package.json apps/voice-agent/package.json
+COPY packages ./packages
+COPY libs ./libs
+COPY tsconfig.base.json tsconfig.json tsconfig.node.json ./
 
-# Install pnpm
-RUN npm install -g pnpm@10
+RUN pnpm install --filter @icupa/voice-agent... --frozen-lockfile
 
-# Copy workspace configuration
-COPY pnpm-workspace.yaml ./
-
-# Copy voice-agent source
 COPY apps/voice-agent ./apps/voice-agent
 
-# Install dependencies
-RUN pnpm install --frozen-lockfile
+RUN pnpm --filter @icupa/voice-agent... build
 
-# Build the application
-WORKDIR /app/apps/voice-agent
-RUN pnpm build
+FROM build AS prod-deps
+RUN pnpm deploy --filter @icupa/voice-agent... --prod /opt/voice-agent
 
-# Production stage
-FROM node:20-alpine
-
+FROM gcr.io/distroless/nodejs20-debian12 AS runner
 WORKDIR /app
+ENV NODE_ENV=production \
+    PORT=8786
 
-# Install pnpm
-RUN npm install -g pnpm@10
+COPY --from=build /repo/apps/voice-agent/dist ./dist
+COPY --from=prod-deps /opt/voice-agent/package.json ./package.json
+COPY --from=prod-deps /opt/voice-agent/node_modules ./node_modules
 
-# Copy package files
-COPY --from=builder /app/apps/voice-agent/package*.json ./
-COPY --from=builder /app/apps/voice-agent/dist ./dist
-
-# Install production dependencies only
-RUN pnpm install --prod --frozen-lockfile
-
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
-
-USER nodejs
-
-# Expose port
-EXPOSE 8787
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:8787/health', (r) => {if(r.statusCode !== 200) throw new Error('Health check failed');})"
-
-# Start the application
-CMD ["node", "dist/index.js"]
+EXPOSE 8786
+CMD ["dist/index.js"]

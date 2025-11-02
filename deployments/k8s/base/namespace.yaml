@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: icupa
+  labels:
+    app.kubernetes.io/name: icupa
+    app.kubernetes.io/managed-by: manual

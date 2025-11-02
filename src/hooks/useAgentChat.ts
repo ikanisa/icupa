@@ -10,7 +10,7 @@ import type {
   AgentResponseMetadata,
   AgentChatState,
   AgentFeedbackRating,
-} from '@/types/agents';
+} from '@icupa/types/agents';
 
 interface SendMessageArgs {
   message: string;

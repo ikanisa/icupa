@@ -40,6 +40,11 @@ jobs:
         VITE_SUPABASE_ANON_KEY: test-key
       run: |
         pnpm test -- --coverage --coverage.reporter=json-summary --coverage.reporter=text
+
+    - name: Enforce coverage threshold
+      env:
+        COVERAGE_THRESHOLD: '80'
+      run: node scripts/ci/enforce-coverage.mjs
     
     - name: Extract coverage percentage
       id: coverage
@@ -51,17 +56,9 @@ jobs:
     - name: Check coverage threshold
       run: |
         COVERAGE=${{ steps.coverage.outputs.percentage }}
-        THRESHOLD=70
+        THRESHOLD=80
         echo "Coverage: $COVERAGE%"
         echo "Threshold: $THRESHOLD%"
-        
-        if (( $(echo "$COVERAGE < $THRESHOLD" | bc -l) )); then
-          echo "❌ Coverage ($COVERAGE%) is below threshold ($THRESHOLD%)"
-          echo "Please add tests to improve coverage"
-          exit 1
-        else
-          echo "✅ Coverage ($COVERAGE%) meets threshold ($THRESHOLD%)"
-        fi
     
     - name: Generate coverage badge
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -82,7 +79,7 @@ jobs:
       with:
         script: |
           const coverage = '${{ steps.coverage.outputs.percentage }}';
-          const threshold = 70;
+          const threshold = 80;
           const status = parseFloat(coverage) >= threshold ? '✅' : '❌';
           
           const comment = `## ${status} Test Coverage Report

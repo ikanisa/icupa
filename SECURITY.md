@@ -53,10 +53,12 @@ We will not pursue legal action against researchers who follow these guidelines.
 
 ## Security Best Practices for Contributors
 
-### Code Review
+### Code Review & Automation
 - All code changes require review by at least one maintainer
 - Security-sensitive changes require review by security team
 - Automated security scans (CodeQL, dependency audit) must pass
+- CI must report green on lint, typecheck, test, build, coverage ≥80%, and Lighthouse thresholds before merge
+- Documentation updates required when security posture changes (see `docs/rfc-001-repo-refactor.md`)
 
 ### Dependencies
 - Keep dependencies up to date
@@ -77,15 +79,16 @@ We will not pursue legal action against researchers who follow these guidelines.
 - Implement rate limiting on authentication endpoints
 
 ### MCP Agent Security (Model Context Protocol)
-- **Least-Privilege Roles:** Each AI agent (waiter, CFO, legal) has dedicated PostgreSQL roles with minimal grants
-- **Row-Level Security:** RLS policies scope data access per agent (e.g., venue_id for waiter, assigned_to for legal)
-- **Audit Logging:** All MCP tool executions logged to `mcp_audit_log` with parameters and outcomes
-- **Parameterized Queries:** All SQL in tool manifests uses `:param` placeholders, never string concatenation
-- **Human-in-the-Loop:** High-value operations (e.g., CFO journal entries >$10k) require approval via Edge Functions
-- **Secret Rotation:** OAuth2 client secrets must be rotated every 90 days
-- **Emergency Revocation:** Revoke agent roles via `DROP ROLE` or disable via RLS policy updates
-- **Tool Manifest Security Lint:** Run `pnpm security:lint-mcp` to detect dangerous SQL patterns (DELETE, DROP, TRUNCATE)
-- **No Service Role in App Code:** Application code must never use `service_role` key - agents use dedicated roles only
+- **Least-Privilege Roles:** Each AI agent (waiter, CFO, legal) has dedicated PostgreSQL roles with minimal grants.
+- **Row-Level Security:** RLS policies scope data access per agent (e.g., venue_id for waiter, assigned_to for legal). Tenancy policies documented in `docs/tenancy.md`.
+- **Audit Logging:** All MCP tool executions logged to `mcp_audit_log` with parameters and outcomes.
+- **Parameterized Queries:** All SQL in tool manifests uses `:param` placeholders, never string concatenation.
+- **Human-in-the-Loop:** High-value operations (e.g., CFO journal entries >$10k) require approval via Edge Functions.
+- **Secret Rotation:** OAuth2 client secrets must be rotated every 90 days.
+- **Emergency Revocation:** Revoke agent roles via `DROP ROLE` or disable via RLS policy updates.
+- **Tool Manifest Security Lint:** Run `pnpm security:lint-mcp` to detect dangerous SQL patterns (DELETE, DROP, TRUNCATE).
+- **No Service Role in App Code:** Application code must never use `service_role` key - agents use dedicated roles only.
+- **Feature Flags:** Changes to agent capabilities must be gated behind feature flags logged in `tenant_feature_audit` with rollback guidance in `docs/runbooks/go-live.md`.
 
 ### Input Validation
 - Validate all user input on both client and server
@@ -107,6 +110,8 @@ We will not pursue legal action against researchers who follow these guidelines.
 - ✅ **Webhook Signatures:** Stripe, MoMo, Airtel webhooks verified
 - ✅ **Secret Scanning:** CI checks for leaked credentials
 - ✅ **Dependency Audits:** Automated checks in CI pipeline
+- ✅ **Zero-Downtime Migration Guardrails:** Additive migrations, feature flags, and rollback plans documented in `docs/runbooks/zero-downtime-migration.md`
+- ✅ **Observability Baselines:** Lighthouse, coverage, and Grafana snapshots archived in `artifacts/` for traceability
 
 ### Planned Security Enhancements
 - 🔄 **CodeQL SAST:** Static analysis in CI (in progress)
@@ -135,5 +140,5 @@ We thank the following security researchers for responsibly disclosing vulnerabi
 
 ---
 
-**Last Updated:** 2025-10-29  
-**Version:** 1.0
+**Last Updated:** 2025-11-01
+**Version:** 1.1
