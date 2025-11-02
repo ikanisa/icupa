@@ -91,6 +91,7 @@ export default defineConfig(({ mode }) => ({
       "tests/**/*.{test,spec}.{ts,tsx}",
       "supabase/functions/**/*.{test,spec}.{ts,tsx}",
       "ai/**/*.{test,spec}.{ts,tsx}",
+      "apps/ecotrips/apps/admin/**/*.{test,spec}.{ts,tsx}",
     ],
     environmentMatchGlobs: [
       ["supabase/functions/**", "node"],
@@ -116,6 +117,7 @@ export default defineConfig(({ mode }) => ({
         "packages/**/*.{ts,tsx}",
         "supabase/functions/**/*.{ts,tsx}",
         "ai/**/*.{ts,tsx}",
+        "apps/ecotrips/apps/admin/**/*.{ts,tsx}",
       ],
       all: true,
       lines: 70,

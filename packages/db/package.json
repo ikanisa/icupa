@@ -8,6 +8,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./client": "./src/client.ts",
+    "./rpc": "./src/rpc.ts",
     "./types": "./src/types.ts",
     "./*": "./src/*"
   },

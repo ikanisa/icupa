@@ -4,10 +4,13 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { Route } from 'next';
 import type { ReactNode } from 'react';
+import { useState } from 'react';
 import { Badge, Button, ScrollArea, Separator } from '@icupa/ui';
-import { ShieldCheck, BarChart3, Users, Bot, Flag, Menu, type LucideIcon } from 'lucide-react';
+import { ShieldCheck, BarChart3, Users, Bot, Flag, Menu, UserCircle2, type LucideIcon } from 'lucide-react';
 import { APP_DEFINITIONS } from '@icupa/types/apps';
 import { cn } from '@icupa/ui';
+import { useAdminSession } from './session-context';
+import { getSupabaseBrowserClient } from '../../lib/supabase-browser';
 
 const navItems = [
   {
@@ -46,11 +49,27 @@ const navItems = [
     icon: Flag,
     description: 'Rollouts and kill-switches.',
   },
+  {
+    label: 'Account',
+    href: '/account' as Route,
+    icon: UserCircle2,
+    description: 'Session details and sign out.',
+  },
 ] satisfies Array<{ label: string; href: Route; icon: LucideIcon; description: string }>;
 
 export function ConsoleShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const adminApp = APP_DEFINITIONS.admin;
+  const { user } = useAdminSession();
+  const [signingOut, setSigningOut] = useState(false);
+
+  const handleSignOut = async () => {
+    if (signingOut) return;
+    setSigningOut(true);
+    const supabase = getSupabaseBrowserClient();
+    await supabase.auth.signOut();
+    window.location.href = '/login';
+  };
 
   return (
     <div className="flex min-h-screen w-full">
@@ -98,9 +117,12 @@ export function ConsoleShell({ children }: { children: ReactNode }) {
             <span className="hidden text-white md:inline">ICUPA Admin Control Plane</span>
             <span className="text-xs uppercase tracking-wide text-emerald-300/90">Beta</span>
           </div>
-          <Button size="sm" variant="outline" className="glass-surface border-white/20 text-white" asChild>
-            <Link href={'/flags' as Route}>Rollout checklist</Link>
-          </Button>
+          <div className="flex items-center gap-3 text-sm text-white/80">
+            <span className="hidden truncate text-xs uppercase tracking-wide text-white/50 sm:block">{user.email}</span>
+            <Button size="sm" variant="outline" className="glass-surface border-white/20 text-white" onClick={handleSignOut}>
+              {signingOut ? 'Signing out…' : 'Sign out'}
+            </Button>
+          </div>
         </header>
         <main className="flex-1 overflow-y-auto px-4 py-6 md:px-10 md:py-10">
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">{children}</div>

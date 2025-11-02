@@ -1,0 +1,6 @@
+apiVersion: v2
+name: icupa
+description: Unified deployment chart for ICUPA applications and supporting infrastructure.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

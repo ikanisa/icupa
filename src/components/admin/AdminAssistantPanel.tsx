@@ -12,9 +12,9 @@ import {
   ChatTranscript,
 } from '@/components/ai';
 import { useAgentChat } from '@/hooks/useAgentChat';
-import type { AgentChatMessage, AgentFeedbackRating } from '@/types/agents';
+import type { AgentChatMessage, AgentFeedbackRating } from '@icupa/types/agents';
 import { parseAgentStreamEvent } from '@/lib/chat-stream';
-import { AgentMetadataSchema } from '@/lib/agent-schemas';
+import { AgentMetadataSchema } from '@icupa/types/agents';
 import type { AdminTenant } from '@/hooks/useAdminTenants';
 import { useMerchantLocations } from '@/hooks/useMerchantLocations';
 
