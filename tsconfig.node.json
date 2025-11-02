@@ -1,10 +1,8 @@
 {
-  "extends": "./tsconfig.base.json",
+  "extends": "@icupa/config/tsconfig/node",
   "compilerOptions": {
-    "target": "ES2022",
-    "lib": ["ES2023"],
     "moduleDetection": "force",
-    "noFallthroughCasesInSwitch": true
+    "baseUrl": "."
   },
   "include": ["vite.config.ts"]
 }
