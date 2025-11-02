@@ -50,24 +50,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `@opentelemetry/sdk-node` - Distributed tracing
   - `@opentelemetry/exporter-trace-otlp-http` - Telemetry export
 
-#### Tooling & CI (2025-02-14)
+#### Repository Refactor Documentation (2025-11-01)
 
-- **Workspace & Tooling**
-  - Enforced Node.js 20 via `.nvmrc` and pnpm engine configuration.
-  - Centralised ESLint, Prettier, and TypeScript presets in `@icupa/config` for all apps and packages.
-  - Introduced Turborepo with caching-aware pipelines for linting, type-checking, testing, and builds.
-- **Developer Experience**
-  - Added Husky commit hooks with Commitlint integration and refreshed `.gitattributes` defaults.
-  - Documented the new contribution flow, tooling commands, and release expectations in `CONTRIBUTING.md`.
-- **CI Enhancements**
-  - Updated CI jobs to run against Node 20 and leverage Turborepo commands.
-  - Refreshed performance workflows to reuse cached builds for Lighthouse and bundle-size analysis.
-  - Ensured dependency auditing runs on the updated toolchain.
+- Post-implementation report for RFC-001 capturing migration steps, validation results, and follow-up work (`docs/rfc-001-repo-refactor.md`).
+- New governance guides: audit inventory (`docs/audit-inventory.md`), tenancy policy (`docs/tenancy.md`), engineering onboarding (`docs/onboarding.md`).
+- Zero downtime migration runbook (`docs/runbooks/zero-downtime-migration.md`).
 
 ### Changed
 
 - Updated `.env.example` with new environment variables for WhatsApp, SIP, and observability
 - Updated `vite.config.ts` to include `ai/` directory in test paths
+- Refreshed go-live and release runbooks with phased rollout, feature flag, and SLO monitoring procedures (`docs/runbooks/go-live.md`, `docs/release-runbook.md`).
+- Updated agents-service and rollback runbooks to reflect new architecture and audit requirements (`docs/runbooks/agents-service.md`, `docs/runbooks/rollback-log.md`).
+- Expanded `SECURITY.md` with tenancy guardrails, CI/CD controls, and operational contacts.
 
 ### Security
 

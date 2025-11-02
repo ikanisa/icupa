@@ -1,76 +1,64 @@
-# Repository Audit & Inventory
+# Audit Inventory — ICUPA Platform
 
-_Last updated: 2025-02-14_
+**Last Updated:** 2025-11-01
 
-## Monorepo Overview
-- **Package manager:** pnpm (workspaces defined in `package.json` and `pnpm-workspace.yaml`).
-- **Node requirement:** `>=18.18.0` (no `.nvmrc` currently enforced).
-- **Type system:** TypeScript across PWAs and shared packages, but multiple `tsconfig` variants and non-strict settings observed.
-- **CI tooling:** Ad hoc scripts in `scripts/` with Supabase utilities; limited GitHub Actions coverage (needs consolidation).
-- **Runtime services:** Supabase (auth/postgres/storage) via CLI; external integrations with OpenAI, WhatsApp, and various ingestion agents.
+This inventory centralizes ownership and control evidence for the refactored repository. Use it to satisfy SOC2/ISO audits, vendor assessments, and internal control reviews.
 
-## Workspace Inventory
+## 1. Systems & Owners
 
-### Applications (`apps/`)
-| Name | Type | Tech Stack | Purpose | Notes |
-| ---- | ---- | ---------- | ------- | ----- |
-| `admin` | Next.js PWA | React 19, Tailwind v4 beta | Internal admin console | Uses shared `@icupa/ui`, `@icupa/db`. Missing PWA manifest/service worker. |
-| `client` | Next.js PWA | React 19, Tailwind v4 beta | Customer-facing marketplace | Similar gaps as `admin`; relies on Supabase for auth/data. |
-| `web` | Next.js PWA | React 19, Tailwind v4 beta | Marketing/public web | Shares UI kit; lacks production PWA hardening. |
-| `vendor` | Next.js PWA | React 19, Tailwind v4 beta | Supplier portal | Similar structure; lacks type strictness. |
-| `voice-agent` | Next.js hybrid | React 19 + custom agent tooling | Voice-enabled assistant | Integrates with `packages/agents`; observability limited. |
-| `ecotrips` | Expo/React Native (to verify) | Mixed tooling | Travel vertical app | Guarded by `apps/ecotrips/AGENTS.md`; Supabase references. |
-| `ocr-converter` | Node utility | Express-esque server | OCR conversion utility | Plain JS server (`server.mjs`), minimal typing/tests. |
-| `supabase` | SQL/migrations | Supabase CLI | Database schema & seeds | Contains SQL migrations but lacks automation scripts. |
-| `api` | Edge/handler modules | TypeScript | Lightweight API adapters | No cohesive framework; modules per integration (OpenAI, WhatsApp). |
+| Subsystem | Code Location | Owner | Backup Owner | Notes |
+| --------- | ------------- | ----- | ------------ | ----- |
+| Diner PWA | `apps/web`, `src/modules/diner` | Web Platform Lead | Frontend Chapter | Multi-tenant React app served via Vercel. |
+| Merchant Portal | `apps/web`, `src/modules/merchant` | Merchant PM | Merchant Engineering | Shares runtime with Diner; feature flags gate portal routes. |
+| Admin Console | `apps/web`, `src/modules/admin` | Operations Lead | Support Engineering | Controls tenant lifecycle and feature flags. |
+| Agents Service | `agents-service/` | AI Platform Lead | Data Science Lead | Fastify service orchestrating OpenAI tools. |
+| Supabase Backend | `supabase/` | DBA (Platform Squad) | SRE | Includes schema, policies, edge functions, and tests. |
+| Infrastructure-as-Code | `infra/` | SRE Lead | Platform Engineering | Terraform + GitHub Actions for cluster and secrets management. |
+| Shared Packages | `packages/*`, `libs/*` | Architecture Guild | Frontend Chapter | Shared UI, config, types, analytics clients. |
+| Observability | `infra/observability`, `artifacts/` | SRE Lead | Data Engineering | Dashboards, alert rules, Lighthouse & coverage artifacts. |
 
-### Services / Standalone Packages
-- `agents-service/`: Node service orchestrating AI agents; Supabase-backed; lacks unified lint/test/tooling.
+## 2. Controls & Evidence
 
-### Shared Packages (`packages/`)
-| Package | Description | Observations |
-| ------- | ----------- | ------------ |
-| `@icupa/ui` | Component library + Tailwind styles | No Storybook; limited testing; lacks accessibility linting. |
-| `@icupa/config` | Environment & shared config utilities | Contains Zod schemas but env loading scattered. |
-| `@icupa/db` | Supabase client abstractions | Tight coupling to Supabase; no provider interface. |
-| `@icupa/types` | Shared domain/types | Mostly Zod schemas; needs stricter domain modeling and documentation. |
-| `@icupa/ingestion-utils` | ETL helpers | Pure TS modules; lacks validation coverage and typed exports alignment. |
+| Control | Evidence | Frequency | Location |
+| ------- | -------- | --------- | -------- |
+| Code Ownership | CODEOWNERS enforced in CI | Continuous | `.github/CODEOWNERS` |
+| Secure SDLC | Required checklists in PR template | Each PR | `.github/PULL_REQUEST_TEMPLATE.md` |
+| CI Quality Gates | Lint, typecheck, test, build, coverage ≥80%, Lighthouse thresholds | Each push to PR/main | `.github/workflows/ci.yml`, `artifacts/coverage`, `artifacts/lighthouse` |
+| Dependency Hygiene | Daily audit workflow | Daily | `.github/workflows/dependency-audit.yml` |
+| SBOM Retention | CycloneDX/SPDX artifacts stored 90 days | Each release | `.github/workflows/sbom.yml`, `artifacts/sbom` |
+| Security Scanning | CodeQL, secret scanning, container scan | On PR + scheduled | `.github/workflows/codeql.yml`, `.github/workflows/container-scan.yml` |
+| Access Reviews | Tenancy policy review & Supabase role audit | Quarterly | `docs/tenancy.md`, `supabase/policies/` |
+| Backup & DR | Supabase PITR configured; backup documented | Daily | `docs/runbooks/rollback-log.md`, Supabase dashboard |
 
-### Legacy Libraries (`libs/`, `lib/`, `src/`)
-- `libs/` and `lib/` host legacy helpers; require consolidation into formal `packages/` modules.
-- Root `src/` contains Vite-based SPA shell retained for backward compatibility; duplicates functionality from Next.js apps.
+## 3. Data Classification
 
-## Tooling & Scripts
-- `scripts/ci/*`: Supabase env validation/reset, smoke tests, release checklists.
-- `scripts/dev/dev-all.sh`: Boots multiple dev servers; assumes Supabase local stack.
-- `scripts/security/lint-mcp-tools.mjs`: Custom linting for MCP tool definitions.
-- `tests/`: Vitest + Playwright; coverage not enforced; `tests/accessibility` leverages `vitest-axe`.
-- `lighthouserc.json`: Lighthouse CI config present but not wired into automated pipeline.
+| Classification | Description | Storage | Controls |
+| -------------- | ----------- | ------- | -------- |
+| Public | Marketing content, docs | Git repo, website | Review before publication |
+| Internal | Runbooks, analytics without PII | Git repo, shared drives | Access limited to employees |
+| Confidential | Tenant & diner data | Supabase Postgres | RLS, encrypted at rest, TLS |
+| Restricted | Payment tokens, OAuth secrets | Supabase Vault, cloud secret stores | Access logging, rotation every 90 days |
 
-## Configuration Assets
-- Multiple `tsconfig*.json` files: `tsconfig.base.json`, `tsconfig.json`, `tsconfig.app.json`, `tsconfig.node.json`; inconsistent `strict` flags.
-- ESLint configured via root `eslint.config.js` (flat config) with per-app overrides (`apps/*/eslint.config.mjs`).
-- Tailwind configs per app despite presence of shared preset (`packages/config/tailwind-preset.ts`).
+## 4. Change Management
 
-## Environment & Secrets
-- Environment sampling handled ad hoc (`apps/*/env.server.ts`, `supabase/.env`); no centralized `.env.example` enumerating required variables.
-- Supabase project reference `woyknezboamabahknmjr` documented only in agent guide; missing from setup docs.
+- All production-impacting changes require approval from code owners and passing CI.
+- Feature flags in `packages/config` capture rollout state and are logged to `tenant_feature_audit`.
+- Canary deployments monitored via Grafana dashboard `ICUPA/rollout` with latency, error rate, and AI guardrail breach metrics.
+- Release retro notes appended to `docs/runbooks/rollback-log.md`.
 
-## Observed Gaps & Risks
-1. **Architecture Drift:** Multiple app frameworks without shared routing/auth/security patterns.
-2. **Quality Gates:** Lint enforced manually; TypeScript strict mode disabled; coverage thresholds absent; CI pipeline incomplete.
-3. **PWA Compliance:** No manifests/service workers/offline strategies across PWAs.
-4. **Security Baseline:** Lacks rate limiting, secure headers, and audit logging across API services.
-5. **Infrastructure:** Docker assets outdated; no unified Docker Compose; Kubernetes manifests inconsistent.
-6. **Documentation:** Fragmented docs; onboarding, SLOs, deprecations, and migration guides missing.
-7. **Dependency Hygiene:** React 19 beta & Tailwind v4 prerelease increase risk; no automated dependency updates.
-8. **Testing & Observability:** Limited telemetry instrumentation; coverage not tracked; absence of OpenTelemetry and structured logging.
+## 5. Compliance Calendar
 
-## Recommended Next Steps (High-Level)
-- Establish hardened repo layout (`apps/`, `packages/`, `infrastructure/`) with shared configs centralized in `packages/config`.
-- Publish root `.env.example` and dedicated environment docs.
-- Enable strict TypeScript, standardized ESLint/Prettier configs, and Turborepo task orchestration.
-- Scaffold PWA assets (manifest, service worker, offline fallbacks) for each React PWA.
-- Formalize `apps/api` as modular Fastify/NestJS service with generated OpenAPI spec and versioned endpoints.
-- Introduce CI workflows for lint/type/test/audit, Lighthouse, and bundle-size budgets.
-- Expand documentation suite: onboarding, SLOs, security, deprecations, migration strategy, backup/DR.
+| Task | Owner | Cadence | Artifact |
+| ---- | ----- | ------- | -------- |
+| Access review (Supabase roles) | Operations | Quarterly | `docs/tenancy.md` appendix |
+| Dependency audit triage | Platform Eng | Weekly | GitHub Issues tagged `security` |
+| Incident response drill | SRE | Quarterly | `docs/runbooks/chaos-drill.md` updates |
+| BCP tabletop | Leadership | Semi-annual | Confluence memo, linked from `docs/security/` |
+| Policy review (Security & Privacy) | Security Team | Annual | `SECURITY.md`, `docs/compliance/privacy.md` |
+
+## 6. Open Items
+
+- Automate export of Grafana dashboards to `artifacts/observability/` (target Q1 2026).
+- Complete vendor risk assessment checklist for OpenAI integration.
+- Link SOC2 evidence folder into this inventory once audit binder is finalized.
+
