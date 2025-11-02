@@ -4,9 +4,9 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
+} from '/ui/dialog';
+import { Badge } from '/ui/badge';
+import { ScrollArea } from '/ui/scroll-area';
 import type { AgentChatMessage, AgentRunMetadata, AgentToolTrace } from '@/types/agents';
 import { CheckCircle2, XCircle } from 'lucide-react';
 import { formatAgentCost } from '@/lib/agents';

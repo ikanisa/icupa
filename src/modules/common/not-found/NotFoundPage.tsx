@@ -1,5 +1,4 @@
-import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { Button } from "@icupa/ui/button";
 import {
   Page,
   PageActions,
@@ -8,8 +7,12 @@ import {
   PageHeader,
   PageTitle,
 } from "@/components/layout/Page";
+import { PrefetchNavLink } from "@/components/common/PrefetchNavLink";
+import { useTranslation } from "react-i18next";
 
 export const NotFoundPage = () => {
+  const { t } = useTranslation();
+
   return (
     <Page variant="neutral">
       <PageContainer
@@ -19,12 +22,12 @@ export const NotFoundPage = () => {
         <PageHeader className="items-center gap-3 text-center">
           <PageTitle className="text-5xl font-black tracking-tight">404</PageTitle>
           <PageDescription className="text-base">
-            We couldn’t find the surface you were looking for. Check the URL or return to the home experience.
+            <span className="font-semibold">{t("notFound.title")}</span> {t("notFound.description")}
           </PageDescription>
         </PageHeader>
         <PageActions className="justify-center">
           <Button asChild size="lg">
-            <Link to="/">Return to home</Link>
+            <PrefetchNavLink to="/">{t("notFound.cta")}</PrefetchNavLink>
           </Button>
         </PageActions>
       </PageContainer>

@@ -1,16 +1,16 @@
 import { useEffect, useState } from "react";
 import { AgentConfig, UpdateAgentConfigInput, useAgentConfigs, useUpdateAgentConfig } from "@/hooks/useAgentConfigs";
 import { useAgentConfigAudits } from "@/hooks/useAgentConfigAudits";
-import { Card } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useToast } from "@/components/ui/use-toast";
+import { Card } from "@icupa/ui/card";
+import { Switch } from "@icupa/ui/switch";
+import { Label } from "@icupa/ui/label";
+import { Input } from "@icupa/ui/input";
+import { Textarea } from "@icupa/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@icupa/ui/select";
+import { Button } from "@icupa/ui/button";
+import { Badge } from "@icupa/ui/badge";
+import { Skeleton } from "@icupa/ui/skeleton";
+import { useToast } from "@icupa/ui/use-toast";
 import { AgentActionQueue } from "@/components/admin/AgentActionQueue";
 
 interface AgentSettingsPanelProps {
