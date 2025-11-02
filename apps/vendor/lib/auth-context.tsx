@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { createBrowserSupabaseClient } from '@icupa/db';
-import type { TypedSupabaseClient } from '@icupa/db/types';
+import type { TypedSupabaseClient } from '@icupa/db';
 import type { VerifyOtpResponse } from './api';
 
 export type VendorUser = {
