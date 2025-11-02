@@ -51,9 +51,11 @@
     "analyze:pwa": "npx --yes lighthouse http://localhost:5000 --only-categories=pwa --preset=desktop || true",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "verify": "pnpm run lint:all && pnpm run typecheck:all && pnpm run test:all",
-    "verify:full": "pnpm run verify && pnpm run test:e2e && pnpm run supabase:test",
-    "presupabase:test": "node scripts/ci/reset-supabase-test-db.mjs"
+    "verify": "npm run lint && npm run typecheck && npm run test",
+    "verify:full": "npm run verify && npm run test:e2e && npm run supabase:test",
+    "presupabase:test": "node scripts/ci/reset-supabase-test-db.mjs",
+    "perf:k6": "npx --yes k6 run tests/perf/k6-smoke.js",
+    "perf:artillery": "npx --yes artillery run tests/perf/artillery-order-flow.yml"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

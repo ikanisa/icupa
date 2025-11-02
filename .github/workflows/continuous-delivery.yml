@@ -1,0 +1,182 @@
+name: Continuous Delivery
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+  deployments: write
+
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build images & run validation
+    runs-on: ubuntu-latest
+    env:
+      HUSKY: 0
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Enable corepack
+        run: corepack enable pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build monorepo
+        run: pnpm build:all
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push application images
+        id: build_push
+        uses: docker/bake-action@v5
+        with:
+          files: |
+            docker-compose.yml
+            ./infra/docker-bake.hcl
+          push: true
+        env:
+          DOCKER_BUILDKIT: 1
+
+      - name: Run database migrations
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: pnpm supabase:migrate
+
+      - name: Launch ephemeral stack
+        run: |
+          docker compose -f docker-compose.yml up -d postgres redis meilisearch mailhog minio agents-service
+          ./scripts/ci/wait-for-service.sh http://localhost:8787/health 120
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps
+
+      - name: Run end-to-end tests
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: dev-anon-key
+          NEXT_PUBLIC_AGENTS_URL: http://127.0.0.1:8787
+        run: pnpm test:e2e
+
+      - name: Tear down ephemeral stack
+        if: always()
+        run: docker compose -f docker-compose.yml down -v
+
+  deploy:
+    name: Deploy to production
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      deployments: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.32.0'
+
+      - name: Authenticate to cluster
+        uses: azure/k8s-set-context@v4
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBECONFIG_B64 }}
+
+      - name: Render Helm chart values
+        env:
+          HELM_NAMESPACE: icupa
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_AGENTS_URL: ${{ secrets.NEXT_PUBLIC_AGENTS_URL }}
+          NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_JWT_SECRET: ${{ secrets.SUPABASE_JWT_SECRET }}
+          MEILI_MASTER_KEY: ${{ secrets.MEILI_MASTER_KEY }}
+          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+          MINIO_ROOT_USER: ${{ secrets.MINIO_ROOT_USER }}
+          MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
+        run: |
+          mkdir -p ./artifacts
+          cat <<VALS > ./artifacts/values.overrides.yaml
+global:
+  namespace: ${HELM_NAMESPACE}
+  config:
+    NEXT_PUBLIC_SUPABASE_URL: "${NEXT_PUBLIC_SUPABASE_URL}"
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: "${NEXT_PUBLIC_SUPABASE_ANON_KEY}"
+    NEXT_PUBLIC_AGENTS_URL: "${NEXT_PUBLIC_AGENTS_URL}"
+    NEXT_PUBLIC_APP_URL: "${NEXT_PUBLIC_APP_URL}"
+  secrets:
+    OPENAI_API_KEY: "${OPENAI_API_KEY}"
+    SUPABASE_SERVICE_ROLE_KEY: "${SUPABASE_SERVICE_ROLE_KEY}"
+    SUPABASE_JWT_SECRET: "${SUPABASE_JWT_SECRET}"
+    MEILI_MASTER_KEY: "${MEILI_MASTER_KEY}"
+    REDIS_PASSWORD: "${REDIS_PASSWORD}"
+    MINIO_ROOT_USER: "${MINIO_ROOT_USER}"
+    MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD}"
+VALS
+
+      - name: Deploy backend workloads
+        uses: azure/k8s-deploy@v5
+        with:
+          action: deploy
+          namespace: icupa
+          manifests: |
+            deployments/k8s/base/namespace.yaml
+            deployments/k8s/base/configmap-apps.yaml
+            deployments/k8s/base/postgres-statefulset.yaml
+            deployments/k8s/base/redis-deployment.yaml
+            deployments/k8s/base/meilisearch-deployment.yaml
+            deployments/k8s/base/mailhog-deployment.yaml
+            deployments/k8s/base/minio-statefulset.yaml
+
+      - name: Deploy front-end workloads via Helm
+        uses: azure/k8s-deploy@v5
+        with:
+          action: deploy
+          namespace: icupa
+          helmChart: deployments/k8s/helm/icupa
+          helmValues: ./artifacts/values.overrides.yaml
+
+      - name: Deploy PWAs to Vercel
+        run: |
+          npm install --global vercel@33
+          vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+          vercel deploy --token=${{ secrets.VERCEL_TOKEN }} --yes --prod --prebuilt --scope=${{ secrets.VERCEL_SCOPE }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Publish deployment summary
+        run: |
+          echo "### Deploy summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Backend deployed via kubectl" >> $GITHUB_STEP_SUMMARY
+          echo "- Frontend pushed to Vercel" >> $GITHUB_STEP_SUMMARY

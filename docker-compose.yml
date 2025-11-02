@@ -1,0 +1,226 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-icupa}
+      POSTGRES_USER: ${POSTGRES_USER:-icupa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-icupa}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER:-icupa}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.7.5
+    restart: unless-stopped
+    environment:
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:-devmasterkey}
+      MEILI_ENV: development
+    ports:
+      - "7700:7700"
+    volumes:
+      - meili-data:/meili_data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7700/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend
+
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - backend
+
+  minio:
+    image: minio/minio:RELEASE.2024-12-18T13-15-44Z
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    command: ["server", "/data", "--console-address", ":9001"]
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - backend
+
+  agents-service:
+    build:
+      context: .
+      dockerfile: agents-service/Dockerfile
+    environment:
+      AGENTS_PORT: 8787
+      SUPABASE_URL: ${SUPABASE_URL:-http://postgres:5432}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-dev-service-role}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-sk-test}
+    ports:
+      - "8787:8787"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - backend
+
+  voice-agent:
+    build:
+      context: .
+      dockerfile: apps/voice-agent/Dockerfile
+    environment:
+      PORT: 8786
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-sk-test}
+      SUPABASE_URL: ${SUPABASE_URL:-http://postgres:5432}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-public-anon-key}
+    ports:
+      - "8786:8786"
+    depends_on:
+      agents-service:
+        condition: service_started
+    networks:
+      - backend
+
+  ocr-converter:
+    build:
+      context: .
+      dockerfile: apps/ocr-converter/Dockerfile
+    environment:
+      PORT: 8788
+    ports:
+      - "8788:8788"
+    networks:
+      - backend
+
+  admin:
+    build:
+      context: .
+      dockerfile: apps/admin/Dockerfile
+    environment:
+      PORT: 3001
+      NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL:-http://localhost:5432}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-public-anon-key}
+    ports:
+      - "3001:3000"
+    depends_on:
+      agents-service:
+        condition: service_started
+    networks:
+      - frontend
+      - backend
+
+  client:
+    build:
+      context: .
+      dockerfile: apps/client/Dockerfile
+    environment:
+      PORT: 3002
+      NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL:-http://localhost:5432}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-public-anon-key}
+    ports:
+      - "3002:3000"
+    depends_on:
+      agents-service:
+        condition: service_started
+    networks:
+      - frontend
+      - backend
+
+  vendor:
+    build:
+      context: .
+      dockerfile: apps/vendor/Dockerfile
+    environment:
+      PORT: 3003
+      NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL:-http://localhost:5432}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-public-anon-key}
+    ports:
+      - "3003:3000"
+    depends_on:
+      agents-service:
+        condition: service_started
+    networks:
+      - frontend
+      - backend
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    environment:
+      PORT: 3004
+      NEXT_PUBLIC_SUPABASE_URL: ${SUPABASE_URL:-http://localhost:5432}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-public-anon-key}
+    ports:
+      - "3004:3000"
+    depends_on:
+      agents-service:
+        condition: service_started
+    networks:
+      - frontend
+      - backend
+
+  ecotrips:
+    build:
+      context: .
+      dockerfile: apps/ecotrips/Dockerfile
+    environment:
+      PORT: 3005
+    ports:
+      - "3005:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - frontend
+      - backend
+
+volumes:
+  postgres-data:
+  redis-data:
+  meili-data:
+  minio-data:
+
+networks:
+  backend:
+    driver: bridge
+  frontend:
+    driver: bridge
