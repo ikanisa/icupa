@@ -64,20 +64,19 @@ describe('shared createUseCases', () => {
     const { repo } = makeRepository<typeof userEntity>();
     const useCases = createUseCases(userEntity, repo, auditLogger, rateLimiter, 'user');
 
-    const now = new Date();
     const created = await useCases.create(
       {
-        id: 'user_1',
         email: 'user@example.com',
         displayName: 'Test User',
-        tenantId: null,
-        createdAt: now,
-        updatedAt: now
+        tenantId: null
       },
       { actorId: 'actor', correlationId: 'corr' }
     );
 
     expect(created.email).toBe('user@example.com');
+    expect(created.id).toBeDefined();
+    expect(created.createdAt).toBeInstanceOf(Date);
+    expect(created.updatedAt).toBeInstanceOf(Date);
     expect(auditLogger.record).toHaveBeenCalledWith('user.create', expect.any(Object));
     expect(rateLimiter.consume).toHaveBeenCalledWith('actor:user:create');
   });
@@ -97,22 +96,18 @@ describe('module integrations', () => {
       rateLimiter,
       searchProvider as any
     );
-    const now = new Date();
     await useCases.create(
       {
-        id: 'listing_1',
         tenantId: 'tenant_1',
         title: 'Villa',
         description: 'Beautiful villa with pool',
         priceCents: 10000,
-        currency: 'USD',
-        createdAt: now,
-        updatedAt: now
+        currency: 'USD'
       } as any,
       { actorId: 'actor', correlationId: 'corr' }
     );
 
-    expect(searchProvider.indexDocument).toHaveBeenCalledWith('listings', expect.objectContaining({ id: 'listing_1' }));
+    expect(searchProvider.indexDocument).toHaveBeenCalledWith('listings', expect.objectContaining({ id: expect.any(String) }));
   });
 
   it('charges payments for orders', async () => {
@@ -124,22 +119,17 @@ describe('module integrations', () => {
       rateLimiter,
       paymentProvider as any
     );
-    const now = new Date();
     await useCases.create(
       {
-        id: 'order_1',
         userId: 'user',
         tenantId: 'tenant',
         totalCents: 5000,
-        currency: 'USD',
-        status: 'pending',
-        createdAt: now,
-        updatedAt: now
+        currency: 'USD'
       } as any,
       { actorId: 'actor', correlationId: 'corr' }
     );
 
-    expect(paymentProvider.charge).toHaveBeenCalledWith(5000, 'USD', { orderId: 'order_1' });
+    expect(paymentProvider.charge).toHaveBeenCalledWith(5000, 'USD', expect.objectContaining({ orderId: expect.any(String) }));
   });
 
   it('validates booking windows and notifies users', async () => {
@@ -151,35 +141,29 @@ describe('module integrations', () => {
       rateLimiter,
       messagingProvider as any
     );
-    const start = new Date('2024-01-01');
-    const end = new Date('2024-01-02');
+    const start = '2024-01-01T00:00:00.000Z';
+    const end = '2024-01-02T00:00:00.000Z';
     await useCases.create(
       {
-        id: 'booking',
         listingId: 'listing',
         userId: 'user',
         startDate: start,
         endDate: end,
-        status: 'pending',
-        createdAt: start,
-        updatedAt: end
+        status: 'pending'
       } as any,
       { actorId: 'actor', correlationId: 'corr' }
     );
 
-    expect(messagingProvider.sendMessage).toHaveBeenCalledWith('user', 'Booking confirmed', { bookingId: 'booking' });
+    expect(messagingProvider.sendMessage).toHaveBeenCalledWith('user', 'Booking confirmed', expect.objectContaining({ bookingId: expect.any(String) }));
 
     await expect(
       useCases.create(
         {
-          id: 'invalid',
           listingId: 'listing',
           userId: 'user',
           startDate: end,
           endDate: start,
-          status: 'pending',
-          createdAt: start,
-          updatedAt: start
+          status: 'pending'
         } as any,
         { actorId: 'actor', correlationId: 'corr' }
       )

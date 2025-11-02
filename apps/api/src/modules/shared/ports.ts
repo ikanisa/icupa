@@ -1,6 +1,7 @@
+import type { AnyZodObject } from 'zod';
 import { z } from 'zod';
 
-export interface EntityRepository<Schema extends z.ZodTypeAny> {
+export interface EntityRepository<Schema extends AnyZodObject> {
   create(data: z.infer<Schema>): Promise<z.infer<Schema>>;
   findById(id: string): Promise<z.infer<Schema> | null>;
   list(): Promise<Array<z.infer<Schema>>>;

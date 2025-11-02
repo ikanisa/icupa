@@ -2,6 +2,8 @@ import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
+import { RateLimiterRes } from 'rate-limiter-flexible';
+import { ZodError } from 'zod';
 import { httpLogger } from './infrastructure/observability/logger.js';
 import { registerRoutes } from './presentation/http/routes.js';
 import { moduleRegistry } from './modules/index.js';
@@ -66,12 +68,37 @@ export const createApp = (registry = moduleRegistry) => {
   });
 
   app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-    const status = typeof error === 'object' && error && 'status' in error ? (error as any).status : 500;
+    let status = 500;
+    let message = 'Unknown error';
+    let details: unknown;
+
+    if (error instanceof ZodError) {
+      status = 400;
+      message = 'Validation failed';
+      details = error.flatten();
+    } else if (error instanceof RateLimiterRes) {
+      status = 429;
+      message = 'Too many requests';
+      details = { retryAfter: Math.ceil(error.msBeforeNext / 1000) };
+    } else if (typeof error === 'object' && error && 'status' in error) {
+      status = (error as { status: number }).status;
+    }
+
+    if (error instanceof Error && !(error instanceof ZodError)) {
+      message = error.message;
+    }
+
+    const payload: Record<string, unknown> = {
+      message,
+      correlationId: res.locals.correlationId
+    };
+
+    if (details) {
+      payload.details = details;
+    }
+
     res.status(status).json({
-      error: {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        correlationId: res.locals.correlationId
-      }
+      error: payload
     });
   });
 
