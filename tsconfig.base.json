@@ -25,7 +25,9 @@
       "@icupa/types": ["./packages/types/src"],
       "@icupa/types/*": ["./packages/types/src/*"],
       "@icupa/db": ["./packages/db/src"],
-      "@icupa/db/*": ["./packages/db/src/*"]
+      "@icupa/db/*": ["./packages/db/src/*"],
+      "@icupa/domain": ["./packages/domain/src"],
+      "@icupa/domain/*": ["./packages/domain/src/*"]
     }
   }
 }

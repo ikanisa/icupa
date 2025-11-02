@@ -1,0 +1,1 @@
+-- Prisma migration placeholder. Run `pnpm api:migrate` to apply schema.

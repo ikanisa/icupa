@@ -1,0 +1,334 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "ICUPA API",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/v1/users": {
+      "get": {
+        "responses": {
+          "200": {
+            "description": "List users"
+          }
+        }
+      },
+      "post": {
+        "responses": {
+          "201": {
+            "description": "Create user"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "User": {
+        "$ref": "#/definitions/User",
+        "definitions": {
+          "User": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "email": {
+                "type": "string",
+                "format": "email"
+              },
+              "displayName": {
+                "type": "string",
+                "minLength": 2
+              },
+              "tenantId": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/User/properties/id"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "updatedAt": {
+                "$ref": "#/definitions/User/properties/createdAt"
+              }
+            },
+            "required": [
+              "id",
+              "email",
+              "displayName",
+              "tenantId",
+              "createdAt",
+              "updatedAt"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "Tenant": {
+        "$ref": "#/definitions/Tenant",
+        "definitions": {
+          "Tenant": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "name": {
+                "type": "string",
+                "minLength": 2
+              },
+              "slug": {
+                "type": "string",
+                "minLength": 2
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "updatedAt": {
+                "$ref": "#/definitions/Tenant/properties/createdAt"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "slug",
+              "createdAt",
+              "updatedAt"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "Listing": {
+        "$ref": "#/definitions/Listing",
+        "definitions": {
+          "Listing": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "tenantId": {
+                "$ref": "#/definitions/Listing/properties/id"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 3
+              },
+              "description": {
+                "type": "string",
+                "minLength": 10
+              },
+              "priceCents": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "currency": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 3
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "updatedAt": {
+                "$ref": "#/definitions/Listing/properties/createdAt"
+              }
+            },
+            "required": [
+              "id",
+              "tenantId",
+              "title",
+              "description",
+              "priceCents",
+              "currency",
+              "createdAt",
+              "updatedAt"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "Order": {
+        "$ref": "#/definitions/Order",
+        "definitions": {
+          "Order": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "userId": {
+                "$ref": "#/definitions/Order/properties/id"
+              },
+              "tenantId": {
+                "$ref": "#/definitions/Order/properties/id"
+              },
+              "totalCents": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "currency": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 3
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pending",
+                  "paid",
+                  "cancelled"
+                ]
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "updatedAt": {
+                "$ref": "#/definitions/Order/properties/createdAt"
+              }
+            },
+            "required": [
+              "id",
+              "userId",
+              "tenantId",
+              "totalCents",
+              "currency",
+              "status",
+              "createdAt",
+              "updatedAt"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "Booking": {
+        "$ref": "#/definitions/Booking",
+        "definitions": {
+          "Booking": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "listingId": {
+                "$ref": "#/definitions/Booking/properties/id"
+              },
+              "userId": {
+                "$ref": "#/definitions/Booking/properties/id"
+              },
+              "startDate": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "endDate": {
+                "$ref": "#/definitions/Booking/properties/startDate"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pending",
+                  "confirmed",
+                  "cancelled"
+                ]
+              },
+              "createdAt": {
+                "$ref": "#/definitions/Booking/properties/startDate"
+              },
+              "updatedAt": {
+                "$ref": "#/definitions/Booking/properties/startDate"
+              }
+            },
+            "required": [
+              "id",
+              "listingId",
+              "userId",
+              "startDate",
+              "endDate",
+              "status",
+              "createdAt",
+              "updatedAt"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      },
+      "Payment": {
+        "$ref": "#/definitions/Payment",
+        "definitions": {
+          "Payment": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "orderId": {
+                "$ref": "#/definitions/Payment/properties/id"
+              },
+              "provider": {
+                "type": "string"
+              },
+              "reference": {
+                "type": "string"
+              },
+              "amountCents": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "currency": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 3
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "initiated",
+                  "succeeded",
+                  "failed"
+                ]
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "id",
+              "orderId",
+              "provider",
+              "reference",
+              "amountCents",
+              "currency",
+              "status",
+              "createdAt"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    }
+  }
+}
