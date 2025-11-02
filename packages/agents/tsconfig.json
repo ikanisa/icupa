@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@icupa/agents": ["./src"],
+      "@icupa/agents/*": ["./src/*"]
+    }
+  },
+  "include": ["src/**/*"]
+}

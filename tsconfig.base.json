@@ -18,6 +18,8 @@
       "@/*": ["./src/*"],
       "@icupa/ingestion-utils": ["./packages/ingestion-utils/src"],
       "@icupa/ingestion-utils/*": ["./packages/ingestion-utils/src/*"],
+      "@icupa/agents": ["./packages/agents/src"],
+      "@icupa/agents/*": ["./packages/agents/src/*"],
       "@icupa/ui": ["./packages/ui/src"],
       "@icupa/ui/*": ["./packages/ui/src/*"],
       "@icupa/config": ["./packages/config/src"],
@@ -26,7 +28,9 @@
       "@icupa/types": ["./packages/types/src"],
       "@icupa/types/*": ["./packages/types/src/*"],
       "@icupa/db": ["./packages/db/src"],
-      "@icupa/db/*": ["./packages/db/src/*"]
+      "@icupa/db/*": ["./packages/db/src/*"],
+      "@icupa/workers": ["./packages/workers/src"],
+      "@icupa/workers/*": ["./packages/workers/src/*"]
     }
   }
 }

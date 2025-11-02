@@ -15,6 +15,8 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
       "@icupa/ingestion-utils": path.resolve(__dirname, "./packages/ingestion-utils/src"),
+      "@icupa/agents": path.resolve(__dirname, "./packages/agents/src"),
+      "@icupa/workers": path.resolve(__dirname, "./packages/workers/src"),
     },
   },
   test: {
