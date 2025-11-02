@@ -14,9 +14,12 @@ export function createWebhookHandler(service: AgentRunService) {
         case "task.updated":
           await service.recordTaskResult(event.runId, event.payload as any);
           break;
-        case "run.completed":
-          await service.finalizeRun(event.runId, (event.payload as any).output, (event as any).domain ?? "customer-support");
+        case "run.completed": {
+          const payload = event.payload as any;
+          const domain = payload?.domain ?? (event as any).domain ?? "customer-support";
+          await service.finalizeRun(event.runId, payload?.output, domain);
           break;
+        }
         case "run.failed":
           await service.failRun(event.runId, new Error((event.payload as any).error ?? "Unknown error"));
           break;

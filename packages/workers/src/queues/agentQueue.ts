@@ -105,19 +105,24 @@ export class AgentQueueManager {
 
           return result.output;
         } catch (error) {
-          if (job.attemptsMade + 1 >= (job.opts.attempts ?? 1)) {
+          const attemptsAllowed = job.opts.attempts ?? 1;
+          const attemptsMade = job.attemptsMade + 1;
+          const isFinalAttempt = attemptsMade >= attemptsAllowed;
+
+          if (isFinalAttempt) {
             await this.dlq.add(job.name ?? "failed", job.data, {
               attempts: 1,
               removeOnComplete: true,
             });
+
+            await this.auditTrail.emitEvent({
+              id: job.id ?? `${runId}:${taskId}`,
+              runId,
+              type: "run.failed",
+              createdAt: new Date(),
+              payload: { error: error instanceof Error ? error.message : String(error) },
+            });
           }
-          await this.auditTrail.emitEvent({
-            id: job.id ?? `${runId}:${taskId}`,
-            runId,
-            type: "run.failed",
-            createdAt: new Date(),
-            payload: { error: error instanceof Error ? error.message : String(error) },
-          });
           throw error;
         }
       },
