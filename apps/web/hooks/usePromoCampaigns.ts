@@ -1,7 +1,10 @@
 import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { callRpc } from '@icupa/db';
+import type { RpcResponse } from '@icupa/db';
 import { supabase } from "@/lib/supabase-client";
 import type { MerchantLocation } from "@/hooks/useMerchantLocations";
+import type { Database } from '@icupa/types/database';
 
 export type PromoStatus = "draft" | "pending_review" | "approved" | "active" | "paused" | "archived";
 
@@ -23,28 +26,13 @@ export interface PromoCampaign {
   reviewedAt?: string | null;
 }
 
-interface RawPromoRow {
-  id: string;
-  tenant_id: string;
-  location_id: string | null;
-  name: string;
-  description: string | null;
-  epsilon: number | null;
-  budget_cap_cents: number | null;
-  spent_cents: number | null;
-  frequency_cap: number | null;
-  fairness_constraints: Record<string, unknown> | null;
-  status: PromoStatus;
-  starts_at: string | null;
-  ends_at: string | null;
-  created_at: string;
-  reviewed_at: string | null;
-}
+type PromoTableRow = Database['public']['Tables']['promo_campaigns']['Row'];
+type PromoSpendRow = NonNullable<RpcResponse<'increment_promo_spend'>>;
 
 async function fetchPromos(location?: MerchantLocation | null): Promise<PromoCampaign[]> {
   let query = supabase
     .from("promo_campaigns")
-    .select<RawPromoRow>(
+    .select<PromoTableRow>(
       "id, tenant_id, location_id, name, description, epsilon, budget_cap_cents, spent_cents, frequency_cap, fairness_constraints, status, starts_at, ends_at, created_at, reviewed_at"
     )
     .order("created_at", { ascending: false });
@@ -133,32 +121,33 @@ export function usePromoCampaigns(location?: MerchantLocation | null) {
 
   const recordSpend = useMutation({
     mutationFn: async ({ id, spendCents }: { id: string; spendCents: number }) => {
-      const { data, error } = await supabase.rpc<RawPromoRow>("increment_promo_spend", {
+      const { data, error } = await callRpc(supabase, 'increment_promo_spend', {
         campaign_id: id,
         delta_cents: spendCents,
       });
 
       if (!error && data) {
+        const row: PromoSpendRow = data;
         queryClient.setQueryData<PromoCampaign[]>(queryKey, (existing) => {
           if (!existing) return existing;
           return existing.map((campaign) =>
             campaign.id === id
               ? {
                   ...campaign,
-                  tenantId: data.tenant_id,
-                  locationId: data.location_id,
-                  name: data.name,
-                  description: data.description,
-                  epsilon: data.epsilon ?? campaign.epsilon,
-                  budgetCapCents: data.budget_cap_cents ?? campaign.budgetCapCents,
-                  spentCents: data.spent_cents ?? campaign.spentCents,
-                  frequencyCap: data.frequency_cap ?? campaign.frequencyCap,
-                  fairnessConstraints: data.fairness_constraints ?? campaign.fairnessConstraints,
-                  status: data.status,
-                  startsAt: data.starts_at,
-                  endsAt: data.ends_at,
-                  createdAt: data.created_at,
-                  reviewedAt: data.reviewed_at,
+                  tenantId: row.tenant_id,
+                  locationId: row.location_id,
+                  name: row.name,
+                  description: row.description,
+                  epsilon: row.epsilon ?? campaign.epsilon,
+                  budgetCapCents: row.budget_cap_cents ?? campaign.budgetCapCents,
+                  spentCents: row.spent_cents ?? campaign.spentCents,
+                  frequencyCap: row.frequency_cap ?? campaign.frequencyCap,
+                  fairnessConstraints: (row.fairness_constraints as Record<string, unknown> | null) ?? campaign.fairnessConstraints,
+                  status: row.status as PromoStatus,
+                  startsAt: row.starts_at,
+                  endsAt: row.ends_at,
+                  createdAt: row.created_at,
+                  reviewedAt: row.reviewed_at,
                 }
               : campaign
           );

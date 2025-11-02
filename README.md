@@ -261,7 +261,7 @@ mcp/
 ## Supabase integration notes
 
 - The Supabase browser client is created in `src/integrations/supabase/client.ts`. It now reads credentials from environment variables instead of hard-coded keys and automatically forwards the active `x-icupa-session` header for every REST call so diner-scoped RLS policies remain effective.【F:src/integrations/supabase/client.ts†L1-L34】【F:src/lib/table-session.ts†L1-L47】
-- Generated types (see `src/integrations/supabase/types.ts`) keep interactions type-safe. When the schema evolves, regenerate types with the Supabase CLI (`supabase gen types typescript --schema public`).
+- Generated types (see `packages/types/src/database.ts`) keep interactions type-safe. When the schema evolves, regenerate types with the Supabase CLI (`supabase gen types typescript --schema public`).
 - Persisted sessions rely on `localStorage` when running in the browser. When rendering on the server, the storage adapter gracefully degrades to `undefined`, matching Supabase's SSR recommendations.【F:src/integrations/supabase/client.ts†L16-L23】
 
 ### Phase 1 database checklist
