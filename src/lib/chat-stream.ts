@@ -1,4 +1,4 @@
-import type { AgentChatStreamEvent } from '@/types/agents';
+import type { AgentChatStreamEvent } from '@icupa/types/agents';
 
 export function parseAgentStreamEvent(payload: unknown, fallbackAgent = 'assistant'): AgentChatStreamEvent | null {
   if (!payload || typeof payload !== 'object') {
