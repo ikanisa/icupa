@@ -1,6 +1,34 @@
 /* eslint-env serviceworker */
 const CACHE_VERSION = 'vendor-pwa-v1';
 const APP_SHELL = ['/', '/manifest.webmanifest'];
+const STATIC_DESTINATIONS = new Set(['style', 'script', 'image', 'font']);
+
+function shouldCacheRequest(request, response) {
+  if (!response || !response.ok) {
+    return false;
+  }
+
+  const url = new URL(request.url);
+
+  if (url.origin !== self.location.origin) {
+    return false;
+  }
+
+  if (APP_SHELL.includes(url.pathname)) {
+    return true;
+  }
+
+  if (!STATIC_DESTINATIONS.has(request.destination)) {
+    return false;
+  }
+
+  const cacheControl = response.headers.get('Cache-Control');
+  if (cacheControl && /no-store|no-cache|private/i.test(cacheControl)) {
+    return false;
+  }
+
+  return true;
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -49,8 +77,10 @@ self.addEventListener('fetch', (event) => {
     (async () => {
       try {
         const networkResponse = await fetch(event.request);
-        const cache = await caches.open(CACHE_VERSION);
-        cache.put(event.request, networkResponse.clone());
+        if (shouldCacheRequest(event.request, networkResponse)) {
+          const cache = await caches.open(CACHE_VERSION);
+          cache.put(event.request, networkResponse.clone());
+        }
         return networkResponse;
       } catch (error) {
         const cache = await caches.open(CACHE_VERSION);
