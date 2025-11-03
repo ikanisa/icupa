@@ -1,12 +1,11 @@
-import { createBrowserSupabaseClient } from '@supabase/auth-helpers-nextjs';
-import type { SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from '@icupa/types/database';
+import { createBrowserSupabaseClient } from '@icupa/db';
+import type { TypedSupabaseClient } from '@icupa/db';
 
-let client: SupabaseClient<Database> | undefined;
+let client: TypedSupabaseClient | undefined;
 
-export function getSupabaseBrowserClient(): SupabaseClient<Database> {
+export function getSupabaseBrowserClient(): TypedSupabaseClient {
   if (!client) {
-    client = createBrowserSupabaseClient<Database>();
+    client = createBrowserSupabaseClient();
   }
   return client;
 }

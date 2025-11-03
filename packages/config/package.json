@@ -18,6 +18,8 @@
     "./env": "./src/env.ts",
     "./feature-flags": "./src/feature-flags.ts",
     "./tailwind-preset": "./tailwind-preset.ts",
+    "./primitives": "./src/primitives/index.ts",
+    "./primitives/*": "./src/primitives/*",
     "./*": "./src/*",
     "./eslint": "./eslint/index.mjs",
     "./prettier": "./prettier/index.mjs",

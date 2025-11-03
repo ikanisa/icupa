@@ -25,8 +25,9 @@ const resolveCredentials = (overrides: SupabaseClientOptions | undefined, isServ
 
 const resolveFetch = (overrides?: SupabaseClientOptions): typeof fetch | undefined => {
   const baseFetch = overrides?.options?.global?.fetch ?? (typeof fetch === 'function' ? fetch : undefined);
+  const getHeaders = overrides?.getHeaders;
 
-  if (!overrides?.getHeaders) {
+  if (!getHeaders) {
     return baseFetch;
   }
 
@@ -34,8 +35,10 @@ const resolveFetch = (overrides?: SupabaseClientOptions): typeof fetch | undefin
     throw new Error('A fetch implementation is required to attach Supabase session headers.');
   }
 
+  const globalOptions = overrides.options?.global;
+
   return async (input, init) => {
-    const headers = new Headers(overrides.options?.global?.headers ?? undefined);
+    const headers = new Headers(globalOptions?.headers ?? undefined);
 
     if (init?.headers) {
       new Headers(init.headers).forEach((value, key) => {
@@ -43,7 +46,7 @@ const resolveFetch = (overrides?: SupabaseClientOptions): typeof fetch | undefin
       });
     }
 
-    const extra = overrides.getHeaders();
+    const extra = getHeaders();
     Object.entries(extra).forEach(([key, value]) => {
       if (typeof value === 'string' && value.length > 0) {
         headers.set(key, value);

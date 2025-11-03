@@ -1,13 +1,20 @@
 import type { PostgrestSingleResponse } from '@supabase/supabase-js';
 import type { RpcArgs, RpcInvokeOptions, RpcName, RpcResponse, TypedSupabaseClient } from './types';
 
+type RpcParameters = Parameters<TypedSupabaseClient['rpc']>;
+
 export const callRpc = async <TName extends RpcName>(
   client: TypedSupabaseClient,
   name: TName,
   args: RpcArgs<TName>,
   options?: RpcInvokeOptions,
 ): Promise<PostgrestSingleResponse<RpcResponse<TName>>> => {
-  return client.rpc(name as string, args, options).returns<RpcResponse<TName>>();
+  const response = await client.rpc(
+    name as RpcParameters[0],
+    (args ?? undefined) as RpcParameters[1],
+    options,
+  );
+  return response as PostgrestSingleResponse<RpcResponse<TName>>;
 };
 
 export const callRpcOrThrow = async <TName extends RpcName>(

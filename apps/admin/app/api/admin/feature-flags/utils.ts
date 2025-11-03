@@ -1,4 +1,4 @@
-import type { FeatureFlagPayload, FeatureFlagState } from '../../../../lib/types';
+import type { FeatureFlagPayload, FeatureFlagState, AgentAutonomyCode } from '../../../../lib/types';
 
 const TOOL_COPY: Record<string, string> = {
   get_menu: 'Retrieve menu catalog items',
@@ -71,7 +71,7 @@ export function buildFeatureFlagInsert(payload: FeatureFlagPayload, actorId: str
     session_budget_usd: payload.sessionBudgetUsd,
     daily_budget_usd: payload.dailyBudgetUsd,
     instructions: payload.instructions,
-    autonomy_level: `L${payload.autonomyLevel}`,
+    autonomy_level: `L${payload.autonomyLevel}` as AgentAutonomyCode,
     experiment_flag: payload.experimentFlag ?? null,
     updated_by: actorId,
     metadata: {
@@ -100,7 +100,7 @@ export function buildFeatureFlagUpdate(payload: Partial<FeatureFlagPayload>, act
     update.instructions = payload.instructions;
   }
   if (payload.autonomyLevel !== undefined) {
-    update.autonomy_level = `L${payload.autonomyLevel}`;
+    update.autonomy_level = `L${payload.autonomyLevel}` as AgentAutonomyCode;
   }
   if (payload.experimentFlag !== undefined) {
     update.experiment_flag = payload.experimentFlag ?? null;

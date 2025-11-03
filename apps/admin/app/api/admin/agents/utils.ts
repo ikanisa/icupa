@@ -1,4 +1,4 @@
-import type { AgentSetting, AgentToolSetting } from '../../../../lib/types';
+import type { AgentSetting, AgentToolSetting, AgentAutonomyCode } from '../../../../lib/types';
 import { describeTool, mapFeatureFlagRow } from '../feature-flags/utils';
 
 const DEFAULT_TOOL_SET = ['get_menu', 'check_allergens', 'recommend_items', 'create_order', 'get_kitchen_load'];
@@ -40,7 +40,7 @@ export function buildAgentConfigUpdate(setting: Partial<AgentSetting>, actorId: 
   const update: Record<string, unknown> = { updated_by: actorId };
 
   if (setting.autonomy !== undefined) {
-    update.autonomy_level = `L${setting.autonomy}`;
+    update.autonomy_level = `L${setting.autonomy}` as AgentAutonomyCode;
   }
   if (setting.sessionBudgetUsd !== undefined) {
     update.session_budget_usd = setting.sessionBudgetUsd;

@@ -13,6 +13,7 @@ export const clientEnvSchema = z.object({
     .string()
     .min(1, 'NEXT_PUBLIC_SUPABASE_ANON_KEY is required'),
   NEXT_PUBLIC_AGENTS_URL: optionalUrl,
+  NEXT_PUBLIC_APP_URL: optionalUrl,
 });
 
 export const serverEnvSchema = clientEnvSchema.extend({
@@ -46,6 +47,10 @@ const clientKeyMappings: EnvKeyMapping[] = [
     key: 'NEXT_PUBLIC_AGENTS_URL',
     fallbacks: ['VITE_AGENTS_URL', 'VITE_API_AGENTS_URL', 'PUBLIC_AGENTS_URL', 'AGENTS_URL'],
   },
+  {
+    key: 'NEXT_PUBLIC_APP_URL',
+    fallbacks: ['APP_BASE_URL'],
+  },
 ];
 
 const serverKeyMappings: EnvKeyMapping[] = [
@@ -53,10 +58,6 @@ const serverKeyMappings: EnvKeyMapping[] = [
   {
     key: 'SUPABASE_SERVICE_ROLE_KEY',
     fallbacks: ['SUPABASE_SERVICE_KEY', 'SERVICE_ROLE_KEY'],
-  },
-  {
-    key: 'NEXT_PUBLIC_APP_URL',
-    fallbacks: ['APP_BASE_URL'],
   },
 ];
 
