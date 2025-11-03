@@ -13,7 +13,7 @@ vi.mock("@/integrations/supabase/client", () => ({
   },
 }));
 
-vi.mock("@/components/ui/use-toast", () => ({
+vi.mock("@icupa/ui/use-toast", () => ({
   toast: (...args: unknown[]) => toastMock(...args),
 }));
 

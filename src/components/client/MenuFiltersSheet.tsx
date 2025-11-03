@@ -1,10 +1,10 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Switch } from "@/components/ui/switch";
-import { Slider } from "@/components/ui/slider";
-import { Badge } from "@/components/ui/badge";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@icupa/ui/sheet";
+import { Button } from "@icupa/ui/button";
+import { Checkbox } from "@icupa/ui/checkbox";
+import { Switch } from "@icupa/ui/switch";
+import { Slider } from "@icupa/ui/slider";
+import { Badge } from "@icupa/ui/badge";
 import { cn } from "@/lib/utils";
 import type { AllergenCode } from "@/data/menu";
 

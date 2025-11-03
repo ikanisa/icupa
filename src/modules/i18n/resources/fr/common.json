@@ -1,0 +1,29 @@
+{
+  "app": {
+    "title": "Plateforme ICUPA",
+    "subtitle": "Pilotez l'onboarding, l'IA, l'analytique et la conformité depuis un seul espace.",
+    "updateTitle": "Mise à jour disponible",
+    "updateDescription": "Une nouvelle version d'ICUPA est prête. Actualisez pour appliquer les dernières optimisations.",
+    "offlineTitle": "Mode hors ligne prêt",
+    "offlineDescription": "Vous pouvez continuer à parcourir les menus et reçus même hors connexion.",
+    "reloadCta": "Recharger"
+  },
+  "merchant": {
+    "subtitle": "Orchestrez le service, la cadence et les promotions de votre salle en temps réel."
+  },
+  "auth": {
+    "deniedTitle": "Accès restreint",
+    "deniedDescription": "Votre rôle actuel ne permet pas encore d'accéder à cet espace."
+  },
+  "navigation": {
+    "adminConsole": "Console admin",
+    "qrTools": "Outils QR",
+    "merchantPortal": "Portail commerçant",
+    "merchantReceipts": "Reçus"
+  },
+  "notFound": {
+    "title": "Cette page s'est évaporée",
+    "description": "L'itinéraire suivi n'est plus disponible. Revenez à l'accueil ICUPA pour poursuivre l'exploration.",
+    "cta": "Retour à l'accueil"
+  }
+}

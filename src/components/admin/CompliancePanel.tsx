@@ -1,8 +1,8 @@
 import { useComplianceTasks } from "@/hooks/useComplianceTasks";
-import { Card } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Card } from "@icupa/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@icupa/ui/table";
+import { Badge } from "@icupa/ui/badge";
+import { Skeleton } from "@icupa/ui/skeleton";
 
 interface CompliancePanelProps {
   tenantId: string | null;

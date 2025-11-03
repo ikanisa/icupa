@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@icupa/ui/card";
+import { Button } from "@icupa/ui/button";
+import { Badge } from "@icupa/ui/badge";
 import { Minus, Plus, Trash2, ShoppingBag, WifiOff } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Separator } from "@icupa/ui/separator";
+import { Input } from "@icupa/ui/input";
+import { Label } from "@icupa/ui/label";
 import {
   Sheet,
   SheetContent,
@@ -14,8 +14,8 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from "@/components/ui/sheet";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+} from "@icupa/ui/sheet";
+import { RadioGroup, RadioGroupItem } from "@icupa/ui/radio-group";
 import { formatCurrency } from "@/lib/currency";
 import type { CartItem, SplitMode } from "@/stores/cart-store";
 

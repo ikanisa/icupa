@@ -1,6 +1,6 @@
 import { motion, useReducedMotion } from "framer-motion";
 import { Menu, ShoppingCart, CreditCard, Bot } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@icupa/ui/button";
 import { cn } from "@/lib/utils";
 
 interface ActionDockProps {

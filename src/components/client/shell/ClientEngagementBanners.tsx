@@ -1,6 +1,6 @@
 import { Fragment } from "react";
 import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
+import { Button } from "@icupa/ui/button";
 import { Bell, AlertTriangle, WifiOff, RotateCw } from "lucide-react";
 import type { UsePushSubscriptionResult } from "@/hooks/usePushSubscription";
 
