@@ -32,9 +32,11 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   const update = buildAgentConfigUpdate(payload, admin.user.id);
   if (update.metadata) {
+    const existingMetadata = (existing.metadata ?? {}) as Record<string, unknown>;
+    const newMetadata = update.metadata as Record<string, unknown>;
     update.metadata = {
-      ...(existing.metadata ?? {}),
-      ...(update.metadata as Record<string, unknown>),
+      ...existingMetadata,
+      ...newMetadata,
     };
   }
 

@@ -14,6 +14,7 @@ export interface TenantRecord {
 }
 
 export type AgentAutonomyLevel = 0 | 1 | 2 | 3;
+export type AgentAutonomyCode = `L${AgentAutonomyLevel}`;
 
 export interface AgentToolSetting {
   name: string;

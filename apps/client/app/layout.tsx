@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import { cn } from '@icupa/ui';
+import { cn } from '@icupa/ui/primitives';
 import '@icupa/ui/styles.css';
 import './globals.css';
 import './env.server';

@@ -32,7 +32,7 @@ async function fetchRoles(client: TypedSupabaseClient, userId: string): Promise<
 }
 
 export async function requireAdmin(): Promise<AdminSession> {
-  const supabase = getSupabaseServerClient();
+  const supabase = await getSupabaseServerClient();
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -53,7 +53,7 @@ export async function requireAdmin(): Promise<AdminSession> {
 }
 
 export async function getAdminSession(): Promise<AdminSession | null> {
-  const supabase = getSupabaseServerClient();
+  const supabase = await getSupabaseServerClient();
   const {
     data: { session },
   } = await supabase.auth.getSession();

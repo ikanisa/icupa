@@ -4,8 +4,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@icupa/types/database';
 import { env } from '../env.server';
 
-export function getSupabaseServerClient(): SupabaseClient<Database> {
-  const cookieStore = cookies();
+export async function getSupabaseServerClient(): Promise<SupabaseClient<Database>> {
+  const cookieStore = await cookies();
 
   return createServerClient<Database>(
     env.NEXT_PUBLIC_SUPABASE_URL,

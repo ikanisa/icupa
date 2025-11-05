@@ -19,7 +19,7 @@ import {
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@icupa/ui/form';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@icupa/ui/dialog';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, useWatch } from 'react-hook-form';
+import { useForm, useWatch, type SubmitHandler, type Resolver } from 'react-hook-form';
 import { z } from 'zod';
 import { Globe2, RefreshCw, ShieldOff, Wand2, Trash2, Plus, AlertTriangle } from 'lucide-react';
 import {
@@ -293,7 +293,7 @@ function FlagDialog({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const form = useForm<FlagFormValues>({
-    resolver: zodResolver(flagSchema),
+    resolver: zodResolver(flagSchema) as Resolver<FlagFormValues>,
     defaultValues: toFormValues(flag),
   });
 
@@ -331,7 +331,7 @@ function FlagDialog({
     },
   });
 
-  const handleSubmit = (values: FlagFormValues) => {
+  const handleSubmit: SubmitHandler<FlagFormValues> = (values) => {
     saveMutation.mutate(values);
   };
 
@@ -527,7 +527,12 @@ function FlagDialog({
                   <FormItem>
                     <FormLabel>Experiment tag</FormLabel>
                     <FormControl>
-                      <Input placeholder="dessert-pilot" {...field} />
+                      <Input
+                        placeholder="dessert-pilot"
+                        {...field}
+                        value={field.value ?? ''}
+                        onChange={(event) => field.onChange(event.target.value)}
+                      />
                     </FormControl>
                     <FormDescription>Optional tag for experiment grouping.</FormDescription>
                     <FormMessage />

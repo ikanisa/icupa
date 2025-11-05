@@ -12,16 +12,24 @@
     "incremental": true,
     "target": "ES2021",
     "paths": {
+      "@/*": ["./*"],
       "@icupa/ui": ["../../packages/ui/src"],
       "@icupa/ui/*": ["../../packages/ui/src/*"],
+      "@icupa/ui/primitives": ["../../packages/ui/src/primitives/index.ts"],
+      "@icupa/ui/primitives/*": ["../../packages/ui/src/primitives/*"],
       "@icupa/config": ["../../packages/config/src"],
       "@icupa/config/*": ["../../packages/config/src/*"],
+      "@icupa/config/primitives": ["../../packages/config/src/primitives/index.ts"],
+      "@icupa/config/primitives/*": ["../../packages/config/src/primitives/*"],
       "@icupa/types": ["../../packages/types/src"],
       "@icupa/types/*": ["../../packages/types/src/*"],
+      "@icupa/types/primitives": ["../../packages/types/src/primitives/index.ts"],
+      "@icupa/types/primitives/*": ["../../packages/types/src/primitives/*"],
       "@icupa/db": ["../../packages/db/src"],
-      "@icupa/db/*": ["../../packages/db/src/*"]
+      "@icupa/db/*": ["../../packages/db/src/*"],
+      "@icupa/db/primitives": ["../../packages/db/src/primitives/index.ts"],
+      "@icupa/db/primitives/*": ["../../packages/db/src/primitives/*"]
     },
-    "strict": false,
     "esModuleInterop": true,
     "isolatedModules": true,
     "plugins": [

@@ -2,9 +2,9 @@ import type { Config } from 'tailwindcss';
 import plugin from 'tailwindcss/plugin';
 import { icupaTailwindPreset } from '@icupa/config/tailwind-preset';
 
-const config: Config = {
+const config = {
   presets: [icupaTailwindPreset],
-  darkMode: ['class'],
+  darkMode: 'class',
   content: [
     './app/**/*.{ts,tsx}',
     './components/**/*.{ts,tsx}',
@@ -55,6 +55,6 @@ const config: Config = {
       addVariant('no-motion', '@media (prefers-reduced-motion: reduce)');
     }),
   ],
-};
+} satisfies Config;
 
 export default config;

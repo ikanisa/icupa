@@ -16,6 +16,7 @@
     "dev:admin": "pnpm --filter @ecotrips/admin dev",
     "dev:supplier": "pnpm --filter @ecotrips/supplier dev",
     "build:all": "turbo run build --cache-dir .turbo",
+    "build:surfaces": "turbo run build --cache-dir .turbo --filter=@icupa/client --filter=@icupa/vendor --filter=@icupa/admin --filter=@icupa/agents-service --filter=icupa-monorepo",
     "dev:agents": "npm --prefix agents-service run dev",
     "dev:voice-agent": "pnpm --filter @icupa/voice-agent dev",
     "prebuild": "node scripts/ci/check-supabase-env.mjs",
