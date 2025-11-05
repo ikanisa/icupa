@@ -1,25 +1,27 @@
 # Go‑Live Runbook
 
-This runbook captures the minimum steps to promote ICUPA into staging/production.
+This runbook captures the required steps to promote ICUPA into staging/production with zero downtime, phased rollouts, and monitoring aligned to SLO targets.
 
-## 1) Supabase project link and secrets
+## 0) Final Verification Gate
+
+- [ ] CI green (`pnpm turbo run lint typecheck test build`)
+- [ ] Coverage ≥ 80% uploaded to `artifacts/coverage/`
+- [ ] Lighthouse thresholds met (Perf ≥90, PWA ≥95, A11y ≥95, SEO ≥95) and archived in `artifacts/lighthouse/`
+- [ ] Supabase migrations dry-run via `supabase db reset --env preview`
+- [ ] Deployment checklist completed in release issue template
+
+## 1) Supabase Project Link & Secrets
 
 1. Login and link:
    ```bash
    supabase login  # requires SUPABASE_ACCESS_TOKEN
    supabase link --project-ref <project-ref>
    ```
-2. Set secrets (recommended to use a checked‑in `.env.supabase` template populated in your secret manager):
+2. Set secrets using checked-in template:
    ```bash
    ./scripts/supabase/set-secrets.sh --project <project-ref> --env-file .env.supabase
    ```
-
-Required secrets by surface:
-- Core: `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_INVITE_REDIRECT_URL`, `ADMIN_ONBOARDING_SECRET`
-- OCR: `OPENAI_API_KEY`, `OCR_CONVERTER_URL`, `OCR_CONVERTER_TOKEN`
-- Payments (EU): `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
-- Payments (RW): `MOMO_*`, `AIRTEL_*`
-- Push: VAPID private key stored in Supabase, public key in the app env
+3. Verify Vault entries for service role keys rotated within last 90 days.
 
 ## 2) Deploy Edge Functions
 
@@ -27,65 +29,116 @@ Required secrets by surface:
 ./scripts/supabase/deploy-functions.sh --project <project-ref>
 ```
 
-(Optional) run via GitHub Actions `Supabase Deploy Functions` workflow with `project_ref` and `SUPABASE_ACCESS_TOKEN` secret.
+- Validate function logs for warmup success.
+- Update observability annotations with deployment ID.
 
-## 3) Configure embeddings refresh cron
+## 3) Schema + Backfill (Zero Downtime)
 
-Update the menu embedding refresh function URL:
+1. Apply additive migrations:
+   ```bash
+   supabase db push --project-ref <project-ref>
+   supabase db test
+   ```
+2. Execute backfill:
+   ```bash
+   supabase db remote commit --project-ref <project-ref> \
+     --file supabase/seed/backfill_tenant_profiles.sql
+   ```
+3. Monitor `tenant_migration_audit` table. Abort if error rate >0.5%.
+4. Leave destructive cleanup behind feature flag until post-GA.
+
+Refer to [`zero-downtime-migration.md`](./zero-downtime-migration.md) for full details.
+
+## 4) Deploy Runtime Surfaces
+
+### Agents Service
+
 ```bash
-./scripts/supabase/update-scheduler-url.sh \
-  --project <project-ref> \
-  --url https://<project-ref>.functions.supabase.co/menu/embed_items
+cd agents-service
+pnpm build
+docker build -t icupa-agents:<sha> .
+docker push <registry>/icupa-agents:<sha>
+# Deploy via K8s
+kubectl apply -f deployments/<env>/agents-service.yaml
 ```
 
-Alternatively, use the Ops endpoint (no CLI required):
+- Verify health endpoint `/healthz` responds 200.
+- Confirm feature flags for agent budgets set correctly (`agent_runtime_configs`).
+
+### Web PWA (Vercel)
+
 ```bash
-BASE="https://<project-ref>.functions.supabase.co"
-TOKEN="$SUPABASE_SERVICE_ROLE_KEY"  # or use $ADMIN_ONBOARDING_SECRET
-./scripts/ops/update-scheduler.sh --url "$BASE/menu/embed_items"
+pnpm --filter web build
+vercel deploy --prebuilt --env=production
 ```
 
-## 4) Observability
+- Validate environment variables via `vercel env pull`.
+- Smoke test tenant login & AI flows before promotion.
 
-- Dashboards: point panels to `rpc.list_queue_metrics` and `rpc.list_cron_jobs`.
-- Alerts: create rules for queue backlog, cron failures, and Functions 5xx.
+## 5) Observability & SLO Guardrails
 
-## 5) E2E checks on staging
+- Dashboards: `ICUPA/rollout`, `ICUPA/ai-guardrails`, `ICUPA/payments`.
+- Metrics to monitor during rollout window:
+  - Error rate <1%
+  - API P95 latency <350ms
+  - Agent hallucination alerts = 0
+  - Payments success rate ≥ 99%
+- Trigger synthetic Lighthouse run:
+  ```bash
+  pnpm perf:lighthouse --site https://<env>.icupa.app --output artifacts/lighthouse/<timestamp>
+  ```
+- Archive metrics snapshot in `artifacts/observability/`.
 
-Run Playwright against the staging URL:
+## 6) Phased Release Plan
+
+1. **Feature Flag Prep**
+   - Ensure flags defined in `packages/config/src/flags.ts`.
+   - Document enable/disable commands in release issue.
+2. **Canary Deployment**
+   - Enable new feature for `demo_icupa` tenant.
+   - Observe metrics for 12h; if stable, extend to `pilot_*` tenants via CLI:
+     ```bash
+     pnpm flags:enable tenant.enableNewProfile --tenant=pilot_kigali
+     ```
+3. **Gradual Rollout**
+   - Expand to low-volume tenants, then full fleet after 72h of healthy metrics.
+   - Update `docs/runbooks/rollback-log.md` with timestamps and outcomes.
+4. **Communication**
+   - Notify support + account managers before each phase.
+   - Provide status updates in `#release` channel every 6h during rollout.
+
+## 7) E2E Checks on Staging
+
 ```bash
-PLAYWRIGHT_BASE_URL=https://staging.icupa.dev npm run test:e2e \
+PLAYWRIGHT_BASE_URL=https://staging.icupa.dev pnpm test:e2e \
   -- --config tests/playwright/playwright.config.ts --reporter=html
 ```
 
-(Optional) run via GitHub Actions `Playwright E2E` with `base_url` input.
+- Attach HTML report to release ticket.
+- Run smoke scripts: `./scripts/smoke/functions-smoke.sh` & `./scripts/ops/db-health.sh`.
 
-### Ops Health Checks
+## 8) Production Promotion
 
-Run the Functions smoke and DB health checks to validate routing and required RPCs:
-```bash
-BASE="https://<project-ref>.functions.supabase.co" \
-  ./scripts/smoke/functions-smoke.sh
+- Obtain approvals (Product, Engineering, Ops) recorded in release issue.
+- Promote Vercel deployment to production.
+- Tag release: `git tag vX.Y.Z && git push origin vX.Y.Z`.
+- Update status page and incident log.
 
-BASE="https://<project-ref>.functions.supabase.co" \
-  ./scripts/ops/db-health.sh
-```
+## 9) Rollback Readiness
 
-If queue RPCs are missing in hosted environments without PGMQ, apply the fallback with the DB repair snippet (via SQL Editor):
-`docs/snippets/db-repair.sql`.
+- Feature flag disable command prepared (see `zero-downtime-migration.md`).
+- Supabase point-in-time restore checkpoints noted.
+- Container image for previous release retained (`<registry>/icupa-agents:<prev-sha>`).
+- Execute `pnpm --filter web test:e2e -- --grep "smoke"` post-rollback.
 
-## 6) Canary rollout
+## 10) Post-Release
 
-- Restrict agent autonomy and budgets in `agent_runtime_configs`.
-- Flip a single launch tenant/location, monitor error budgets and dashboards.
-- Expand gradually after 24–48h of clean KPIs.
-
-## 7) Rollback
-
-- Disable cron and set `agent_runtime_configs.enabled=false` for relevant agents.
-- Revert recent Functions via the CLI `supabase functions deploy <fn>@<prev_hash>`.
-- Restore DB from the last snapshot if needed and re‑seed queues.
+- Monitor dashboards for 24h; extend canary if metrics degrade.
+- Export Grafana PDF to `artifacts/observability/`.
+- Update `CHANGELOG.md` and `docs/rfc-001-repo-refactor.md` with release notes.
+- Conduct retro if any SLO breach occurs.
 
 ---
 
-For questions, see `docs/observability.md` and the Admin Access tab for staff invites.
+For questions, see `docs/observability.md` and `docs/runbooks/zero-downtime-migration.md`.
+

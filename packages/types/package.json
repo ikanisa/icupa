@@ -9,6 +9,8 @@
     ".": "./src/index.ts",
     "./apps": "./src/apps.ts",
     "./database": "./src/database.ts",
+    "./primitives": "./src/primitives/index.ts",
+    "./primitives/*": "./src/primitives/*",
     "./*": "./src/*"
   },
   "dependencies": {

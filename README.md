@@ -139,6 +139,17 @@ These apps are for migration exploration and are **not currently deployed**.
    npm run typecheck
    ```
 
+## UI development & regression safety nets
+
+- **Storybook for shared primitives** lives under `packages/ui`. Start it with `pnpm storybook:ui` to explore the design system and accessibility knobs.
+- **Visual regression & a11y hooks** run through Storybook’s test runner: `pnpm --filter @icupa/ui storybook:test`. This executes automated axe checks and captures deterministic screenshots for each story.
+
+## Performance, PWA & bundle budgets
+
+- **Enforce bundle budgets** using `pnpm check:budgets`. The script builds the app and fails if any JS/CSS chunk exceeds 320kb or the total payload exceeds 2.5mb.
+- **Lighthouse CI** runs via `npm run test:perf` with assertions targeting ≥90 performance and ≥95 PWA scores. Use `npm run analyze:pwa` locally for a quick shell-style audit.
+- **Service worker & offline shell** register automatically at startup. Toasts announce updates/offline readiness via the `usePwaNotifications` hook.
+
 ---
 
 ## Environment variables
@@ -261,7 +272,7 @@ mcp/
 ## Supabase integration notes
 
 - The Supabase browser client is created in `src/integrations/supabase/client.ts`. It now reads credentials from environment variables instead of hard-coded keys and automatically forwards the active `x-icupa-session` header for every REST call so diner-scoped RLS policies remain effective.【F:src/integrations/supabase/client.ts†L1-L34】【F:src/lib/table-session.ts†L1-L47】
-- Generated types (see `src/integrations/supabase/types.ts`) keep interactions type-safe. When the schema evolves, regenerate types with the Supabase CLI (`supabase gen types typescript --schema public`).
+- Generated types (see `packages/types/src/database.ts`) keep interactions type-safe. When the schema evolves, regenerate types with the Supabase CLI (`supabase gen types typescript --schema public`).
 - Persisted sessions rely on `localStorage` when running in the browser. When rendering on the server, the storage adapter gracefully degrades to `undefined`, matching Supabase's SSR recommendations.【F:src/integrations/supabase/client.ts†L16-L23】
 
 ### Phase 1 database checklist
@@ -693,3 +704,17 @@ export SUB_ENDPOINT="<push_endpoint>"     # to test send_push dry run
 ```
    # Apply migrations to hosted project
    ./scripts/supabase/db-push.sh --project <your-project-ref>
+
+## Containerization & Orchestration
+
+- **Dockerfiles:** Every application now ships with a multi-stage, distroless `Dockerfile` in its root folder (`apps/*/Dockerfile`, `agents-service/Dockerfile`). Build individually via `docker build -f apps/client/Dockerfile .` or use the bake definition `infra/docker-bake.hcl`.
+- **Local stack:** `docker compose up --build` starts Postgres, Redis, Meilisearch, Mailhog, MinIO, the agents API, voice agent, OCR converter, and all PWAs. Override credentials with environment variables or a `.env` file in the repository root.
+- **Kubernetes:** Manifests live under `deployments/k8s/base`. Apply with `kubectl apply -k deployments/k8s/base`. A reusable Helm chart (`deployments/k8s/helm/icupa`) lets you deploy all workloads with environment-specific overrides.
+- **CI/CD:** `.github/workflows/continuous-delivery.yml` builds and pushes container images, runs migrations, executes Playwright E2E tests against a Compose-based ephemeral stack, deploys workloads to the target cluster, and promotes PWAs to Vercel.
+
+## Operations Playbook
+
+- **Runtime configuration:** See `docs/operations/runtime-config.md` for variable matrices, secret-handling rules, and rotation steps.
+- **SLOs:** Baseline objectives for availability and latency live in `docs/operations/slo.md`.
+- **Security suppressions:** Follow `docs/security/vulnerability-management.md` before adding any scanner ignores.
+- **Performance testing:** Execute `k6 run tests/perf/k6-smoke.js` or `npx artillery run tests/perf/artillery-order-flow.yml` once the stack is online to validate latency budgets.

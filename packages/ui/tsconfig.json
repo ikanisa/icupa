@@ -4,7 +4,9 @@
     "baseUrl": ".",
     "paths": {
       "@icupa/ui": ["./src"],
-      "@icupa/ui/*": ["./src/*"]
+      "@icupa/ui/*": ["./src/*"],
+      "@icupa/ui/primitives": ["./src/primitives/index.ts"],
+      "@icupa/ui/primitives/*": ["./src/primitives/*"]
     }
   },
   "include": ["src/**/*"]

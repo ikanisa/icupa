@@ -1,0 +1,20 @@
+* text=auto eol=lf
+
+# Ensure consistent diffing for common file types
+*.ts diff=ts
+*.tsx diff=ts
+*.js diff=javascript
+*.jsx diff=javascript
+*.json diff=json
+*.css diff=css
+*.scss diff=css
+*.md diff=markdown
+
+# Treat generated assets as binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.svg binary
+*.ico binary

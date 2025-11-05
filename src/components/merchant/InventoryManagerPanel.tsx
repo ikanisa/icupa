@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
 import { Activity, ShieldCheck } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@icupa/ui/badge";
+import { Button } from "@icupa/ui/button";
+import { Card } from "@icupa/ui/card";
+import { Input } from "@icupa/ui/input";
+import { Label } from "@icupa/ui/label";
+import { Progress } from "@icupa/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@icupa/ui/select";
+import { Switch } from "@icupa/ui/switch";
+import { Skeleton } from "@icupa/ui/skeleton";
 import type { MerchantLocation } from "@/hooks/useMerchantLocations";
 import { useInventoryControls, type InventoryRecord } from "@/hooks/useInventoryControls";
 

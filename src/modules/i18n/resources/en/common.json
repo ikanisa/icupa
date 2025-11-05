@@ -1,0 +1,29 @@
+{
+  "app": {
+    "title": "ICUPA Operations Hub",
+    "subtitle": "Govern onboarding, AI levers, analytics, and compliance in one workspace.",
+    "updateTitle": "Update available",
+    "updateDescription": "A fresh version of ICUPA is ready. Refresh to apply the latest optimisations.",
+    "offlineTitle": "Offline ready",
+    "offlineDescription": "You can continue exploring menus and receipts even without a connection.",
+    "reloadCta": "Reload"
+  },
+  "merchant": {
+    "subtitle": "Manage pacing, service, and merchandising across your floor in real time."
+  },
+  "auth": {
+    "deniedTitle": "Restricted area",
+    "deniedDescription": "Your current role does not grant access to this workspace yet."
+  },
+  "navigation": {
+    "adminConsole": "Admin console",
+    "qrTools": "QR tools",
+    "merchantPortal": "Merchant portal",
+    "merchantReceipts": "Receipts"
+  },
+  "notFound": {
+    "title": "This page slipped off the tray",
+    "description": "The route you followed isn't available. Return to the main ICUPA experience to keep exploring.",
+    "cta": "Return to start"
+  }
+}

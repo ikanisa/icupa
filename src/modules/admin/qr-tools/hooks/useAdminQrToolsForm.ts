@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useState } from "react";
+import { z } from "zod";
+import { createSupabaseDataAccess } from "@icupa/data-access";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@icupa/ui/use-toast";
 import { useSupabaseSessionHeaders } from "@/modules/supabase";
 import type { AdminQrFormState, ReissueResponse } from "../types";
 
@@ -19,6 +21,19 @@ export const useAdminQrToolsForm = () => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ReissueResponse | null>(null);
   const sessionHeaders = useSupabaseSessionHeaders();
+  const dataAccess = useMemo(() => createSupabaseDataAccess(supabase), []);
+  const responseSchema = useMemo(
+    () =>
+      z.object({
+        table_id: z.string(),
+        location_id: z.string().nullable(),
+        qr_token: z.string(),
+        signature: z.string(),
+        qr_url: z.string().nullable(),
+        issued_at: z.string(),
+      }),
+    [],
+  );
 
   const updateField = useCallback(<Key extends keyof AdminQrFormState>(key: Key, value: AdminQrFormState[Key]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -43,21 +58,22 @@ export const useAdminQrToolsForm = () => {
     setResult(null);
     try {
       const sanitizedHeaders = stripAuthorizationHeader(sessionHeaders);
-      const { data, error } = await supabase.functions.invoke<ReissueResponse>("admin/reissue_table_qr", {
-        body: {
-          table_id: form.tableId.trim(),
-        },
-        headers: {
-          ...sanitizedHeaders,
-          Authorization: `Bearer ${form.adminToken.trim()}`,
-        },
-      });
+      const data = await dataAccess.withValidation(
+        () =>
+          supabase.functions.invoke("admin/reissue_table_qr", {
+            body: {
+              table_id: form.tableId.trim(),
+            },
+            headers: {
+              ...sanitizedHeaders,
+              Authorization: `Bearer ${form.adminToken.trim()}`,
+            },
+          }),
+        responseSchema,
+        { message: "Unable to re-issue QR code" },
+      );
 
-      if (error || !data) {
-        throw new Error(error?.message ?? "Unable to re-issue QR code");
-      }
-
-      setResult(data);
+      setResult(data as ReissueResponse);
       toast({
         title: "QR code rotated",
         description: "Distribute the refreshed QR link to replace any previous table signage.",

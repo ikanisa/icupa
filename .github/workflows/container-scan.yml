@@ -3,106 +3,77 @@ name: Container Security Scan
 on:
   push:
     branches: [main]
-    paths:
-      - 'agents-service/**'
-      - '.github/workflows/container-scan.yml'
   pull_request:
-    paths:
-      - 'agents-service/**'
   schedule:
-    # Run weekly on Sundays at 00:00 UTC
     - cron: '0 0 * * 0'
   workflow_dispatch:
 
 permissions:
   contents: read
+  packages: write
   security-events: write
 
 jobs:
   scan:
-    name: Scan Container Image
     runs-on: ubuntu-latest
-    
+    strategy:
+      fail-fast: false
+      matrix:
+        name: [agents-service, admin, client, vendor, web, voice-agent, ocr-converter, ecotrips]
+        include:
+          - name: agents-service
+            dockerfile: agents-service/Dockerfile
+          - name: admin
+            dockerfile: apps/admin/Dockerfile
+          - name: client
+            dockerfile: apps/client/Dockerfile
+          - name: vendor
+            dockerfile: apps/vendor/Dockerfile
+          - name: web
+            dockerfile: apps/web/Dockerfile
+          - name: voice-agent
+            dockerfile: apps/voice-agent/Dockerfile
+          - name: ocr-converter
+            dockerfile: apps/ocr-converter/Dockerfile
+          - name: ecotrips
+            dockerfile: apps/ecotrips/Dockerfile
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      
+      - uses: actions/checkout@v4
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      
-      - name: Build container image
+
+      - name: Build image for ${{ matrix.name }}
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./agents-service/Dockerfile
-          tags: icupa-agents-service:${{ github.sha }}
+          file: ${{ matrix.dockerfile }}
+          tags: icupa/${{ matrix.name }}:${{ github.sha }}
           load: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      
+
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: icupa-agents-service:${{ github.sha }}
+          image-ref: icupa/${{ matrix.name }}:${{ github.sha }}
           format: 'sarif'
-          output: 'trivy-results.sarif'
+          output: trivy-${{ matrix.name }}.sarif
           severity: 'CRITICAL,HIGH,MEDIUM'
           ignore-unfixed: true
-      
-      - name: Upload Trivy results to GitHub Security
+
+      - name: Upload Trivy report
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
-          sarif_file: 'trivy-results.sarif'
-          category: 'container-scan'
-      
-      - name: Run Trivy in table format
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: icupa-agents-service:${{ github.sha }}
-          format: 'table'
-          severity: 'CRITICAL,HIGH'
-      
-      - name: Scan with Grype
-        uses: anchore/scan-action@v3
-        id: grype
-        with:
-          image: icupa-agents-service:${{ github.sha }}
-          fail-build: false
-          severity-cutoff: high
-      
-      - name: Upload Grype SARIF report
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: ${{ steps.grype.outputs.sarif }}
-          category: 'container-scan-grype'
-      
-      - name: Check for critical vulnerabilities
+          sarif_file: trivy-${{ matrix.name }}.sarif
+          category: container-${{ matrix.name }}
+
+      - name: Fail on critical findings
         run: |
-          # Parse Trivy results
-          if [ -f trivy-results.sarif ]; then
-            CRITICAL=$(jq '.runs[0].results | map(select(.level == "error")) | length' trivy-results.sarif)
-            HIGH=$(jq '.runs[0].results | map(select(.level == "warning")) | length' trivy-results.sarif)
-            
-            echo "## Container Security Scan Results" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "| Severity | Count |" >> $GITHUB_STEP_SUMMARY
-            echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
-            echo "| Critical | $CRITICAL |" >> $GITHUB_STEP_SUMMARY
-            echo "| High     | $HIGH |" >> $GITHUB_STEP_SUMMARY
-            
-            if [ "$CRITICAL" -gt 0 ]; then
-              echo "::error::Found $CRITICAL critical vulnerabilities in container image"
-              exit 1
-            fi
+          CRITICAL=$(jq '.runs[0].results | map(select(.level == "error")) | length' trivy-${{ matrix.name }}.sarif)
+          if [ "$CRITICAL" -gt 0 ]; then
+            echo "::error::Found $CRITICAL critical vulnerabilities in ${{ matrix.name }} image"
+            exit 1
           fi
-      
-      - name: Docker Scout scan
-        if: github.event_name != 'pull_request'
-        uses: docker/scout-action@v1
-        with:
-          command: cves
-          image: icupa-agents-service:${{ github.sha }}
-          only-severities: critical,high
-          exit-code: false

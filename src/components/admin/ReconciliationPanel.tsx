@@ -1,9 +1,9 @@
 import { useReconciliationRuns, useRunReconciliation } from "@/hooks/useReconciliationRuns";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useToast } from "@/components/ui/use-toast";
+import { Card } from "@icupa/ui/card";
+import { Button } from "@icupa/ui/button";
+import { Badge } from "@icupa/ui/badge";
+import { Skeleton } from "@icupa/ui/skeleton";
+import { useToast } from "@icupa/ui/use-toast";
 
 export function ReconciliationPanel() {
   const { data, isLoading, isError } = useReconciliationRuns();

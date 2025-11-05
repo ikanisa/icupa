@@ -1,0 +1,19 @@
+--- a/supabase/functions/auth/whatsapp_send_otp/index.ts
++++ b/supabase/functions/auth/whatsapp_send_otp/index.ts
+@@
+ const OTP_MAX_PER_WINDOW = Number(Deno.env.get("WA_OTP_MAX_PER_WINDOW") ?? "3");
+ 
+ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+   console.error("Supabase configuration missing for whatsapp_send_otp");
+ }
+ 
++function maskPhone(phone: string): string {
++  return `${phone.slice(0, 3)}***${phone.slice(-2)}`;
++}
++
+ function jsonResponse(payload: Record<string, unknown>, status = 200): Response {
+   return new Response(JSON.stringify(payload), {
+     status,
+     headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+   });
+ }

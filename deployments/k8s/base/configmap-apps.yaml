@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: icupa-app-config
+  namespace: icupa
+  labels:
+    app.kubernetes.io/name: icupa
+    app.kubernetes.io/component: shared-config
+    app.kubernetes.io/managed-by: manual
+  annotations:
+    icupa.dev/description: "Shared non-sensitive runtime configuration for ICUPA services"
+data:
+  NEXT_PUBLIC_SUPABASE_URL: "https://supabase.example.com"
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: "replace-with-non-sensitive-anon-key"
+  NEXT_PUBLIC_AGENTS_URL: "https://agents.example.com"
+  NEXT_PUBLIC_APP_URL: "https://app.example.com"

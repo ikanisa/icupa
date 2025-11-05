@@ -1,11 +1,8 @@
 {
+  "extends": "@icupa/config/tsconfig/next",
   "compilerOptions": {
     "target": "ES2022",
-    "lib": [
-      "DOM",
-      "DOM.Iterable",
-      "ES2022"
-    ],
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
     "allowJs": false,
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -13,55 +10,27 @@
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "module": "ESNext",
-    "moduleResolution": "Bundler",
+    "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "preserve",
     "incremental": true,
-    "types": [
-      "node"
-    ],
+    "types": ["node"],
     "baseUrl": ".",
-    "rootDirs": [
-      ".",
-      "../packages/ui/src",
-      "../packages/config"
-    ],
+    "rootDirs": [".", "../packages/ui/src", "../packages/config"],
     "paths": {
-      "@/components/*": [
-        "./components/*"
-      ],
-      "@/lib/*": [
-        "./lib/*"
-      ],
-      "@/hooks/*": [
-        "./hooks/*"
-      ],
-      "@/data/*": [
-        "./data/*"
-      ],
-      "@/stores/*": [
-        "./stores/*"
-      ],
-      "@icupa/ui": [
-        "../packages/ui/src"
-      ],
-      "@icupa/ui/*": [
-        "../packages/ui/src/*"
-      ],
-      "@icupa/config": [
-        "../packages/config"
-      ],
-      "@icupa/config/*": [
-        "../packages/config/*"
-      ],
-      "@icupa/ingestion-utils": [
-        "../packages/ingestion-utils/src"
-      ],
-      "@icupa/ingestion-utils/*": [
-        "../packages/ingestion-utils/src/*"
-      ]
+      "@/components/*": ["./components/*"],
+      "@/lib/*": ["./lib/*"],
+      "@/hooks/*": ["./hooks/*"],
+      "@/data/*": ["./data/*"],
+      "@/stores/*": ["./stores/*"],
+      "@icupa/ui": ["../packages/ui/src"],
+      "@icupa/ui/*": ["../packages/ui/src/*"],
+      "@icupa/config": ["../packages/config"],
+      "@icupa/config/*": ["../packages/config/*"],
+      "@icupa/ingestion-utils": ["../packages/ingestion-utils/src"],
+      "@icupa/ingestion-utils/*": ["../packages/ingestion-utils/src/*"]
     },
     "plugins": [
       {
@@ -69,13 +38,6 @@
       }
     ]
   },
-  "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    ".next/types/**/*.ts"
-  ],
-  "exclude": [
-    "node_modules"
-  ]
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
 }

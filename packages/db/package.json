@@ -8,7 +8,10 @@
   "exports": {
     ".": "./src/index.ts",
     "./client": "./src/client.ts",
+    "./rpc": "./src/rpc.ts",
     "./types": "./src/types.ts",
+    "./primitives": "./src/primitives/index.ts",
+    "./primitives/*": "./src/primitives/*",
     "./*": "./src/*"
   },
   "dependencies": {

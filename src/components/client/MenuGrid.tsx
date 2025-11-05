@@ -1,7 +1,7 @@
 import { motion, useReducedMotion } from "framer-motion";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@icupa/ui/card";
+import { Badge } from "@icupa/ui/badge";
+import { Button } from "@icupa/ui/button";
 import { Plus, Clock, Star, Leaf, Flame, Wine } from "lucide-react";
 import type { MenuItem } from "@/data/menu";
 import { formatCurrency } from "@/lib/currency";

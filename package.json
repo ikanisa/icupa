@@ -2,6 +2,7 @@
   "name": "icupa-monorepo",
   "private": true,
   "version": "0.1.0",
+  "packageManager": "pnpm@10.4.0",
   "type": "module",
   "workspaces": [
     "apps/*",
@@ -9,20 +10,25 @@
     "agents-service"
   ],
   "scripts": {
+    "prepare": "husky install",
     "dev": "vite",
     "dev:client": "pnpm --filter @ecotrips/client dev",
     "dev:admin": "pnpm --filter @ecotrips/admin dev",
     "dev:supplier": "pnpm --filter @ecotrips/supplier dev",
-    "build:all": "pnpm -r build",
+    "build:all": "turbo run build --cache-dir .turbo",
+    "build:surfaces": "turbo run build --cache-dir .turbo --filter=@icupa/client --filter=@icupa/vendor --filter=@icupa/admin --filter=@icupa/agents-service --filter=icupa-monorepo",
     "dev:agents": "npm --prefix agents-service run dev",
     "dev:voice-agent": "pnpm --filter @icupa/voice-agent dev",
     "prebuild": "node scripts/ci/check-supabase-env.mjs",
     "pretest": "node scripts/ci/reset-supabase-test-db.mjs",
     "build": "tsc -b && vite build",
     "build:dev": "vite build --mode development",
-    "lint": "eslint . --max-warnings=0",
+    "lint": "pnpm lint:repo",
+    "lint:repo": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
+    "lint:all": "turbo run lint --cache-dir .turbo",
     "typecheck": "tsc -b --pretty false",
+    "typecheck:all": "turbo run typecheck --cache-dir .turbo",
     "preview": "vite preview --port 5000",
     "dev:ocr:converter": "node apps/ocr-converter/server.mjs",
     "dev:all": "bash scripts/dev/dev-all.sh",
@@ -39,6 +45,7 @@
     "supabase:reset": "npx --yes supabase db reset",
     "supabase:test": "npx --yes supabase db test",
     "test": "vitest run",
+    "test:all": "turbo run test --cache-dir .turbo",
     "test:mcp": "vitest run tests/mcp",
     "test:accessibility": "vitest run tests/accessibility",
     "security:lint-mcp": "node scripts/security/lint-mcp-tools.mjs",
@@ -48,8 +55,10 @@
     "analyze:pwa": "npx --yes lighthouse http://localhost:5000 --only-categories=pwa --preset=desktop || true",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "verify": "npm run lint && npm run typecheck && npm run test",
+    "verify": "npm run lint && npm run typecheck && npm run test && npm run check:budgets",
     "verify:full": "npm run verify && npm run test:e2e && npm run supabase:test",
+    "check:budgets": "pnpm build && node scripts/ci/check-bundle-budget.mjs",
+    "storybook:ui": "pnpm --filter @icupa/ui storybook",
     "presupabase:test": "node scripts/ci/reset-supabase-test-db.mjs"
   },
   "dependencies": {
@@ -87,6 +96,8 @@
     "@radix-ui/react-tooltip": "^1.2.7",
     "@supabase/supabase-js": "^2.78.0",
     "@tanstack/react-query": "^5.83.0",
+    "i18next": "^23.11.5",
+    "i18next-browser-languagedetector": "^8.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -101,6 +112,8 @@
     "react": "^18.3.1",
     "react-day-picker": "^9.11.1",
     "react-dom": "^18.3.1",
+    "react-error-boundary": "^4.0.13",
+    "react-i18next": "^15.4.0",
     "react-hook-form": "^7.61.1",
     "react-resizable-panels": "^3.0.6",
     "react-router-dom": "^6.30.1",
@@ -115,20 +128,33 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@icupa/config": "workspace:*",
+    "@commitlint/cli": "^19.5.0",
+    "@commitlint/config-conventional": "^19.5.0",
     "@eslint/js": "^9.32.0",
+    "@axe-core/playwright": "^4.11.0",
     "@playwright/test": "^1.56.1",
     "@tailwindcss/typography": "^0.5.16",
     "@testing-library/jest-dom": "^6.8.0",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
+    "@storybook/addon-a11y": "^8.4.7",
+    "@storybook/addon-essentials": "^8.4.7",
+    "@storybook/addon-interactions": "^8.4.7",
+    "@storybook/blocks": "^8.4.7",
+    "@storybook/react-vite": "^8.4.7",
+    "@storybook/test-runner": "^0.19.1",
+    "@storybook/testing-library": "^0.2.2",
     "@types/node": "^24.9.2",
     "@types/react": "^18.3.23",
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react-swc": "^3.11.0",
     "autoprefixer": "^10.4.21",
+    "axe-playwright": "^2.1.0",
     "axe-core": "^4.10.3",
     "dotenv": "^16.6.1",
     "eslint": "^9.38.0",
+    "eslint-plugin-jsx-a11y": "^6.9.0",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^16.4.0",
@@ -138,12 +164,16 @@
     "postcss": "^8.5.6",
     "prettier": "^3.5.1",
     "supabase": "^2.53.6",
+    "@sentry/cli": "^2.37.0",
     "tailwindcss": "^3.4.17",
+    "storybook": "^8.4.7",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
     "vite": "^5.4.19",
+    "vite-plugin-pwa": "^0.20.5",
     "vitest": "^4.0.5",
-    "vitest-axe": "^0.1.0"
+    "vitest-axe": "^0.1.0",
+    "@tailwindcss/postcss": "^4.1.16"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,cjs,mjs}": [
@@ -155,6 +185,6 @@
     ]
   },
   "engines": {
-    "node": ">=18.18.0 || ^20.9.0 || >=21.1.0"
+    "node": ">=20.10.0 <21"
   }
 }

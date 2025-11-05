@@ -1,0 +1,173 @@
+global:
+  namespace: icupa
+  imagePullSecrets: []
+  config:
+    NEXT_PUBLIC_SUPABASE_URL: "https://supabase.example.com"
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: "replace-with-anon-key"
+    NEXT_PUBLIC_AGENTS_URL: "https://agents.example.com"
+    NEXT_PUBLIC_APP_URL: "https://app.example.com"
+  secrets:
+    OPENAI_API_KEY: "changeme"
+    SUPABASE_SERVICE_ROLE_KEY: "changeme"
+    SUPABASE_JWT_SECRET: "changeme"
+    MEILI_MASTER_KEY: "changeme"
+    REDIS_PASSWORD: "changeme"
+    MINIO_ROOT_USER: "minioadmin"
+    MINIO_ROOT_PASSWORD: "changeme"
+
+postgres:
+  enabled: true
+  storage: 10Gi
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 1
+      memory: 1Gi
+
+redis:
+  enabled: true
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+meilisearch:
+  enabled: true
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+mailhog:
+  enabled: true
+
+minio:
+  enabled: true
+  storage: 10Gi
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 1
+      memory: 1Gi
+
+apps:
+  - name: agents-service
+    image: ghcr.io/icupa/agents-service:latest
+    replicaCount: 2
+    containerPort: 8787
+    readinessPath: /health
+    livenessPath: /health
+    resources:
+      requests:
+        cpu: 250m
+        memory: 256Mi
+      limits:
+        cpu: 1
+        memory: 1Gi
+  - name: admin
+    image: ghcr.io/icupa/admin:latest
+    replicaCount: 2
+    containerPort: 3000
+    readinessPath: /
+    livenessPath: /
+    resources:
+      requests:
+        cpu: 250m
+        memory: 256Mi
+      limits:
+        cpu: 1
+        memory: 1Gi
+  - name: client
+    image: ghcr.io/icupa/client:latest
+    replicaCount: 3
+    containerPort: 3000
+    readinessPath: /
+    livenessPath: /
+    resources:
+      requests:
+        cpu: 300m
+        memory: 384Mi
+      limits:
+        cpu: 1
+        memory: 1Gi
+  - name: vendor
+    image: ghcr.io/icupa/vendor:latest
+    replicaCount: 2
+    containerPort: 3000
+    readinessPath: /
+    livenessPath: /
+    resources:
+      requests:
+        cpu: 250m
+        memory: 256Mi
+      limits:
+        cpu: 1
+        memory: 1Gi
+  - name: web
+    image: ghcr.io/icupa/web:latest
+    replicaCount: 2
+    containerPort: 3000
+    readinessPath: /
+    livenessPath: /
+    resources:
+      requests:
+        cpu: 250m
+        memory: 256Mi
+      limits:
+        cpu: 1
+        memory: 1Gi
+  - name: voice-agent
+    image: ghcr.io/icupa/voice-agent:latest
+    replicaCount: 2
+    containerPort: 8786
+    readinessPath: /ready
+    livenessPath: /health
+    resources:
+      requests:
+        cpu: 250m
+        memory: 256Mi
+      limits:
+        cpu: 1
+        memory: 1Gi
+    extraEnv:
+      - name: PORT
+        value: "8786"
+  - name: ocr-converter
+    image: ghcr.io/icupa/ocr-converter:latest
+    replicaCount: 1
+    containerPort: 8788
+    readinessPath: /health
+    livenessPath: /health
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+    extraEnv:
+      - name: PORT
+        value: "8788"
+  - name: ecotrips
+    image: ghcr.io/icupa/ecotrips:latest
+    replicaCount: 2
+    containerPort: 3000
+    readinessPath: /
+    livenessPath: /
+    resources:
+      requests:
+        cpu: 400m
+        memory: 512Mi
+      limits:
+        cpu: 1500m
+        memory: 2Gi

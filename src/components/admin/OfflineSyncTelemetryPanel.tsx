@@ -1,5 +1,5 @@
-import { Card } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Card } from "@icupa/ui/card";
+import { Skeleton } from "@icupa/ui/skeleton";
 import { useOfflineSyncTelemetry } from "@/hooks/useOfflineSyncTelemetry";
 import { useMerchantLocations } from "@/hooks/useMerchantLocations";
 import { formatDistanceToNow } from "date-fns";

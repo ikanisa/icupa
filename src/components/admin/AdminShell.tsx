@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Link } from "react-router-dom";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@icupa/ui/tabs";
+import { Card } from "@icupa/ui/card";
+import { Button } from "@icupa/ui/button";
+import { Skeleton } from "@icupa/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@icupa/ui/select";
+import { useTranslation } from "react-i18next";
 import { useAdminTenants } from "@/hooks/useAdminTenants";
 import { OnboardingWizard } from "@/components/admin/OnboardingWizard";
 import { AgentSettingsPanel } from "@/components/admin/AgentSettingsPanel";
@@ -13,6 +13,7 @@ import { AnalyticsOverview } from "@/components/admin/AnalyticsOverview";
 import { CompliancePanel } from "@/components/admin/CompliancePanel";
 import { PaymentRefundsPanel } from "@/components/admin/PaymentRefundsPanel";
 import { cn } from "@/lib/utils";
+import { PrefetchNavLink } from "@/components/common/PrefetchNavLink";
 
 const TABS = [
   { id: "onboarding", label: "Onboarding" },
@@ -22,6 +23,7 @@ const TABS = [
 ];
 
 export function AdminShell() {
+  const { t } = useTranslation();
   const { data: tenants, isLoading } = useAdminTenants();
   const [activeTab, setActiveTab] = useState<string>("onboarding");
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
@@ -91,9 +93,9 @@ export function AdminShell() {
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
         <header className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="text-sm uppercase tracking-widest text-white/70">Admin console</p>
-            <h1 className="mt-1 text-3xl font-semibold">ICUPA Operations Hub</h1>
-            <p className="text-sm text-white/70">Govern onboarding, AI levers, analytics, and compliance in one workspace.</p>
+            <p className="text-sm uppercase tracking-widest text-white/70">{t("navigation.adminConsole")}</p>
+            <h1 className="mt-1 text-3xl font-semibold">{t("app.title")}</h1>
+            <p className="text-sm text-white/70">{t("app.subtitle")}</p>
           </div>
           <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
             <Card className="glass-card w-full max-w-xs border border-white/10 bg-white/10 p-4">
@@ -119,7 +121,7 @@ export function AdminShell() {
               )}
             </Card>
             <Button asChild variant="outline" className="border-white/40 text-white hover:bg-white/20">
-              <Link to="/admin/tools/qr">QR tools</Link>
+              <PrefetchNavLink to="/admin/tools/qr">{t("navigation.qrTools")}</PrefetchNavLink>
             </Button>
           </div>
         </header>
