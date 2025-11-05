@@ -35,10 +35,8 @@
       "@icupa/types/primitives/*": ["./packages/types/src/primitives/*"],
       "@icupa/db": ["./packages/db/src"],
       "@icupa/db/*": ["./packages/db/src/*"],
-      "@icupa/db/primitives": ["./packages/db/src/primitives/index.ts"],
-      "@icupa/db/primitives/*": ["./packages/db/src/primitives/*"],
-      "@icupa/workers": ["./packages/workers/src"],
-      "@icupa/workers/*": ["./packages/workers/src/*"]
+      "@icupa/domain": ["./packages/domain/src"],
+      "@icupa/domain/*": ["./packages/domain/src/*"]
     }
   }
 }
