@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@icupa/ui/tabs";
+import { Card } from "@icupa/ui/card";
+import { Skeleton } from "@icupa/ui/skeleton";
+import { useTranslation } from "react-i18next";
 import { useMerchantLocations } from "@/hooks/useMerchantLocations";
 import { KDSBoard } from "@/components/merchant/KDSBoard";
 import { FloorPlanner } from "@/components/merchant/FloorPlanner";
@@ -21,6 +22,7 @@ const TABS = [
 ];
 
 export function MerchantShell() {
+  const { t } = useTranslation();
   const { data: locations, isLoading } = useMerchantLocations();
   const [activeTab, setActiveTab] = useState<string>("kds");
   const [locationId, setLocationId] = useState<string | null>(null);
@@ -40,11 +42,9 @@ export function MerchantShell() {
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
         <header className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="text-sm uppercase tracking-widest text-white/70">Merchant portal</p>
+            <p className="text-sm uppercase tracking-widest text-white/70">{t("navigation.merchantPortal")}</p>
             <h1 className="mt-1 text-3xl font-semibold">{activeLocation?.name ?? "Loading venues"}</h1>
-            <p className="text-sm text-white/70">
-              Manage pacing, service, and merchandising across your floor in real time.
-            </p>
+            <p className="text-sm text-white/70">{t("merchant.subtitle")}</p>
           </div>
           <Card className="glass-card w-full max-w-xs p-4">
             <p className="text-xs uppercase text-white/60">Location</p>

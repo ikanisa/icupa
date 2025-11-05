@@ -1,10 +1,10 @@
 import { memo } from "react";
 import { AlarmClock, Check, CookingPot, Loader2, TimerReset } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@icupa/ui/badge";
+import { Button } from "@icupa/ui/button";
+import { Card } from "@icupa/ui/card";
+import { Separator } from "@icupa/ui/separator";
+import { Skeleton } from "@icupa/ui/skeleton";
 import { formatPrepDuration, useKdsOrders, type KdsOrder, type OrderStatus } from "@/hooks/useKdsOrders";
 import type { MerchantLocation } from "@/hooks/useMerchantLocations";
 import { cn } from "@/lib/utils";

@@ -1,5 +1,5 @@
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@icupa/ui/button";
+import { ScrollArea } from "@icupa/ui/scroll-area";
 import type { MenuCategory } from "@/data/menu";
 
 interface CategoryFilterBarProps {

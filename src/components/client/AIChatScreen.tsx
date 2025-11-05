@@ -3,9 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle, Badge, useToast } from '@/mod
 import { z } from 'zod';
 import { AgentRunDetailsDialog, ChatComposer, ChatTranscript } from '@/modules/agents-ui';
 import { useAgentChat } from '@/modules/agents-ui';
-import type { AgentChatMessage, AgentFeedbackRating, AgentUpsellItem } from '@/types/agents';
+import type { AgentChatMessage, AgentFeedbackRating, AgentUpsellItem } from '@icupa/types/agents';
 import { parseAgentStreamEvent } from '@/lib/chat-stream';
-import { AgentMetadataSchema } from '@/lib/agent-schemas';
+import { AgentMetadataSchema } from '@icupa/types/agents';
 
 interface CartSnapshotItem {
   id: string;

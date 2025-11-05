@@ -1,9 +1,9 @@
 import { usePaymentRefunds, useRefundDecision } from "@/hooks/usePaymentRefunds";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/components/ui/use-toast";
+import { Card } from "@icupa/ui/card";
+import { Button } from "@icupa/ui/button";
+import { Skeleton } from "@icupa/ui/skeleton";
+import { Badge } from "@icupa/ui/badge";
+import { useToast } from "@icupa/ui/use-toast";
 
 export function PaymentRefundsPanel() {
   const { data, isLoading, isError } = usePaymentRefunds();

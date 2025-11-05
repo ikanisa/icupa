@@ -4,10 +4,10 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
+} from "@icupa/ui/dialog";
+import { Badge } from "@icupa/ui/badge";
+import { Button } from "@icupa/ui/button";
+import { ScrollArea } from "@icupa/ui/scroll-area";
 import { formatCurrency } from "@/lib/currency";
 import type { MenuItem } from "@/data/menu";
 import { Clock, Leaf, Flame } from "lucide-react";

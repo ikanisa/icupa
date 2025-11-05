@@ -1,8 +1,8 @@
 import { AgentAvatar, UserAvatar } from '@/components/ai/AgentAvatar';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Button } from '/ui/button';
+import { Card } from '/ui/card';
 import { cn } from '@/lib/utils';
-import type { AgentChatMessage, AgentFeedbackRating, AgentUpsellItem } from '@/types/agents';
+import type { AgentChatMessage, AgentFeedbackRating, AgentUpsellItem } from '@icupa/types/agents';
 import { Info, ThumbsUp, ThumbsDown, Loader2, ShoppingCart } from 'lucide-react';
 import { useMemo } from 'react';
 

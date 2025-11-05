@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
-import { Textarea } from '@/components/ui/textarea';
-import { Button } from '@/components/ui/button';
+import { Textarea } from '/ui/textarea';
+import { Button } from '/ui/button';
 import { Send } from 'lucide-react';
 import { ChatQuickReplies } from './ChatQuickReplies';
 

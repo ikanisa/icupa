@@ -4,15 +4,17 @@ Thanks for helping evolve the ICUPA platform. Before opening a pull request, ple
 
 ## 1. Environment
 
+- Use Node.js 20 (the repo ships an `.nvmrc` so `nvm use` will select the correct runtime).
+- Install dependencies with pnpm: `pnpm install`. Husky hooks are installed automatically via the `prepare` script.
 - Copy `.env.example` → `.env.local` and `agents-service/.env.example` → `agents-service/.env`.
 - Start the Supabase stack with `supabase start` and apply seed data via `supabase db reset` (or `supabase db push` + `supabase db seed` for existing instances).
-- Run `npm install` in the project root and `npm install` inside `agents-service/` if you are working on the agent runtime.
+- If you are iterating inside `agents-service/`, run `pnpm install --filter agents-service...` to ensure local deps are linked.
 
 ## 2. Coding standards
 
-- The repository uses the flat ESLint config in `eslint.config.js`.
-- Format TypeScript files with `npm run format` (which runs Prettier).
-- Lint and auto-fix issues with `npm run lint:fix`.
+- The repository uses shared presets exposed from `@icupa/config` (ESLint, Prettier, and TypeScript). Most packages simply re-export the shared config so keep local overrides minimal.
+- Format files with `pnpm format` (which runs Prettier with the shared preset).
+- Lint and auto-fix issues with `pnpm lint:fix`.
 - Keep changes additive unless you have explicit alignment with the project owners.
 - Prefer co-locating hooks, components, and tests inside their feature "module" folders (`apps/web/src/modules/…` once the refactor lands).
 
@@ -20,12 +22,12 @@ Thanks for helping evolve the ICUPA platform. Before opening a pull request, ple
 
 The repository uses Husky to enforce code quality checks before commits:
 
-- **Automatic linting and formatting**: The pre-commit hook runs `lint-staged`, which automatically:
+- **Automatic linting and formatting**: The pre-commit hook runs `pnpm lint-staged`, which automatically:
   - Runs ESLint with `--max-warnings=0` on staged TypeScript/JavaScript files
   - Runs Prettier on staged files (TypeScript, JavaScript, JSON, Markdown, CSS, etc.)
   - Formats code to match the repository's style guide (100-char line length, double quotes, etc.)
 
-- **Setup**: Husky hooks are automatically installed when you run `npm install`. The pre-commit hook is defined in `.husky/pre-commit`.
+- **Setup**: Husky hooks are automatically installed when you run `pnpm install`. The pre-commit hook is defined in `.husky/pre-commit`; commit messages are checked by `.husky/commit-msg` via Commitlint.
 
 - **Bypass (not recommended)**: If you need to bypass the pre-commit hook in exceptional cases, use `git commit --no-verify`, but be sure to fix any issues before opening a PR.
 
@@ -36,30 +38,30 @@ The repository uses Husky to enforce code quality checks before commits:
 Before you push or open a PR:
 
 ```bash
-# Lint, type-check, and run the Vitest suite
-npm run verify
+# Lint, type-check, and run package-level tests via Turborepo
+pnpm verify
 
 # Optional but encouraged
-npm run test:e2e           # Playwright journeys (requires browsers)
+pnpm test:e2e              # Playwright journeys (requires browsers)
 supabase db test           # SQL / RLS regression tests
 ```
 
 For agent-service changes, also run:
 
 ```bash
-npm run dev:agents         # starts the Fastify endpoint locally
-npm --prefix agents-service test
+pnpm dev:agents            # starts the Fastify endpoint locally
+pnpm --filter agents-service test
 ```
 
 ## 4. Commit hygiene
 
 - Keep commits focused; avoid bundling unrelated changes.
 - Reference Jira/Trello tickets (or the relevant GitHub issue) in the commit message body when applicable.
-- After rebasing, re-run `npm run verify` to ensure no regressions slipped in.
+- After rebasing, re-run `pnpm verify` to ensure no regressions slipped in.
 
 ## 5. Pull request checklist
 
-- [] Tests passing (`npm run verify`)
+- [] Tests passing (`pnpm verify`)
 - [] Supabase migration applied locally (when schema changes are present)
 - [] Relevant docs updated (`docs/` or README snippets)
 - [] Feature flags / kill switches accounted for if new functionality ships

@@ -1,11 +1,11 @@
 import { useMemo } from "react";
 import { Wand2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
+import { Badge } from "@icupa/ui/badge";
+import { Button } from "@icupa/ui/button";
+import { Card } from "@icupa/ui/card";
+import { Separator } from "@icupa/ui/separator";
+import { Skeleton } from "@icupa/ui/skeleton";
+import { Switch } from "@icupa/ui/switch";
 import { formatCurrency } from "@/lib/currency";
 import { cn } from "@/lib/utils";
 import { useMenuManager } from "@/hooks/useMenuManager";

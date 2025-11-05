@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@icupa/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { subscribeToClientEvents } from "@/lib/client-events";
 

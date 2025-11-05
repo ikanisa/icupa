@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { SkipNavLink } from "./SkipNavLink";
-import { Button } from "@/components/ui/button";
+import { Button } from "@icupa/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -9,11 +9,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@icupa/ui/dialog";
 import { ArrowLeft, Search, Filter, Loader2, ShieldCheck, CloudOff, AlertTriangle } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
+import { Input } from "@icupa/ui/input";
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@icupa/ui/select";
+import { Badge } from "@icupa/ui/badge";
 import { allergenOptions, dietaryTags, type MenuItem } from "@/data/menu";
 import { MenuFiltersSheet, type MenuFilters } from "./MenuFiltersSheet";
 import { MenuItemDrawer } from "./MenuItemDrawer";

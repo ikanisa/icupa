@@ -1,11 +1,11 @@
 import { FormEvent, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/components/ui/use-toast";
+import { Button } from "@icupa/ui/button";
+import { Card } from "@icupa/ui/card";
+import { Input } from "@icupa/ui/input";
+import { Label } from "@icupa/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@icupa/ui/select";
+import { useToast } from "@icupa/ui/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 
 interface OnboardingWizardProps {

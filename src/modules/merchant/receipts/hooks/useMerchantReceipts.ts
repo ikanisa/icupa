@@ -1,48 +1,70 @@
 import { useCallback, useMemo } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
+import { z } from "zod";
+import { createSupabaseDataAccess } from "@icupa/data-access";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@icupa/ui/use-toast";
 import { useSupabaseSessionHeaders } from "@/modules/supabase";
 import type { MerchantReceipt } from "../types";
 
 const RECEIPTS_QUERY_KEY = ["merchant-receipts"] as const;
 
-const mapReceiptRow = (row: Record<string, unknown>): MerchantReceipt => {
-  const payload = (row?.payload ?? {}) as Record<string, unknown>;
-  const summary =
-    typeof payload?.summary === "object" && payload.summary !== null
-      ? (payload.summary as Record<string, unknown>)
-      : null;
-  const integrationNotes =
-    typeof payload?.integration_notes === "object" && payload.integration_notes !== null
-      ? (payload.integration_notes as Record<string, unknown>)
-      : null;
+const receiptPayloadSchema = z
+  .object({
+    summary: z.record(z.any()).optional(),
+    integration_notes: z.record(z.any()).optional(),
+  })
+  .partial()
+  .passthrough()
+  .nullable()
+  .transform((value) => value ?? {});
+
+const receiptRowSchema = z.object({
+  id: z.union([z.string(), z.number()]).transform((value) => String(value)),
+  order_id: z.union([z.string(), z.number(), z.null()]).nullable().transform((value) => (value == null ? "" : String(value))),
+  fiscal_id: z.string().nullable(),
+  region: z.string().nullable(),
+  url: z.string().nullable(),
+  payload: receiptPayloadSchema,
+  created_at: z.string().nullable(),
+});
+
+type ReceiptRow = z.infer<typeof receiptRowSchema> & {
+  payload: {
+    summary?: Record<string, unknown>;
+    integration_notes?: Record<string, unknown>;
+  };
+};
+
+const mapReceiptRow = (row: ReceiptRow): MerchantReceipt => {
+  const summary = row.payload.summary ?? null;
+  const integrationNotes = row.payload.integration_notes ?? null;
 
   return {
-    id: String(row?.id ?? ""),
-    orderId: String(row?.order_id ?? ""),
+    id: row.id,
+    orderId: row.order_id,
     fiscalId:
-      typeof row?.fiscal_id === "string" && row.fiscal_id.length > 0
-        ? (row.fiscal_id as string)
+      typeof row.fiscal_id === "string" && row.fiscal_id.length > 0
+        ? row.fiscal_id
         : typeof summary?.fiscalId === "string"
         ? (summary.fiscalId as string)
         : null,
     region:
-      typeof row?.region === "string" && row.region.length > 0
-        ? (row.region as string)
+      typeof row.region === "string" && row.region.length > 0
+        ? row.region
         : typeof summary?.region === "string"
         ? (summary.region as string)
         : "",
     url:
-      typeof row?.url === "string" && row.url.length > 0
-        ? (row.url as string)
+      typeof row.url === "string" && row.url.length > 0
+        ? row.url
         : typeof summary?.url === "string"
         ? (summary.url as string)
         : null,
     createdAt:
-      typeof row?.created_at === "string"
-        ? (row.created_at as string)
+      typeof row.created_at === "string"
+        ? row.created_at
         : typeof summary?.issuedAtIso === "string"
         ? (summary.issuedAtIso as string)
         : null,
@@ -53,34 +75,38 @@ const mapReceiptRow = (row: Record<string, unknown>): MerchantReceipt => {
 
 export const useMerchantReceipts = () => {
   const sessionHeaders = useSupabaseSessionHeaders();
+  const dataAccess = useMemo(() => createSupabaseDataAccess(supabase), []);
 
   const query = useQuery({
     queryKey: RECEIPTS_QUERY_KEY,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("receipts")
-        .select("id, order_id, fiscal_id, region, url, payload, created_at")
-        .order("created_at", { ascending: false })
-        .limit(25);
+      const rows = await dataAccess.withValidation(
+        () =>
+          supabase
+            .from("receipts")
+            .select("id, order_id, fiscal_id, region, url, payload, created_at")
+            .order("created_at", { ascending: false })
+            .limit(25),
+        z.array(receiptRowSchema),
+        { message: "Unable to load merchant receipts" },
+      );
 
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      return (data ?? []).map((row) => mapReceiptRow(row as Record<string, unknown>));
+      return rows.map((row) => mapReceiptRow(row));
     },
     refetchInterval: 30_000,
   });
 
   const processMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.functions.invoke("receipts/process_queue", {
-        body: {},
-        headers: sessionHeaders,
-      });
-      if (error) {
-        throw new Error(error.message);
-      }
+      await dataAccess.withValidation(
+        () =>
+          supabase.functions.invoke("receipts/process_queue", {
+            body: {},
+            headers: sessionHeaders,
+          }),
+        z.unknown(),
+        { message: "Unable to process fiscal receipts" },
+      );
     },
     onSuccess: async () => {
       toast({
