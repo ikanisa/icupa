@@ -169,7 +169,8 @@
     "vite": "^5.4.19",
     "vite-plugin-pwa": "^0.20.5",
     "vitest": "^4.0.5",
-    "vitest-axe": "^0.1.0"
+    "vitest-axe": "^0.1.0",
+    "@tailwindcss/postcss": "^4.1.16"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,cjs,mjs}": [

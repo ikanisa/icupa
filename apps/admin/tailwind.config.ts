@@ -3,7 +3,7 @@ import { icupaTailwindPreset } from '@icupa/config/tailwind-preset';
 
 const config = {
   presets: [icupaTailwindPreset],
-  darkMode: 'class',
+  darkMode: ['class', '.dark'],
   content: [
     './app/**/*.{ts,tsx}',
     './components/**/*.{ts,tsx}',

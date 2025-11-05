@@ -2,7 +2,7 @@ import type { Config } from 'tailwindcss';
 
 export const icupaTailwindPreset = {
   content: [],
-  darkMode: 'class',
+  darkMode: ['class', '.dark'],
   theme: {
     extend: {
       colors: {

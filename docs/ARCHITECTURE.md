@@ -225,6 +225,13 @@ graph TB
     Agents --> Metrics
 ```
 
+### Admin Console Deployment
+
+- The admin console lives in `apps/admin` and builds with `pnpm --filter @icupa/admin build`, mirroring the Vercel production pipeline.
+- Production runtime executes `node .next/standalone/server.js` to satisfy the `output: "standalone"` Next.js configuration.
+- Secrets (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_AGENTS_URL`, `SUPABASE_SERVICE_ROLE_KEY`) are injected via Vercel environment management across development, preview, and production.
+- The public domain `https://admin.icupa.dev` is managed as a Vercel alias so governance tooling is reachable through a stable hostname. Deployment configuration details live in `deployments/admin/README.md`.【F:deployments/admin/README.md†L1-L63】
+
 ## Layer Architecture
 
 ICUPA follows a **clean architecture** pattern with clear separation of concerns:

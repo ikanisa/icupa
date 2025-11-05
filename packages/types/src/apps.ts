@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
-export const appRoleSchema = z.enum(['client', 'vendor', 'admin']).describe(
-  'Primary personas targeted by the ICUPA multi-PWA rollout.',
-);
+export const appRoleSchema = z
+  .enum(['client', 'vendor', 'admin'])
+  .describe('Primary personas targeted by the ICUPA multi-PWA rollout.');
 
 export type AppRole = z.infer<typeof appRoleSchema>;
 
