@@ -47,3 +47,7 @@ apps/ecotrips/app/src/env.ts.backup-before-nodeenv
 
 # ignore nodeenv backups
 *.before-nodeenv
+
+# Netlify build artifacts
+.netlify
+apps/*/.netlify
