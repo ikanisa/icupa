@@ -24,7 +24,6 @@
     "react-hook-form": "^7.53.0",
     "zod": "^3.24.2",
     "@sentry/nextjs": "^8.31.0",
-    "@vercel/otel": "^1.9.0",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.552.0",
     "recharts": "^2.15.4"
