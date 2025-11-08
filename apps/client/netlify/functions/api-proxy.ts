@@ -1,78 +1,99 @@
-import type { Handler, HandlerEvent, HandlerContext } from '@netlify/functions';
+import type { Handler } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 
-/**
- * Proxy API endpoint for secure Supabase operations
- * This allows server-side operations using the service role key
- */
-export const handler: Handler = async (event: HandlerEvent, context: HandlerContext) => {
-  // Only allow POST requests
-  if (event.httpMethod !== 'POST') {
-    return {
-      statusCode: 405,
-      body: JSON.stringify({ error: 'Method not allowed' }),
-    };
-  }
+export const handler: Handler = async (event, context) => {
+  const { path, httpMethod, headers, body } = event;
+  
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS'
+  };
 
-  const supabaseUrl = process.env.VITE_SUPABASE_URL;
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !supabaseServiceKey) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: 'Supabase configuration missing' }),
-    };
+  if (httpMethod === 'OPTIONS') {
+    return { statusCode: 204, headers: corsHeaders, body: '' };
   }
 
   try {
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabaseUrl = process.env.VITE_SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Missing Supabase configuration');
+    }
 
-    // Parse request body
-    const body = JSON.parse(event.body || '{}');
-    const { action, table, data, filters } = body;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    });
 
-    let result;
+    const authHeader = headers.authorization || headers.Authorization;
+    const token = authHeader?.replace('Bearer ', '');
 
-    // Handle different actions
-    switch (action) {
-      case 'select':
-        result = await supabase.from(table).select(data).match(filters || {});
+    if (token) {
+      const { data: { user }, error } = await supabase.auth.getUser(token);
+      if (error) {
+        return {
+          statusCode: 401,
+          headers: corsHeaders,
+          body: JSON.stringify({ error: 'Unauthorized' })
+        };
+      }
+    }
+
+    const pathSegments = path?.split('/').filter(Boolean) || [];
+    const resource = pathSegments[2];
+
+    switch (resource) {
+      case 'health':
+        return {
+          statusCode: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            status: 'healthy',
+            timestamp: new Date().toISOString(),
+            version: '1.0.0'
+          })
+        };
+
+      case 'orders':
+        if (httpMethod === 'GET') {
+          const { data, error } = await supabase
+            .from('orders')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+          if (error) throw error;
+
+          return {
+            statusCode: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+          };
+        }
         break;
-      case 'insert':
-        result = await supabase.from(table).insert(data);
-        break;
-      case 'update':
-        result = await supabase.from(table).update(data).match(filters);
-        break;
-      case 'delete':
-        result = await supabase.from(table).delete().match(filters);
-        break;
+
       default:
         return {
-          statusCode: 400,
-          body: JSON.stringify({ error: 'Invalid action' }),
+          statusCode: 404,
+          headers: corsHeaders,
+          body: JSON.stringify({ error: 'Not found' })
         };
     }
 
-    if (result.error) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: result.error.message }),
-      };
-    }
-
     return {
-      statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ data: result.data }),
+      statusCode: 405,
+      headers: corsHeaders,
+      body: JSON.stringify({ error: 'Method not allowed' })
     };
   } catch (error) {
-    console.error('API proxy error:', error);
+    console.error('Function error:', error);
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Internal server error' }),
+      headers: corsHeaders,
+      body: JSON.stringify({ 
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      })
     };
   }
 };
