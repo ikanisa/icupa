@@ -1,49 +1,35 @@
-# Netlify configuration for ICUPA Admin PWA
-
 [build]
   base = "apps/admin"
-  publish = "apps/admin/.next"
-  command = "cd ../.. && pnpm install && pnpm --filter @icupa/admin build"
+  publish = "dist"
+  command = "pnpm build:admin"
+  functions = "netlify/functions"
 
 [build.environment]
-  NODE_VERSION = "20.10.0"
-  NEXT_TELEMETRY_DISABLED = "1"
+  NODE_VERSION = "18.18.2"
+  PNPM_VERSION = "10.0.0"
 
-# Redirects for Next.js app
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+[[plugins]]
+  package = "@netlify/plugin-lighthouse"
 
-# Security headers for admin app (stricter than client)
 [[headers]]
   for = "/*"
   [headers.values]
     X-Frame-Options = "DENY"
-    X-Content-Type-Options = "nosniff"
     X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
-    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://o4505801113870336.ingest.us.sentry.io"
-    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
 
-# Service worker for PWA
 [[headers]]
-  for = "/sw.js"
+  for = "/assets/*"
   [headers.values]
-    Cache-Control = "public, max-age=0, must-revalidate"
-    Service-Worker-Allowed = "/"
+    Cache-Control = "public, max-age=31536000, immutable"
 
-# Manifest for PWA
-[[headers]]
-  for = "/manifest.json"
-  [headers.values]
-    Content-Type = "application/manifest+json"
-    Cache-Control = "public, max-age=86400"
-
-# Admin API routes with authentication
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
-  force = true
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

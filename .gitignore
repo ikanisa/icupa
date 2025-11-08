@@ -1,27 +1,42 @@
-# Logs
-logs
-*.log
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Testing
+coverage
+*.lcov
+.nyc_output
+
+# Production builds
+dist
+dist-ssr
+build
+out
+*.local
+
+# Netlify
+.netlify
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*.local
+
+# Debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
-
-# TypeScript build info
-*.tsbuildinfo
-
-# Phase 10 automation artefacts (preserve .gitkeep placeholders)
-artifacts/phase10/**
-!artifacts/phase10/**/.gitkeep
-
-# Editor directories and files
+# IDE
 .vscode/*
 !.vscode/extensions.json
+!.vscode/settings.json
 .idea
 .DS_Store
 *.suo
@@ -30,24 +45,27 @@ artifacts/phase10/**
 *.sln
 *.sw?
 
-# Environment variable files
-.env
-.env.*
-!.env.example
-.husky/_
+# Supabase
+**/supabase/.branches
+**/supabase/.temp
+.supabase
 
-# MCP agent configurations with secrets
-mcp/clients/*.local.json
-mcp/runtime/.env
-config/mcp.config.local.json
+# TypeScript
+*.tsbuildinfo
+tsconfig.tsbuildinfo
 
-# cleanup backup artifacts
-*.bak
-apps/ecotrips/app/src/env.ts.backup-before-nodeenv
+# Package managers
+.yarn
+.pnpm-store
 
-# ignore nodeenv backups
-*.before-nodeenv
+# Temporary files
+*.log
+tmp
+temp
+.tmp
+.cache
+.parcel-cache
 
-# Netlify build artifacts
-.netlify
-apps/*/.netlify
+# OS files
+Thumbs.db
+desktop.ini

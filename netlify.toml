@@ -1,30 +1,24 @@
-# Netlify monorepo configuration
-# This is the base configuration for the ICUPA monorepo
-# App-specific configurations are in apps/client/netlify.toml and apps/admin/netlify.toml
-
 [build]
   publish = "/"
-  command = "echo 'Build command specified in app-specific netlify.toml files'"
-  
-[build.environment]
-  NODE_VERSION = "20.10.0"
-  NPM_FLAGS = "--prefix=/dev/null"
+  command = "echo 'Build command specified in app-specific netlify.toml'"
 
-# Global headers for security
+[build.environment]
+  NODE_VERSION = "18.18.2"
+  NPM_VERSION = "10.2.0"
+  PNPM_VERSION = "10.0.0"
+  PNPM_FLAGS = "--shamefully-hoist"
+
+[[plugins]]
+  package = "@netlify/plugin-pnpm"
+
 [[headers]]
   for = "/*"
   [headers.values]
     X-Frame-Options = "DENY"
-    X-Content-Type-Options = "nosniff"
     X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
-    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
-
-# Cache static assets
-[[headers]]
-  for = "/assets/*"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
+    Content-Security-Policy = "default-src 'self' https://*.supabase.co; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none';"
 
 [[headers]]
   for = "/*.js"
@@ -33,5 +27,10 @@
 
 [[headers]]
   for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/assets/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
