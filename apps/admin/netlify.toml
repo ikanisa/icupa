@@ -9,12 +9,6 @@
   NODE_VERSION = "20.10.0"
   NEXT_TELEMETRY_DISABLED = "1"
 
-# Redirects for Next.js app
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-
 # Security headers for admin app (stricter than client)
 [[headers]]
   for = "/*"
@@ -47,3 +41,9 @@
   to = "/.netlify/functions/:splat"
   status = 200
   force = true
+
+# Redirects for Next.js app
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
