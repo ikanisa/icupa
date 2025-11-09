@@ -4,6 +4,7 @@ import {
   redeemVoucher,
   voidVoucher,
 } from "../../apps/supabase/functionsClient";
+import { performWebsearch } from "./websearch";
 
 /**
  * Central tool dispatcher that routes tool calls to their implementations
@@ -27,6 +28,9 @@ export async function callTool(name: string, args: any): Promise<string> {
         break;
       case "void_voucher":
         result = await voidVoucher(args);
+        break;
+      case "websearch_query":
+        result = await performWebsearch(args);
         break;
       default:
         throw new Error(`Unknown tool: ${name}`);

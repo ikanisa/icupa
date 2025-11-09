@@ -36,6 +36,11 @@ export const tools: ToolDef[] = [
     description: "Void an issued voucher by voucher ID (cannot void redeemed vouchers)",
     schema: toolSchemas.void_voucher,
   },
+  {
+    name: "websearch_query",
+    description: "Perform a compliant external websearch and return summarised results",
+    schema: toolSchemas.websearch_query,
+  },
 ];
 
 /**

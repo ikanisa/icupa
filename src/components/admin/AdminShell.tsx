@@ -14,6 +14,7 @@ import { CompliancePanel } from "@/components/admin/CompliancePanel";
 import { PaymentRefundsPanel } from "@/components/admin/PaymentRefundsPanel";
 import { cn } from "@/lib/utils";
 import { PrefetchNavLink } from "@/components/common/PrefetchNavLink";
+import { AgentPerformanceWidget, WebsearchInsightsWidget } from "@/components/admin/widgets";
 
 const TABS = [
   { id: "onboarding", label: "Onboarding" },
@@ -123,6 +124,9 @@ export function AdminShell() {
             <Button asChild variant="outline" className="border-white/40 text-white hover:bg-white/20">
               <PrefetchNavLink to="/admin/tools/qr">{t("navigation.qrTools")}</PrefetchNavLink>
             </Button>
+            <Button asChild variant="outline" className="border-white/40 text-white hover:bg-white/20">
+              <PrefetchNavLink to="/admin/agents">{t("navigation.adminAgents")}</PrefetchNavLink>
+            </Button>
           </div>
         </header>
 
@@ -165,6 +169,11 @@ export function AdminShell() {
             <PaymentRefundsPanel />
           </TabsContent>
         </Tabs>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <AgentPerformanceWidget tenant={activeTenant ?? null} />
+          <WebsearchInsightsWidget tenant={activeTenant ?? null} />
+        </div>
 
         <div className="grid gap-6 md:grid-cols-2">
           <Card className="glass-card border border-white/10 bg-white/10 p-6 text-white">

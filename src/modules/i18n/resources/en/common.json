@@ -18,6 +18,7 @@
   "navigation": {
     "adminConsole": "Admin console",
     "qrTools": "QR tools",
+    "adminAgents": "Agent operations",
     "merchantPortal": "Merchant portal",
     "merchantReceipts": "Receipts"
   },
