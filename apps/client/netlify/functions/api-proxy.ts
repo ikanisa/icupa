@@ -1,73 +1,87 @@
-import type { Handler } from '@netlify/functions';
-import { createClient } from '@supabase/supabase-js';
+import type { Handler } from "@netlify/functions";
+import { createClient } from "@supabase/supabase-js";
 
 export const handler: Handler = async (event, context) => {
   const { path, httpMethod, headers, body } = event;
-  
+
   const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS'
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
   };
 
-  if (httpMethod === 'OPTIONS') {
-    return { statusCode: 204, headers: corsHeaders, body: '' };
+  if (httpMethod === "OPTIONS") {
+    return { statusCode: 204, headers: corsHeaders, body: "" };
   }
 
   try {
     const supabaseUrl = process.env.VITE_SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    
+
     if (!supabaseUrl || !supabaseServiceKey) {
-      throw new Error('Missing Supabase configuration');
+      throw new Error("Missing Supabase configuration");
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: { autoRefreshToken: false, persistSession: false }
+      auth: { autoRefreshToken: false, persistSession: false },
     });
 
     const authHeader = headers.authorization || headers.Authorization;
-    const token = authHeader?.replace('Bearer ', '');
+    const token = authHeader?.replace("Bearer ", "");
 
-    if (token) {
-      const { data: { user }, error } = await supabase.auth.getUser(token);
-      if (error) {
-        return {
-          statusCode: 401,
-          headers: corsHeaders,
-          body: JSON.stringify({ error: 'Unauthorized' })
-        };
-      }
-    }
-
-    const pathSegments = path?.split('/').filter(Boolean) || [];
-    const resource = pathSegments[2];
+    const pathSegments = path?.split("/").filter(Boolean) || [];
+    const proxyIndex = pathSegments.indexOf("api-proxy");
+    const resource =
+      proxyIndex >= 0 && proxyIndex + 1 < pathSegments.length
+        ? pathSegments[proxyIndex + 1]
+        : pathSegments[pathSegments.length - 1];
 
     switch (resource) {
-      case 'health':
+      case "health":
         return {
           statusCode: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
           body: JSON.stringify({
-            status: 'healthy',
+            status: "healthy",
             timestamp: new Date().toISOString(),
-            version: '1.0.0'
-          })
+            version: "1.0.0",
+          }),
         };
 
-      case 'orders':
-        if (httpMethod === 'GET') {
+      case "orders":
+        if (httpMethod === "GET") {
+          if (!token) {
+            return {
+              statusCode: 401,
+              headers: corsHeaders,
+              body: JSON.stringify({ error: "Unauthorized" }),
+            };
+          }
+
+          const {
+            data: { user },
+            error: authError,
+          } = await supabase.auth.getUser(token);
+
+          if (authError || !user) {
+            return {
+              statusCode: 401,
+              headers: corsHeaders,
+              body: JSON.stringify({ error: "Unauthorized" }),
+            };
+          }
+
           const { data, error } = await supabase
-            .from('orders')
-            .select('*')
-            .order('created_at', { ascending: false });
+            .from("orders")
+            .select("*")
+            .order("created_at", { ascending: false });
 
           if (error) throw error;
 
           return {
             statusCode: 200,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            body: JSON.stringify(data),
           };
         }
         break;
@@ -76,24 +90,24 @@ export const handler: Handler = async (event, context) => {
         return {
           statusCode: 404,
           headers: corsHeaders,
-          body: JSON.stringify({ error: 'Not found' })
+          body: JSON.stringify({ error: "Not found" }),
         };
     }
 
     return {
       statusCode: 405,
       headers: corsHeaders,
-      body: JSON.stringify({ error: 'Method not allowed' })
+      body: JSON.stringify({ error: "Method not allowed" }),
     };
   } catch (error) {
-    console.error('Function error:', error);
+    console.error("Function error:", error);
     return {
       statusCode: 500,
       headers: corsHeaders,
-      body: JSON.stringify({ 
-        error: 'Internal server error',
-        message: error instanceof Error ? error.message : 'Unknown error'
-      })
+      body: JSON.stringify({
+        error: "Internal server error",
+        message: error instanceof Error ? error.message : "Unknown error",
+      }),
     };
   }
 };
