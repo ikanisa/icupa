@@ -8,6 +8,7 @@ import type { AppUserRole } from "@/modules/auth";
 const IndexPage = lazyWithPreload(() => import("@/modules/client/landing/ClientLandingPage"));
 const AdminConsolePage = lazyWithPreload(() => import("@/modules/admin/console/AdminConsolePage"));
 const AdminQrToolsPage = lazyWithPreload(() => import("@/modules/admin/qr-tools/AdminQrToolsPage"));
+const AdminAgentsPage = lazyWithPreload(() => import("@/modules/admin/agents/AgentManagementPage"));
 const MerchantPortalPage = lazyWithPreload(() => import("@/modules/merchant/portal/MerchantPortalPage"));
 const MerchantReceiptsPage = lazyWithPreload(() => import("@/modules/merchant/receipts/MerchantReceiptsPage"));
 const NotFoundPage = lazyWithPreload(() => import("@/modules/common/not-found/NotFoundPage"));
@@ -22,6 +23,7 @@ const routeConfig: RouteEntry[] = [
   { path: "/", Component: IndexPage },
   { path: "/admin", Component: AdminConsolePage, roles: ["admin"] },
   { path: "/admin/tools/qr", Component: AdminQrToolsPage, roles: ["admin"] },
+  { path: "/admin/agents", Component: AdminAgentsPage, roles: ["admin"] },
   { path: "/merchant", Component: MerchantPortalPage, roles: ["merchant", "admin"] },
   { path: "/merchant/receipts", Component: MerchantReceiptsPage, roles: ["merchant", "admin"] },
   { path: "*", Component: NotFoundPage },
