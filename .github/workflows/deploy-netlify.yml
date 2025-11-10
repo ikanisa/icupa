@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 env:
-  NODE_VERSION: '20.10.0'
+  NODE_VERSION: "20.10.0"
 
 jobs:
   # Build and deploy client app
@@ -17,8 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: ${{ github.ref == 'refs/heads/main' && 'production-client' || 'preview-client' }}
-      url: ${{ steps.deploy.outputs.deploy-url }}
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -32,7 +31,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
+          cache: "pnpm"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -48,10 +47,10 @@ jobs:
         id: deploy
         uses: nwtgck/actions-netlify@v3.0
         with:
-          publish-dir: './apps/client/.next'
+          publish-dir: "apps/client/dist"
           production-branch: main
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          deploy-message: 'Deploy from GitHub Actions - Client App'
+          deploy-message: "Deploy from GitHub Actions - Client App"
           enable-pull-request-comment: true
           enable-commit-comment: false
           overwrites-pull-request-comment: true
@@ -66,8 +65,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: ${{ github.ref == 'refs/heads/main' && 'production-admin' || 'preview-admin' }}
-      url: ${{ steps.deploy.outputs.deploy-url }}
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -81,7 +79,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
+          cache: "pnpm"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -97,10 +95,10 @@ jobs:
         id: deploy
         uses: nwtgck/actions-netlify@v3.0
         with:
-          publish-dir: './apps/admin/.next'
+          publish-dir: "apps/admin/dist"
           production-branch: main
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          deploy-message: 'Deploy from GitHub Actions - Admin App'
+          deploy-message: "Deploy from GitHub Actions - Admin App"
           enable-pull-request-comment: true
           enable-commit-comment: false
           overwrites-pull-request-comment: true
@@ -115,14 +113,15 @@ jobs:
     runs-on: ubuntu-latest
     needs: [deploy-client, deploy-admin]
     if: github.ref == 'refs/heads/main'
-    
+
     steps:
       - name: Check Client Health
         run: |
           echo "Checking client app health..."
           # Add health check logic here
-          
+
       - name: Check Admin Health
         run: |
           echo "Checking admin app health..."
           # Add health check logic here
+
