@@ -106,6 +106,8 @@ These issues existed before the refactoring and are unrelated to the deployment 
    # Manual deployment
    pnpm --filter @icupa/client build
    pnpm --filter @icupa/admin build
+   pnpm build:client
+   pnpm build:admin
    
    # Via CLI
    netlify deploy --prod --dir apps/client/.next

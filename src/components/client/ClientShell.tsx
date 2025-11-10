@@ -18,7 +18,7 @@ import { allergenOptions, dietaryTags, type MenuItem } from "@/data/menu";
 import { MenuFiltersSheet, type MenuFilters } from "./MenuFiltersSheet";
 import { MenuItemDrawer } from "./MenuItemDrawer";
 import { useTableSession } from "@/hooks/useTableSession";
-import { useCartStore, selectCartItems } from "@/stores/cart-store";
+import { useCartStore, selectCartItems, selectCartTotals } from "@/stores/cart-store";
 import { useInstallPrompt } from "@/hooks/useInstallPrompt";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { useMenuData } from "@/hooks/useMenuData";
@@ -31,6 +31,7 @@ import { useFilteredMenuItems } from "@/hooks/useFilteredMenuItems";
 import { CategoryFilterBar } from "./shell/CategoryFilterBar";
 import { ClientEngagementBanners } from "./shell/ClientEngagementBanners";
 import { ClientJourneyContent } from "./shell/ClientJourneyContent";
+import { ClientWidgetTray } from "./widgets/ClientWidgetTray";
 
 const DEFAULT_FILTERS: MenuFilters = {
   excludedAllergens: [],
@@ -80,6 +81,7 @@ export function ClientShell() {
   });
 
   const cartItems = useCartStore(selectCartItems);
+  const cartTotals = useCartStore(selectCartTotals);
   const addItemToCart = useCartStore.use.addItem();
   const updateCartQuantity = useCartStore.use.updateItemQuantity();
   const clearCart = useCartStore.use.clearCart();
@@ -258,6 +260,28 @@ export function ClientShell() {
     return lastChanged.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   }, [lastChanged]);
 
+  const itemCount = useMemo(
+    () => cartItems.reduce((sum, item) => sum + item.quantity, 0),
+    [cartItems],
+  );
+
+  const tableSessionLabel = useMemo(() => {
+    if (!tableSession) {
+      return "Not linked to a table";
+    }
+    const expiresAt = tableSession.expiresAt
+      ? new Date(tableSession.expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+      : null;
+    return expiresAt ? `Table ${tableSession.tableId} • Expires ${expiresAt}` : `Table ${tableSession.tableId}`;
+  }, [tableSession]);
+
+  const realtimeStatus: "connected" | "connecting" | "idle" =
+    tableSessionStatus === "ready"
+      ? "connected"
+      : tableSessionStatus === "linking"
+        ? "connecting"
+        : "idle";
+
   if (menuSource === "loading" || !selectedLocation) {
     return (
       <div className="min-h-screen bg-aurora flex items-center justify-center">
@@ -416,6 +440,18 @@ export function ClientShell() {
         </motion.header>
 
         <main id="main-content" className="flex-1 flex flex-col focus:outline-none" tabIndex={-1} role="main">
+          <ClientWidgetTray
+            currency={selectedLocation.currency}
+            locale={selectedLocation.locale}
+            subtotalCents={cartTotals.subtotalCents}
+            tipCents={cartTotals.tipCents}
+            itemCount={itemCount}
+            isOnline={isOnline}
+            offlineSinceLabel={offlineSinceLabel || null}
+            tableSessionLabel={tableSessionLabel}
+            realtimeStatus={realtimeStatus}
+          />
+
           <ClientEngagementBanners
             ageGateChoice={ageGateChoice}
             shouldShowInstallBanner={shouldShowInstallBanner}

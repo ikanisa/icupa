@@ -18,6 +18,7 @@
   "navigation": {
     "adminConsole": "Console admin",
     "qrTools": "Outils QR",
+    "adminAgents": "Agents IA",
     "merchantPortal": "Portail commerçant",
     "merchantReceipts": "Reçus"
   },

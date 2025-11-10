@@ -9,6 +9,12 @@
 [build.environment]
   NODE_VERSION = "18.18.2"
   NPM_FLAGS = "--prefix=/dev/null"
+  NPM_VERSION = "10.2.0"
+  PNPM_VERSION = "10.0.0"
+  PNPM_FLAGS = "--shamefully-hoist"
+
+[[plugins]]
+  package = "@netlify/plugin-pnpm"
 
 # Global headers for security
 [[headers]]
@@ -19,6 +25,7 @@
     X-XSS-Protection = "1; mode=block"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    Content-Security-Policy = "default-src 'self' https://*.supabase.co; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-ancestors 'none';"
 
 # Cache static assets
 [[headers]]
@@ -35,3 +42,4 @@
   for = "/*.css"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
+

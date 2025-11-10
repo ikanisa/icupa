@@ -131,6 +131,50 @@ on conflict (tenant_id, agent_type) do update set
   updated_by = excluded.updated_by,
   sync_pending = excluded.sync_pending;
 
+insert into public.agent_performance_snapshots (id, tenant_id, agent_type, time_window, success_rate, tool_success_rate, avg_latency_ms, avg_tokens, run_count, created_at)
+values
+  ('00000000-0000-4000-8000-00000000aa01', '00000000-0000-4000-8000-000000000001', 'waiter', '24h', 0.92, 0.88, 840, 14250, 128, now() - interval '1 day'),
+  ('00000000-0000-4000-8000-00000000aa02', '00000000-0000-4000-8000-000000000001', 'waiter', '24h', 0.95, 0.91, 780, 13840, 156, now()),
+  ('00000000-0000-4000-8000-00000000aa03', '00000000-0000-4000-8000-000000000002', 'promo_event', '24h', 0.84, 0.79, 1100, 10120, 64, now())
+on conflict (id) do update set
+  success_rate = excluded.success_rate,
+  tool_success_rate = excluded.tool_success_rate,
+  avg_latency_ms = excluded.avg_latency_ms,
+  avg_tokens = excluded.avg_tokens,
+  run_count = excluded.run_count,
+  created_at = excluded.created_at;
+
+insert into public.websearch_queries (id, tenant_id, agent_type, query, results, latency_ms, source, created_by, created_at)
+values
+  (
+    '00000000-0000-4000-8000-00000000bb01',
+    '00000000-0000-4000-8000-000000000001',
+    'waiter',
+    'latest rwanda food safety bulletin',
+    '[{"title":"Food Safety Bulletin","url":"https://example.com/bulletin","snippet":"Quarterly updates from RICA."}]'::jsonb,
+    620,
+    'duckduckgo',
+    null,
+    now() - interval '2 hours'
+  ),
+  (
+    '00000000-0000-4000-8000-00000000bb02',
+    '00000000-0000-4000-8000-000000000002',
+    'promo_event',
+    'malta tourism forecast 2025',
+    '[{"title":"Visit Malta tourism outlook","url":"https://example.com/tourism","snippet":"Inbound visits expected to grow 8%."}]'::jsonb,
+    710,
+    'duckduckgo',
+    null,
+    now() - interval '45 minutes'
+  )
+on conflict (id) do update set
+  query = excluded.query,
+  results = excluded.results,
+  latency_ms = excluded.latency_ms,
+  source = excluded.source,
+  created_at = excluded.created_at;
+
 insert into public.compliance_tasks (tenant_id, region, category, title, status, severity, due_at, details)
 values
   ('00000000-0000-4000-8000-000000000001', 'RW', 'fiscalisation', 'Validate EBM connectivity for lunch shift', 'in_progress', 'high', now() + interval '1 day', '{"sla_minutes":5,"last_success":"2024-03-18T10:00:00Z"}'::jsonb),

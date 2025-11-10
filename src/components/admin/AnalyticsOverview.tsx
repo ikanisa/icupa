@@ -7,6 +7,7 @@ import { Skeleton } from "@icupa/ui/skeleton";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@icupa/ui/chart";
 import { Line, LineChart, XAxis, YAxis, CartesianGrid } from "recharts";
 import { formatCurrency } from "@/lib/currency";
+import { buildTimeSeries } from "@/lib/chartkit";
 
 interface AnalyticsOverviewProps {
   tenantId: string | null;
@@ -38,17 +39,24 @@ export function AnalyticsOverview({ tenantId, currency }: AnalyticsOverviewProps
 
   const latest7d = useMemo(() => selectLatest(data, "7d"), [data]);
   const latest30d = useMemo(() => selectLatest(data, "30d"), [data]);
+  const locale = currency === "EUR" ? "en-MT" : "en-RW";
 
   const chartData = useMemo(() => {
-    return (data ?? [])
-      .slice()
-      .sort((a, b) => new Date(a.capturedAt).getTime() - new Date(b.capturedAt).getTime())
-      .map((snapshot) => ({
-        label: `${snapshot.timeWindow} • ${new Date(snapshot.capturedAt).toLocaleDateString()}`,
-        gmv: snapshot.gmvCents / 100,
-        attachRate: snapshot.attachRate * 100,
-      }));
-  }, [data]);
+    return buildTimeSeries(
+      (data ?? []).map((snapshot) => ({
+        capturedAt: snapshot.capturedAt,
+        timeWindow: snapshot.timeWindow,
+        value: snapshot.gmvCents / 100,
+      })),
+      {
+        currency,
+        locale,
+      },
+    ).map((entry) => ({
+      label: entry.label,
+      gmv: entry.value,
+    }));
+  }, [currency, data, locale]);
 
   if (!tenantId) {
     return <p className="text-sm text-white/70">Select a tenant to review analytics.</p>;
@@ -70,8 +78,6 @@ export function AnalyticsOverview({ tenantId, currency }: AnalyticsOverviewProps
   if (!data || data.length === 0) {
     return <p className="text-sm text-white/70">No analytics data recorded for this tenant yet.</p>;
   }
-
-  const locale = currency === "EUR" ? "en-MT" : "en-RW";
 
   return (
     <div className="grid gap-6">

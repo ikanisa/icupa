@@ -52,6 +52,7 @@ jobs:
         uses: nwtgck/actions-netlify@v3.0
         with:
           publish-dir: "apps/client/out"
+          publish-dir: "apps/client/dist"
           production-branch: main
           github-token: ${{ secrets.GITHUB_TOKEN }}
           deploy-message: "Deploy from GitHub Actions - Client App"
@@ -104,6 +105,7 @@ jobs:
         uses: nwtgck/actions-netlify@v3.0
         with:
           publish-dir: "apps/admin/out"
+          publish-dir: "apps/admin/dist"
           production-branch: main
           github-token: ${{ secrets.GITHUB_TOKEN }}
           deploy-message: "Deploy from GitHub Actions - Admin App"
@@ -132,3 +134,4 @@ jobs:
         run: |
           echo "Checking admin app health..."
           # Add health check logic here
+

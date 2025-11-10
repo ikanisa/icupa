@@ -45,6 +45,7 @@ icupa/
 4. Configure build settings:
    - **Build command**: `cd ../.. && pnpm install && pnpm --filter @icupa/client build`
    - **Publish directory**: `apps/client/out`
+   - **Build command**: `cd ../.. && pnpm install && pnpm build:client`
    - **Publish directory**: `apps/client/.next`
    - **Base directory**: `apps/client`
 5. Note the **Site ID** (needed for GitHub Actions)
@@ -54,6 +55,7 @@ icupa/
 Repeat the same process for the admin app:
 
 - **Build command**: `cd ../.. && pnpm install && pnpm --filter @icupa/admin build`
+- **Build command**: `cd ../.. && pnpm install && pnpm build:admin`
 - **Publish directory**: `apps/admin/.next`
 - **Base directory**: `apps/admin`
 - Note the **Site ID**
@@ -135,6 +137,13 @@ pnpm --filter @icupa/admin build
 
 # Deploy using Netlify CLI
 netlify deploy --prod --dir apps/client/out --site $NETLIFY_CLIENT_SITE_ID
+pnpm build:client
+
+# Build admin app
+pnpm build:admin
+
+# Deploy using Netlify CLI
+netlify deploy --prod --dir apps/client/.next --site $NETLIFY_CLIENT_SITE_ID
 netlify deploy --prod --dir apps/admin/.next --site $NETLIFY_ADMIN_SITE_ID
 ```
 
@@ -227,6 +236,12 @@ For staging environments:
 
 **Error**: `Build exceeded maximum allowed runtime`
 
+- **Solution**: Ensure `NODE_VERSION` is set in environment variables
+
+**Error**: `VITE_SUPABASE_URL is not defined`
+- **Solution**: Add environment variables in Netlify dashboard
+
+**Error**: `Build exceeded maximum allowed runtime`
 - **Solution**: Check build logs for unnecessary operations, consider splitting builds
 
 ### Runtime Errors
@@ -237,6 +252,9 @@ For staging environments:
 
 **Error**: `Service Worker registration failed`
 
+- **Solution**: Verify environment variables are correctly set and Supabase project is accessible
+
+**Error**: `Service Worker registration failed`
 - **Solution**: Check PWA configuration in vite.config.ts, ensure HTTPS is enabled
 
 ### Function Errors

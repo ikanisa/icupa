@@ -1,52 +1,180 @@
-name: Deploy Supabase Edge Functions
+name: Deploy to Netlify
 
 on:
-  workflow_dispatch:
-    inputs:
-      project_ref:
-        description: 'Supabase project ref (e.g., abcdefghijklmnop). If omitted, uses SUPABASE_PROJECT_REF secret.'
-        required: false
+  push:
+    branches: [main, develop]
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+env:
+  NODE_VERSION: '18.18.2'
+  PNPM_VERSION: '10.0.0'
 
 jobs:
-  deploy:
+  lint-and-test:
+    name: Lint and Test
     runs-on: ubuntu-latest
-    env:
-      PROJECT_REF: ${{ github.event.inputs.project_ref || secrets.SUPABASE_PROJECT_REF }}
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v4
         with:
-          node-version: 20.11.1
-          cache: 'npm'
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
       - name: Install dependencies
-        run: npm ci
-      - name: Install Supabase CLI
-        run: npm i -g supabase
-      - name: Set Supabase secrets
+        run: pnpm install --frozen-lockfile
+
+      - name: Check formatting
+        run: pnpm format:check
+
+      - name: Lint code
+        run: pnpm lint
+
+      - name: Type check
+        run: pnpm typecheck
+
+      - name: Run unit tests
+        run: pnpm test:coverage
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/lcov.info
+
+  build-and-deploy-client:
+    name: Build and Deploy Client
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared packages
+        run: pnpm run build:shared
+
+      - name: Build client app
+        run: pnpm --filter @icupa/client build
         env:
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OCR_CONVERTER_URL: ${{ secrets.OCR_CONVERTER_URL }}
-          OCR_CONVERTER_TOKEN: ${{ secrets.OCR_CONVERTER_TOKEN }}
-          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
-          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
-          MOMO_WEBHOOK_HMAC_SECRET: ${{ secrets.MOMO_WEBHOOK_HMAC_SECRET }}
-          AIRTEL_WEBHOOK_HMAC_SECRET: ${{ secrets.AIRTEL_WEBHOOK_HMAC_SECRET }}
-          CLERK_JWKS_URL: ${{ secrets.CLERK_JWKS_URL }}
-          CLERK_ISSUER: ${{ secrets.CLERK_ISSUER }}
-        run: |
-          ./scripts/supabase/set-secrets.sh --project ${PROJECT_REF} --env-file <(cat << 'EOF'
-          SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
-          OPENAI_API_KEY=${OPENAI_API_KEY}
-          OCR_CONVERTER_URL=${OCR_CONVERTER_URL}
-          OCR_CONVERTER_TOKEN=${OCR_CONVERTER_TOKEN}
-          STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
-          STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
-          MOMO_WEBHOOK_HMAC_SECRET=${MOMO_WEBHOOK_HMAC_SECRET}
-          AIRTEL_WEBHOOK_HMAC_SECRET=${AIRTEL_WEBHOOK_HMAC_SECRET}
-          CLERK_JWKS_URL=${CLERK_JWKS_URL}
-          CLERK_ISSUER=${CLERK_ISSUER}
-          EOF
-          )
-      - name: Deploy functions
-        run: ./scripts/supabase/deploy-functions.sh --project ${PROJECT_REF}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_APP_VERSION: ${{ github.sha }}
+          NODE_ENV: production
+
+      - name: Deploy to Netlify
+        uses: nwtgck/actions-netlify@v3
+        with:
+          publish-dir: './apps/client/dist'
+          production-branch: main
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          deploy-message: "Deploy from GitHub Actions - Client"
+          enable-pull-request-comment: true
+          enable-commit-comment: true
+          overwrites-pull-request-comment: true
+          alias: pr-${{ github.event.pull_request.number }}-client
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_CLIENT_SITE_ID }}
+        timeout-minutes: 5
+
+  build-and-deploy-admin:
+    name: Build and Deploy Admin
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared packages
+        run: pnpm run build:shared
+
+      - name: Build admin app
+        run: pnpm --filter @icupa/admin build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_APP_VERSION: ${{ github.sha }}
+          NODE_ENV: production
+
+      - name: Deploy to Netlify
+        uses: nwtgck/actions-netlify@v3
+        with:
+          publish-dir: './apps/admin/dist'
+          production-branch: main
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          deploy-message: "Deploy from GitHub Actions - Admin"
+          enable-pull-request-comment: true
+          enable-commit-comment: true
+          overwrites-pull-request-comment: true
+          alias: pr-${{ github.event.pull_request.number }}-admin
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_ADMIN_SITE_ID }}
+        timeout-minutes: 5
+
+  e2e-tests:
+    name: E2E Tests
+    needs: [build-and-deploy-client, build-and-deploy-admin]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright
+        run: pnpm exec playwright install --with-deps
+
+      - name: Run E2E tests
+        run: pnpm test:e2e
+        env:
+          PLAYWRIGHT_BASE_URL: https://pr-${{ github.event.pull_request.number }}-client.netlify.app
+          PLAYWRIGHT_ADMIN_URL: https://pr-${{ github.event.pull_request.number }}-admin.netlify.app
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

@@ -26,6 +26,7 @@ type TableConfig = {
 };
 
 type AllowlistConfig = Record<string, TableConfig>;
+type Allowlist = Record<string, Set<ProxyAction>>;
 
 type ProxyRequestBody = {
   action: ProxyAction;
@@ -109,6 +110,7 @@ const parseAllowlist = (rawConfig: string | undefined): Allowlist => {
 
       const { actions, allowedColumns, allowedFilterColumns, allowedFilterOperators } = config;
 
+    return Object.entries(parsed).reduce<Allowlist>((acc, [table, actions]) => {
       if (!Array.isArray(actions)) {
         return acc;
       }
@@ -270,6 +272,9 @@ const parseColumnAllowlist = (rawConfig: string | undefined): ColumnAllowlist =>
 
       if (allowedColumns.length > 0) {
         acc[normalizedTable] = new Set(allowedColumns);
+
+      if (allowedActions.length > 0) {
+        acc[normalizedTable] = new Set(allowedActions);
       }
 
       return acc;
@@ -277,6 +282,7 @@ const parseColumnAllowlist = (rawConfig: string | undefined): ColumnAllowlist =>
   } catch (error) {
     console.error("Failed to parse SUPABASE_PROXY_COLUMN_ALLOWLIST:", error);
     console.error('Failed to parse SUPABASE_PROXY_COLUMN_ALLOWLIST:', error);
+    console.error("Failed to parse SUPABASE_PROXY_TABLE_ALLOWLIST:", error);
     return {};
   }
 };
@@ -879,6 +885,9 @@ const logProxyOperation = (
  * - Primitive-only filter values (no complex operations)
  * - Rate limiting per user
  * - Audit logging of all operations
+/**
+ * Proxy API endpoint for secure Supabase operations
+ * This allows server-side operations using the service role key
  */
 export const handler: Handler = async (event: HandlerEvent, _context: HandlerContext) => {
   if (event.httpMethod !== "POST") {
@@ -951,6 +960,8 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
     const normalizedTable = table.trim();
     const tableConfig = allowlist[normalizedTable];
     if (!tableConfig || !tableConfig.actions.has(action)) {
+    const allowedActions = allowlist[normalizedTable];
+    if (!allowedActions || !allowedActions.has(action)) {
       return {
         statusCode: 403,
         body: JSON.stringify({ error: "Operation not allowed for this table" }),
@@ -1158,6 +1169,8 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
           ipAddress: event.headers['x-forwarded-for'] || event.headers['x-real-ip'],
         });
         auditLog(userId!, userEmail, body.action, body.table, body.filters, false, 'Forbidden: User lacks required role');
+      const hasAllowedRole = [...userRoles].some((role) => allowedRoles.has(role));
+      if (!hasAllowedRole) {
         return {
           statusCode: 403,
           body: JSON.stringify({ error: "Forbidden" }),
