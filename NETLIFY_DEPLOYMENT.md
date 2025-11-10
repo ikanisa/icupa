@@ -45,6 +45,7 @@ icupa/
 4. Configure build settings:
    - **Build command**: `cd ../.. && pnpm install && pnpm --filter @icupa/client build`
    - **Publish directory**: `apps/client/out`
+   - **Publish directory**: `apps/client/.next`
    - **Base directory**: `apps/client`
 5. Note the **Site ID** (needed for GitHub Actions)
 
