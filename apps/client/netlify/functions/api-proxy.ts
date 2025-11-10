@@ -7,6 +7,8 @@ type Allowlist = Record<string, Set<ProxyAction>>;
 
 type ColumnAllowlist = Record<string, Set<string>>;
 
+type FilterOperator = 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'like' | 'ilike' | 'is' | 'in' | 'cs' | 'cd';
+
 type ProxyRequestBody = {
   action: ProxyAction;
   table: string;
@@ -15,12 +17,34 @@ type ProxyRequestBody = {
   filters?: Record<string, unknown>;
 };
 
+type AuditLogEntry = {
+  timestamp: string;
+  userId: string;
+  userRoles: string[];
+  action: ProxyAction;
+  table: string;
+  filters?: Record<string, unknown>;
+  success: boolean;
+  error?: string;
+  ipAddress?: string;
+type RateLimitEntry = {
+  count: number;
+  resetAt: number;
+};
+
 const DEFAULT_ALLOWED_ROLES = new Set(
   (process.env.SUPABASE_PROXY_ALLOWED_ROLES ?? 'ops,admin')
     .split(',')
     .map((role) => role.trim().toLowerCase())
     .filter(Boolean),
 );
+
+// Rate limiting configuration (requests per minute per user)
+const RATE_LIMIT_REQUESTS = parseInt(process.env.SUPABASE_PROXY_RATE_LIMIT ?? '60', 10);
+const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
+
+// In-memory rate limit store (consider using Redis for production multi-instance deployments)
+const rateLimitStore = new Map<string, RateLimitEntry>();
 
 const parseAllowlist = (rawConfig: string | undefined): Allowlist => {
   if (!rawConfig) {
@@ -100,6 +124,33 @@ const validateFilters = (
   for (const key of Object.keys(filters)) {
     if (!allowedColumns.has(key)) {
       return { valid: false, error: `Filter column not allowed: ${key}` };
+const ALLOWED_FILTER_OPERATORS = new Set<FilterOperator>([
+  'eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'like', 'ilike', 'is', 'in', 'cs', 'cd'
+]);
+
+const validateFilterKeys = (
+  filters: Record<string, unknown>,
+  allowedColumns: Set<string> | undefined
+): { valid: boolean; error?: string } => {
+  if (!allowedColumns || allowedColumns.size === 0) {
+    // If no column allowlist is configured, reject all filter operations for security
+    return { valid: false, error: 'Column allowlist not configured for this table' };
+  }
+
+  for (const key of Object.keys(filters)) {
+    // Check if the key is a simple column name or uses an operator suffix
+    const columnName = key.split('.')[0];
+    
+    if (!allowedColumns.has(columnName)) {
+      return { valid: false, error: `Filter column '${columnName}' is not allowed` };
+    }
+
+    // If the key contains a dot, validate the operator
+    if (key.includes('.')) {
+      const operator = key.split('.')[1] as FilterOperator;
+      if (!ALLOWED_FILTER_OPERATORS.has(operator)) {
+        return { valid: false, error: `Filter operator '${operator}' is not allowed` };
+      }
     }
   }
 
@@ -147,6 +198,44 @@ const checkRateLimit = (userId: string): { allowed: boolean; error?: string } =>
 
   userLimit.count += 1;
   return { allowed: true };
+const auditLog = (entry: AuditLogEntry): void => {
+  // Log audit entries for security monitoring
+  const logMessage = JSON.stringify({
+    ...entry,
+    timestamp: new Date().toISOString(),
+  });
+  
+  if (entry.success) {
+    console.log('[AUDIT]', logMessage);
+  } else {
+    console.error('[AUDIT]', logMessage);
+  }
+};
+
+// Simple in-memory rate limiter (for production, use Redis or similar)
+const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
+
+const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = parseInt(process.env.SUPABASE_PROXY_RATE_LIMIT || '60', 10);
+
+const checkRateLimit = (userId: string): { allowed: boolean; remaining: number } => {
+  const now = Date.now();
+  const userLimit = rateLimitStore.get(userId);
+
+  if (!userLimit || now > userLimit.resetTime) {
+    rateLimitStore.set(userId, {
+      count: 1,
+      resetTime: now + RATE_LIMIT_WINDOW_MS,
+    });
+    return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - 1 };
+  }
+
+  if (userLimit.count >= RATE_LIMIT_MAX_REQUESTS) {
+    return { allowed: false, remaining: 0 };
+  }
+
+  userLimit.count += 1;
+  return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - userLimit.count };
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {
@@ -165,6 +254,102 @@ const normalizeRoles = (roles: unknown): string[] => {
   }
 
   return [];
+};
+
+/**
+ * Check rate limit for a user
+ * Returns true if rate limit is exceeded
+ */
+const checkRateLimit = (userId: string): boolean => {
+  const now = Date.now();
+  const entry = rateLimitStore.get(userId);
+
+  // Clean up expired entries periodically
+  if (Math.random() < 0.01) { // 1% chance
+    for (const [key, value] of rateLimitStore.entries()) {
+      if (value.resetAt < now) {
+        rateLimitStore.delete(key);
+      }
+    }
+  }
+
+  if (!entry || entry.resetAt < now) {
+    rateLimitStore.set(userId, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return false;
+  }
+
+  if (entry.count >= RATE_LIMIT_REQUESTS) {
+    return true;
+  }
+
+  entry.count += 1;
+  return false;
+};
+
+/**
+ * Validate filter keys against column allowlist
+ * Returns an error message if validation fails, undefined otherwise
+ */
+const validateFilters = (
+  filters: Record<string, unknown> | undefined,
+  table: string,
+  columnAllowlist: ColumnAllowlist,
+): string | undefined => {
+  if (!filters || Object.keys(filters).length === 0) {
+    return undefined;
+  }
+
+  const allowedColumns = columnAllowlist[table];
+  
+  // If no column allowlist is defined for this table, reject all filters for security
+  if (!allowedColumns || allowedColumns.size === 0) {
+    return 'Filter columns not configured for this table. Contact administrator.';
+  }
+
+  // Validate each filter key
+  for (const key of Object.keys(filters)) {
+    if (!allowedColumns.has(key)) {
+      return `Filter column '${key}' is not allowed for this table`;
+    }
+
+    const value = filters[key];
+    
+    // Only allow simple filter values (strings, numbers, booleans, null)
+    // Reject objects/arrays which could be used for complex queries
+    if (value !== null && typeof value === 'object') {
+      return `Complex filter operations are not allowed. Use simple equality filters only.`;
+    }
+  }
+
+  return undefined;
+};
+
+/**
+ * Audit log for proxy operations
+ */
+const auditLog = (
+  userId: string,
+  userEmail: string | undefined,
+  action: ProxyAction,
+  table: string,
+  filters: Record<string, unknown> | undefined,
+  success: boolean,
+  errorMessage?: string,
+): void => {
+  const timestamp = new Date().toISOString();
+  const logEntry = {
+    timestamp,
+    userId,
+    userEmail: userEmail ?? 'unknown',
+    action,
+    table,
+    filters: filters ? JSON.stringify(filters) : 'none',
+    success,
+    errorMessage,
+  };
+  
+  // Log to console (in production, consider sending to a logging service)
+  console.log('[AUDIT] Supabase Proxy:', JSON.stringify(logEntry));
 };
 
 /**
@@ -303,6 +488,9 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
     };
   }
 
+  let userId: string | undefined;
+  let userEmail: string | undefined;
+
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
@@ -319,6 +507,9 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
       };
     }
 
+    userId = userData.user.id;
+    userEmail = userData.user.email;
+
     const userRoles = new Set<string>([
       ...normalizeRoles(userData.user.app_metadata?.roles),
       ...normalizeRoles(userData.user.user_metadata?.roles),
@@ -326,9 +517,21 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
 
     const allowedRoles = DEFAULT_ALLOWED_ROLES;
     if (allowedRoles.size > 0) {
-      const hasAllowedRole = [...userRoles].some((role) => allowedRoles.has(role));
+      const hasAllowedRole = Array.from(userRoles).some((role) => allowedRoles.has(role));
       if (!hasAllowedRole) {
         logProxyOperation(body.action, body.table, userData.user.id, [...userRoles], false, 'User does not have required role');
+        auditLog({
+          timestamp: new Date().toISOString(),
+          userId: userData.user.id,
+          userRoles: Array.from(userRoles),
+          action: body.action,
+          table: body.table,
+          filters: body.filters,
+          success: false,
+          error: 'Forbidden - user does not have required role',
+          ipAddress: event.headers['x-forwarded-for'] || event.headers['x-real-ip'],
+        });
+        auditLog(userId!, userEmail, body.action, body.table, body.filters, false, 'Forbidden: User lacks required role');
         return {
           statusCode: 403,
           body: JSON.stringify({ error: 'Forbidden' }),
@@ -343,6 +546,65 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
       return {
         statusCode: 429,
         body: JSON.stringify({ error: rateLimitCheck.error }),
+    // Rate limiting check
+    const rateLimitResult = checkRateLimit(userData.user.id);
+    if (!rateLimitResult.allowed) {
+      auditLog({
+        timestamp: new Date().toISOString(),
+        userId: userData.user.id,
+        userRoles: Array.from(userRoles),
+        action: body.action,
+        table: body.table,
+        filters: body.filters,
+        success: false,
+        error: 'Rate limit exceeded',
+        ipAddress: event.headers['x-forwarded-for'] || event.headers['x-real-ip'],
+      });
+      return {
+        statusCode: 429,
+        headers: {
+          'X-RateLimit-Limit': RATE_LIMIT_MAX_REQUESTS.toString(),
+          'X-RateLimit-Remaining': '0',
+    if (checkRateLimit(userId!)) {
+      auditLog(userId!, userEmail, body.action, body.table, body.filters, false, 'Rate limit exceeded');
+      return {
+        statusCode: 429,
+        headers: {
+          'Retry-After': '60',
+        },
+        body: JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
+      };
+    }
+
+    // Validate filter columns if filters are provided
+    if (body.filters && Object.keys(body.filters).length > 0) {
+      const allowedColumns = columnAllowlist[body.table];
+      const filterValidation = validateFilterKeys(body.filters, allowedColumns);
+      
+      if (!filterValidation.valid) {
+        auditLog({
+          timestamp: new Date().toISOString(),
+          userId: userData.user.id,
+          userRoles: Array.from(userRoles),
+          action: body.action,
+          table: body.table,
+          filters: body.filters,
+          success: false,
+          error: filterValidation.error,
+          ipAddress: event.headers['x-forwarded-for'] || event.headers['x-real-ip'],
+        });
+        return {
+          statusCode: 400,
+          body: JSON.stringify({ error: filterValidation.error }),
+        };
+      }
+    // Validate filters against column allowlist
+    const filterError = validateFilters(body.filters, body.table, columnAllowlist);
+    if (filterError) {
+      auditLog(userId!, userEmail, body.action, body.table, body.filters, false, filterError);
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: filterError }),
       };
     }
 
@@ -382,6 +644,18 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
     if (result.error) {
       console.error('Supabase proxy error:', result.error);
       logProxyOperation(body.action, body.table, userData.user.id, [...userRoles], false, result.error.message);
+      auditLog({
+        timestamp: new Date().toISOString(),
+        userId: userData.user.id,
+        userRoles: Array.from(userRoles),
+        action: body.action,
+        table: body.table,
+        filters: body.filters,
+        success: false,
+        error: result.error.message,
+        ipAddress: event.headers['x-forwarded-for'] || event.headers['x-real-ip'],
+      });
+      auditLog(userId!, userEmail, body.action, body.table, body.filters, false, result.error.message);
       return {
         statusCode: result.status ?? 400,
         body: JSON.stringify({ error: result.error.message }),
@@ -390,11 +664,24 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
 
     // Log successful operation
     logProxyOperation(body.action, body.table, userData.user.id, [...userRoles], true);
+    auditLog({
+      timestamp: new Date().toISOString(),
+      userId: userData.user.id,
+      userRoles: Array.from(userRoles),
+      action: body.action,
+      table: body.table,
+      filters: body.filters,
+      success: true,
+      ipAddress: event.headers['x-forwarded-for'] || event.headers['x-real-ip'],
+    });
+    auditLog(userId!, userEmail, body.action, body.table, body.filters, true);
 
     return {
       statusCode: 200,
       headers: {
         'Content-Type': 'application/json',
+        'X-RateLimit-Limit': RATE_LIMIT_MAX_REQUESTS.toString(),
+        'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
       },
       body: JSON.stringify({ data: result.data }),
     };
@@ -420,6 +707,9 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
       } catch {
         // Ignore logging errors
       }
+    // Try to log the error if we have user data
+    if (body && userId) {
+      auditLog(userId, userEmail, body.action, body.table, body.filters, false, error instanceof Error ? error.message : 'Unknown error');
     }
     return {
       statusCode: 500,
