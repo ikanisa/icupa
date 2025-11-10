@@ -43,7 +43,7 @@ icupa/
 2. Click "Add new site" → "Import an existing project"
 3. Connect to GitHub and select the `icupa` repository
 4. Configure build settings:
-   - **Build command**: `cd ../.. && pnpm install && pnpm build:client`
+   - **Build command**: `cd ../.. && pnpm install && pnpm --filter @icupa/client build`
    - **Publish directory**: `apps/client/.next`
    - **Base directory**: `apps/client`
 5. Note the **Site ID** (needed for GitHub Actions)
@@ -51,7 +51,7 @@ icupa/
 ### 1.2 Admin App
 
 Repeat the same process for the admin app:
-- **Build command**: `cd ../.. && pnpm install && pnpm build:admin`
+- **Build command**: `cd ../.. && pnpm install && pnpm --filter @icupa/admin build`
 - **Publish directory**: `apps/admin/.next`
 - **Base directory**: `apps/admin`
 - Note the **Site ID**
