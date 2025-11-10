@@ -112,6 +112,18 @@ const parseColumnAllowlist = (rawConfig: string | undefined): ColumnAllowlist =>
   }
 };
 
+const validateFilters = (
+  filters: Record<string, unknown>,
+  allowedColumns: Set<string> | undefined,
+  tableName: string,
+): { valid: boolean; error?: string } => {
+  if (!allowedColumns) {
+    return { valid: false, error: `No column allowlist configured for table: ${tableName}` };
+  }
+
+  for (const key of Object.keys(filters)) {
+    if (!allowedColumns.has(key)) {
+      return { valid: false, error: `Filter column not allowed: ${key}` };
 const ALLOWED_FILTER_OPERATORS = new Set<FilterOperator>([
   'eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'like', 'ilike', 'is', 'in', 'cs', 'cd'
 ]);
@@ -145,6 +157,47 @@ const validateFilterKeys = (
   return { valid: true };
 };
 
+const logProxyOperation = (
+  operation: string,
+  table: string,
+  userId: string,
+  userRoles: string[],
+  success: boolean,
+  error?: string,
+): void => {
+  const logEntry = {
+    timestamp: new Date().toISOString(),
+    operation,
+    table,
+    userId,
+    userRoles,
+    success,
+    error,
+  };
+  console.log('[PROXY_AUDIT]', JSON.stringify(logEntry));
+};
+
+// Simple in-memory rate limiter (for serverless, consider using Redis/KV in production)
+const rateLimiter = new Map<string, { count: number; resetTime: number }>();
+
+const checkRateLimit = (userId: string): { allowed: boolean; error?: string } => {
+  const rateLimitWindow = 60000; // 1 minute window
+  const maxRequests = parseInt(process.env.SUPABASE_PROXY_RATE_LIMIT ?? '100', 10);
+
+  const now = Date.now();
+  const userLimit = rateLimiter.get(userId);
+
+  if (!userLimit || userLimit.resetTime < now) {
+    rateLimiter.set(userId, { count: 1, resetTime: now + rateLimitWindow });
+    return { allowed: true };
+  }
+
+  if (userLimit.count >= maxRequests) {
+    return { allowed: false, error: 'Rate limit exceeded. Please try again later.' };
+  }
+
+  userLimit.count += 1;
+  return { allowed: true };
 const auditLog = (entry: AuditLogEntry): void => {
   // Log audit entries for security monitoring
   const logMessage = JSON.stringify({
@@ -415,6 +468,17 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
       };
     }
 
+    // Validate filters against column allowlist
+    if (payload.filters && Object.keys(payload.filters).length > 0) {
+      const filterValidation = validateFilters(payload.filters, columnAllowlist[normalizedTable], normalizedTable);
+      if (!filterValidation.valid) {
+        return {
+          statusCode: 403,
+          body: JSON.stringify({ error: filterValidation.error }),
+        };
+      }
+    }
+
     body = payload;
   } catch (error) {
     console.error('Failed to parse request body:', error);
@@ -455,6 +519,7 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
     if (allowedRoles.size > 0) {
       const hasAllowedRole = Array.from(userRoles).some((role) => allowedRoles.has(role));
       if (!hasAllowedRole) {
+        logProxyOperation(body.action, body.table, userData.user.id, [...userRoles], false, 'User does not have required role');
         auditLog({
           timestamp: new Date().toISOString(),
           userId: userData.user.id,
@@ -474,6 +539,13 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
       }
     }
 
+    // Apply rate limiting
+    const rateLimitCheck = checkRateLimit(userData.user.id);
+    if (!rateLimitCheck.allowed) {
+      logProxyOperation(body.action, body.table, userData.user.id, [...userRoles], false, rateLimitCheck.error);
+      return {
+        statusCode: 429,
+        body: JSON.stringify({ error: rateLimitCheck.error }),
     // Rate limiting check
     const rateLimitResult = checkRateLimit(userData.user.id);
     if (!rateLimitResult.allowed) {
@@ -571,6 +643,7 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
 
     if (result.error) {
       console.error('Supabase proxy error:', result.error);
+      logProxyOperation(body.action, body.table, userData.user.id, [...userRoles], false, result.error.message);
       auditLog({
         timestamp: new Date().toISOString(),
         userId: userData.user.id,
@@ -590,6 +663,7 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
     }
 
     // Log successful operation
+    logProxyOperation(body.action, body.table, userData.user.id, [...userRoles], true);
     auditLog({
       timestamp: new Date().toISOString(),
       userId: userData.user.id,
@@ -613,6 +687,26 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
     };
   } catch (error) {
     console.error('API proxy error:', error);
+    // Log failed operation if we have user context
+    if (body) {
+      try {
+        const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false,
+          },
+        });
+        const { data: userData } = await supabase.auth.getUser(accessToken);
+        if (userData?.user) {
+          const userRoles = new Set<string>([
+            ...normalizeRoles(userData.user.app_metadata?.roles),
+            ...normalizeRoles(userData.user.user_metadata?.roles),
+          ]);
+          logProxyOperation(body.action, body.table, userData.user.id, [...userRoles], false, String(error));
+        }
+      } catch {
+        // Ignore logging errors
+      }
     // Try to log the error if we have user data
     if (body && userId) {
       auditLog(userId, userEmail, body.action, body.table, body.filters, false, error instanceof Error ? error.message : 'Unknown error');
