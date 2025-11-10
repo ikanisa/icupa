@@ -69,3 +69,9 @@ temp
 # OS files
 Thumbs.db
 desktop.ini
+
+# ignore nodeenv backups
+*.before-nodeenv
+
+# Netlify build artifacts
+apps/*/.netlify
