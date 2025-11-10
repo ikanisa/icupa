@@ -1,5 +1,15 @@
 import { z } from "zod";
 
+// Common metadata shared by all tool invocations
+export const baseToolInput = z.object({
+  tenantId: z.string().uuid().nullish(),
+  agentType: z.string().min(1).optional(),
+  sessionId: z.string().uuid().optional(),
+  requestId: z.string().optional(),
+  metadata: z.record(z.unknown()).optional(),
+});
+export type TBaseToolInput = z.infer<typeof baseToolInput>;
+
 // Common tool definition structure
 export const ToolDefinition = z.object({
   name: z.string(),
