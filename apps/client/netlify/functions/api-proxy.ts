@@ -27,6 +27,9 @@ type AuditLogEntry = {
   success: boolean;
   error?: string;
   ipAddress?: string;
+type RateLimitEntry = {
+  count: number;
+  resetAt: number;
 };
 
 const DEFAULT_ALLOWED_ROLES = new Set(
@@ -35,6 +38,13 @@ const DEFAULT_ALLOWED_ROLES = new Set(
     .map((role) => role.trim().toLowerCase())
     .filter(Boolean),
 );
+
+// Rate limiting configuration (requests per minute per user)
+const RATE_LIMIT_REQUESTS = parseInt(process.env.SUPABASE_PROXY_RATE_LIMIT ?? '60', 10);
+const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
+
+// In-memory rate limit store (consider using Redis for production multi-instance deployments)
+const rateLimitStore = new Map<string, RateLimitEntry>();
 
 const parseAllowlist = (rawConfig: string | undefined): Allowlist => {
   if (!rawConfig) {
@@ -194,6 +204,102 @@ const normalizeRoles = (roles: unknown): string[] => {
 };
 
 /**
+ * Check rate limit for a user
+ * Returns true if rate limit is exceeded
+ */
+const checkRateLimit = (userId: string): boolean => {
+  const now = Date.now();
+  const entry = rateLimitStore.get(userId);
+
+  // Clean up expired entries periodically
+  if (Math.random() < 0.01) { // 1% chance
+    for (const [key, value] of rateLimitStore.entries()) {
+      if (value.resetAt < now) {
+        rateLimitStore.delete(key);
+      }
+    }
+  }
+
+  if (!entry || entry.resetAt < now) {
+    rateLimitStore.set(userId, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return false;
+  }
+
+  if (entry.count >= RATE_LIMIT_REQUESTS) {
+    return true;
+  }
+
+  entry.count += 1;
+  return false;
+};
+
+/**
+ * Validate filter keys against column allowlist
+ * Returns an error message if validation fails, undefined otherwise
+ */
+const validateFilters = (
+  filters: Record<string, unknown> | undefined,
+  table: string,
+  columnAllowlist: ColumnAllowlist,
+): string | undefined => {
+  if (!filters || Object.keys(filters).length === 0) {
+    return undefined;
+  }
+
+  const allowedColumns = columnAllowlist[table];
+  
+  // If no column allowlist is defined for this table, reject all filters for security
+  if (!allowedColumns || allowedColumns.size === 0) {
+    return 'Filter columns not configured for this table. Contact administrator.';
+  }
+
+  // Validate each filter key
+  for (const key of Object.keys(filters)) {
+    if (!allowedColumns.has(key)) {
+      return `Filter column '${key}' is not allowed for this table`;
+    }
+
+    const value = filters[key];
+    
+    // Only allow simple filter values (strings, numbers, booleans, null)
+    // Reject objects/arrays which could be used for complex queries
+    if (value !== null && typeof value === 'object') {
+      return `Complex filter operations are not allowed. Use simple equality filters only.`;
+    }
+  }
+
+  return undefined;
+};
+
+/**
+ * Audit log for proxy operations
+ */
+const auditLog = (
+  userId: string,
+  userEmail: string | undefined,
+  action: ProxyAction,
+  table: string,
+  filters: Record<string, unknown> | undefined,
+  success: boolean,
+  errorMessage?: string,
+): void => {
+  const timestamp = new Date().toISOString();
+  const logEntry = {
+    timestamp,
+    userId,
+    userEmail: userEmail ?? 'unknown',
+    action,
+    table,
+    filters: filters ? JSON.stringify(filters) : 'none',
+    success,
+    errorMessage,
+  };
+  
+  // Log to console (in production, consider sending to a logging service)
+  console.log('[AUDIT] Supabase Proxy:', JSON.stringify(logEntry));
+};
+
+/**
  * Proxy API endpoint for secure Supabase operations
  * This allows server-side operations using the service role key
  */
@@ -318,6 +424,9 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
     };
   }
 
+  let userId: string | undefined;
+  let userEmail: string | undefined;
+
   try {
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
       auth: {
@@ -333,6 +442,9 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
         body: JSON.stringify({ error: 'Unauthorized' }),
       };
     }
+
+    userId = userData.user.id;
+    userEmail = userData.user.email;
 
     const userRoles = new Set<string>([
       ...normalizeRoles(userData.user.app_metadata?.roles),
@@ -354,6 +466,7 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
           error: 'Forbidden - user does not have required role',
           ipAddress: event.headers['x-forwarded-for'] || event.headers['x-real-ip'],
         });
+        auditLog(userId!, userEmail, body.action, body.table, body.filters, false, 'Forbidden: User lacks required role');
         return {
           statusCode: 403,
           body: JSON.stringify({ error: 'Forbidden' }),
@@ -380,6 +493,11 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
         headers: {
           'X-RateLimit-Limit': RATE_LIMIT_MAX_REQUESTS.toString(),
           'X-RateLimit-Remaining': '0',
+    if (checkRateLimit(userId!)) {
+      auditLog(userId!, userEmail, body.action, body.table, body.filters, false, 'Rate limit exceeded');
+      return {
+        statusCode: 429,
+        headers: {
           'Retry-After': '60',
         },
         body: JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
@@ -408,6 +526,14 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
           body: JSON.stringify({ error: filterValidation.error }),
         };
       }
+    // Validate filters against column allowlist
+    const filterError = validateFilters(body.filters, body.table, columnAllowlist);
+    if (filterError) {
+      auditLog(userId!, userEmail, body.action, body.table, body.filters, false, filterError);
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: filterError }),
+      };
     }
 
     const tableQuery = supabase.from(body.table);
@@ -456,6 +582,7 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
         error: result.error.message,
         ipAddress: event.headers['x-forwarded-for'] || event.headers['x-real-ip'],
       });
+      auditLog(userId!, userEmail, body.action, body.table, body.filters, false, result.error.message);
       return {
         statusCode: result.status ?? 400,
         body: JSON.stringify({ error: result.error.message }),
@@ -473,6 +600,7 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
       success: true,
       ipAddress: event.headers['x-forwarded-for'] || event.headers['x-real-ip'],
     });
+    auditLog(userId!, userEmail, body.action, body.table, body.filters, true);
 
     return {
       statusCode: 200,
@@ -485,6 +613,10 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
     };
   } catch (error) {
     console.error('API proxy error:', error);
+    // Try to log the error if we have user data
+    if (body && userId) {
+      auditLog(userId, userEmail, body.action, body.table, body.filters, false, error instanceof Error ? error.message : 'Unknown error');
+    }
     return {
       statusCode: 500,
       body: JSON.stringify({ error: 'Internal server error' }),
