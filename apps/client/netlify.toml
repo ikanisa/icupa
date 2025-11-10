@@ -2,7 +2,7 @@
 
 [build]
   base = "apps/client"
-  publish = "apps/client/.next"
+  publish = "apps/client/out"
   command = "cd ../.. && pnpm install && pnpm --filter @icupa/client build"
 
 [build.environment]
