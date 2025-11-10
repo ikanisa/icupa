@@ -43,10 +43,15 @@ jobs:
           VITE_APP_NAME: ICUPA
         run: pnpm build:client
 
+      - name: Export client app for Netlify
+        working-directory: apps/client
+        run: pnpm exec next export
+
       - name: Deploy to Netlify
         id: deploy
         uses: nwtgck/actions-netlify@v3.0
         with:
+          publish-dir: "apps/client/out"
           publish-dir: "apps/client/dist"
           production-branch: main
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -91,10 +96,15 @@ jobs:
           VITE_APP_NAME: ICUPA Admin
         run: pnpm build:admin
 
+      - name: Export admin app for Netlify
+        working-directory: apps/admin
+        run: pnpm exec next export
+
       - name: Deploy to Netlify
         id: deploy
         uses: nwtgck/actions-netlify@v3.0
         with:
+          publish-dir: "apps/admin/out"
           publish-dir: "apps/admin/dist"
           production-branch: main
           github-token: ${{ secrets.GITHUB_TOKEN }}

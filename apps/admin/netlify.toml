@@ -2,6 +2,13 @@
 
 [build]
   base = "apps/admin"
+  publish = "apps/admin/.next"
+  command = "cd ../.. && pnpm install && pnpm --filter @icupa/admin build"
+
+[build.environment]
+  NODE_VERSION = "18.18.2"
+  NEXT_TELEMETRY_DISABLED = "1"
+
   publish = "dist"
   command = "cd ../.. && pnpm install && pnpm build:admin"
   functions = "netlify/functions"

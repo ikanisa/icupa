@@ -74,4 +74,5 @@ desktop.ini
 *.before-nodeenv
 
 # Netlify build artifacts
+.netlify
 apps/*/.netlify

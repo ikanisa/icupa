@@ -104,6 +104,8 @@ These issues existed before the refactoring and are unrelated to the deployment 
 4. **Test Deployment**
    ```bash
    # Manual deployment
+   pnpm --filter @icupa/client build
+   pnpm --filter @icupa/admin build
    pnpm build:client
    pnpm build:admin
    

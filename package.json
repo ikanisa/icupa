@@ -97,6 +97,8 @@
     "vitest": "^2.1.5"
   },
   "lint-staged": {
+    "*.{ts,tsx,js,jsx,cjs,mjs}": [
+      "eslint --max-warnings=0 --no-warn-ignored",
     "*.{ts,tsx,js,jsx}": [
       "eslint --fix",
       "prettier --write"

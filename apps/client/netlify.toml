@@ -2,6 +2,25 @@
 
 [build]
   base = "apps/client"
+  publish = "apps/client/out"
+  command = "cd ../.. && pnpm install && pnpm --filter @icupa/client build"
+
+[build.environment]
+  NODE_VERSION = "18.18.2"
+  NEXT_TELEMETRY_DISABLED = "1"
+
+# Redirects for Next.js app
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  conditions = {Role = ["admin", "user"]}
+
+# PWA offline support
+[[redirects]]
+  from = "/offline"
+  to = "/offline.html"
+  status = 200
   publish = "dist"
   command = "cd ../.. && pnpm install && pnpm build:client"
   functions = "netlify/functions"
