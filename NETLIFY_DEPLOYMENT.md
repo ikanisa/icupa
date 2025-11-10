@@ -45,6 +45,7 @@ icupa/
 4. Configure build settings:
    - **Build command**: `cd ../.. && pnpm install && pnpm --filter @icupa/client build`
    - **Publish directory**: `apps/client/out`
+   - **Publish directory**: `apps/client/.next`
    - **Base directory**: `apps/client`
 5. Note the **Site ID** (needed for GitHub Actions)
 
@@ -126,10 +127,10 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 pnpm install
 
 # Build client app
-pnpm build:client
+pnpm --filter @icupa/client build
 
 # Build admin app
-pnpm build:admin
+pnpm --filter @icupa/admin build
 
 # Deploy using Netlify CLI
 netlify deploy --prod --dir apps/client/out --site $NETLIFY_CLIENT_SITE_ID
