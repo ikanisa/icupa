@@ -20,6 +20,13 @@ type FilterOperator = 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'like' | 'ili
 
 type ColumnAllowlist = Record<string, Set<string>>;
 
+type TableConfig = {
+  actions: Set<ProxyAction>;
+  filterableColumns?: Set<string>;
+};
+
+type AllowlistConfig = Record<string, TableConfig>;
+
 type ProxyRequestBody = {
   action: ProxyAction;
   table: string;
@@ -53,6 +60,7 @@ const DEFAULT_ALLOWED_ROLES = new Set(
     .filter(Boolean),
 );
 
+const parseAllowlist = (rawConfig: string | undefined): AllowlistConfig => {
 // Rate limiting configuration (requests per minute per user)
 const RATE_LIMIT_REQUESTS = parseInt(process.env.SUPABASE_PROXY_RATE_LIMIT ?? '60', 10);
 const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
@@ -67,6 +75,7 @@ const parseAllowlist = (rawConfig: string | undefined): Allowlist => {
 
   try {
     const parsed = JSON.parse(rawConfig) as Record<string, unknown>;
+    return Object.entries(parsed).reduce<AllowlistConfig>((acc, [table, config]) => {
     return Object.entries(parsed).reduce<Allowlist>((acc, [table, config]) => {
       const normalizedTable = table.trim();
       if (!normalizedTable) {
@@ -190,6 +199,24 @@ const parseColumnAllowlist = (rawConfig: string | undefined): ColumnAllowlist =>
         return acc;
       }
 
+      // Support both old format (array of actions) and new format (object with actions + filterableColumns)
+      let actions: string[] = [];
+      let filterableColumns: string[] | undefined;
+
+      if (Array.isArray(config)) {
+        // Old format: ["select", "insert"]
+        actions = config;
+      } else if (typeof config === 'object' && config !== null) {
+        // New format: { actions: ["select"], filterableColumns: ["id", "name"] }
+        const configObj = config as Record<string, unknown>;
+        if (Array.isArray(configObj.actions)) {
+          actions = configObj.actions;
+        }
+        if (Array.isArray(configObj.filterableColumns)) {
+          filterableColumns = configObj.filterableColumns.filter((col): col is string => typeof col === 'string');
+        }
+      }
+
       const allowedActions = actions
         .map((action) => (typeof action === "string" ? action.trim().toLowerCase() : ""))
         .filter(
@@ -232,6 +259,11 @@ const parseColumnAllowlist = (rawConfig: string | undefined): ColumnAllowlist =>
         return acc;
       }
 
+      if (allowedActions.length > 0) {
+        acc[normalizedTable] = {
+          actions: new Set(allowedActions),
+          filterableColumns: filterableColumns ? new Set(filterableColumns) : undefined,
+        };
       const allowedColumns = columns
         .map((col) => (typeof col === "string" ? col.trim() : ""))
         .filter(Boolean);
@@ -737,6 +769,107 @@ const auditLog = (
 };
 
 /**
+ * Validates filter keys against allowed columns
+ * Returns true if all filter keys are valid
+ */
+const validateFilterKeys = (
+  filters: Record<string, unknown>,
+  allowedColumns: Set<string> | undefined,
+): { valid: boolean; invalidKeys: string[] } => {
+  const filterKeys = Object.keys(filters);
+  
+  // If no column allowlist is configured, reject filters as a security precaution
+  if (!allowedColumns || allowedColumns.size === 0) {
+    return { valid: false, invalidKeys: filterKeys };
+  }
+
+  const invalidKeys = filterKeys.filter((key) => !allowedColumns.has(key));
+  
+  return {
+    valid: invalidKeys.length === 0,
+    invalidKeys,
+  };
+};
+
+/**
+ * Simple in-memory rate limiter
+ */
+class RateLimiter {
+  private requests: Map<string, number[]> = new Map();
+  private readonly windowMs: number;
+  private readonly maxRequests: number;
+
+  constructor(windowMs: number = 60000, maxRequests: number = 100) {
+    this.windowMs = windowMs;
+    this.maxRequests = maxRequests;
+  }
+
+  isAllowed(identifier: string): boolean {
+    const now = Date.now();
+    const userRequests = this.requests.get(identifier) ?? [];
+    
+    // Remove requests outside the time window
+    const recentRequests = userRequests.filter((timestamp) => now - timestamp < this.windowMs);
+    
+    if (recentRequests.length >= this.maxRequests) {
+      this.requests.set(identifier, recentRequests);
+      return false;
+    }
+
+    recentRequests.push(now);
+    this.requests.set(identifier, recentRequests);
+    return true;
+  }
+
+  cleanup(): void {
+    const now = Date.now();
+    const identifiers = Array.from(this.requests.keys());
+    for (const identifier of identifiers) {
+      const timestamps = this.requests.get(identifier);
+      if (!timestamps) continue;
+      
+      const recentRequests = timestamps.filter((timestamp) => now - timestamp < this.windowMs);
+      if (recentRequests.length === 0) {
+        this.requests.delete(identifier);
+      } else {
+        this.requests.set(identifier, recentRequests);
+      }
+    }
+  }
+}
+
+// Global rate limiter instance - 100 requests per minute per user
+const rateLimiter = new RateLimiter(60000, 100);
+
+// Cleanup old entries every 5 minutes
+setInterval(() => rateLimiter.cleanup(), 300000);
+
+/**
+ * Logs proxy operation for audit purposes
+ */
+const logProxyOperation = (
+  userId: string,
+  action: ProxyAction,
+  table: string,
+  filters: Record<string, unknown> | undefined,
+  success: boolean,
+  error?: string,
+): void => {
+  const logEntry = {
+    timestamp: new Date().toISOString(),
+    userId,
+    action,
+    table,
+    filterKeys: filters ? Object.keys(filters) : [],
+    success,
+    error,
+  };
+  
+  // Log to console for now - in production, this should go to a logging service
+  console.log('AUDIT_LOG:', JSON.stringify(logEntry));
+};
+
+/**
  * Proxy API endpoint for secure Supabase operations
  * This allows server-side operations using the service role key
  *
@@ -822,6 +955,20 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
         statusCode: 403,
         body: JSON.stringify({ error: "Operation not allowed for this table" }),
       };
+    }
+
+    // Validate filter keys against column allowlist
+    if (isRecord(filters) && Object.keys(filters).length > 0) {
+      const validation = validateFilterKeys(filters, tableConfig.filterableColumns);
+      if (!validation.valid) {
+        return {
+          statusCode: 403,
+          body: JSON.stringify({ 
+            error: 'Invalid filter columns',
+            invalidColumns: validation.invalidKeys,
+          }),
+        };
+      }
     }
 
     const payload: ProxyRequestBody = {
@@ -964,6 +1111,16 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
       };
     }
 
+    const userId = userData.user.id;
+
+    // Rate limiting check
+    if (!rateLimiter.isAllowed(userId)) {
+      logProxyOperation(userId, body.action, body.table, body.filters, false, 'Rate limit exceeded');
+      return {
+        statusCode: 429,
+        body: JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
+      };
+    }
     userId = userData.user.id;
     userEmail = userData.user.email;
 
@@ -974,6 +1131,10 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
 
     const allowedRoles = DEFAULT_ALLOWED_ROLES;
     if (allowedRoles.size > 0) {
+      const userRolesArray = Array.from(userRoles);
+      const hasAllowedRole = userRolesArray.some((role) => allowedRoles.has(role));
+      if (!hasAllowedRole) {
+        logProxyOperation(userId, body.action, body.table, body.filters, false, 'Insufficient permissions');
       const hasAllowedRole = Array.from(userRoles).some((role) => allowedRoles.has(role));
       if (!hasAllowedRole) {
         logProxyOperation(
@@ -1137,6 +1298,7 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
         user_email: userData.user.email,
       logProxyOperation(userId, userEmail, body.action, body.table, false, result.error.message);
       console.error('Supabase proxy error:', result.error);
+      logProxyOperation(userId, body.action, body.table, body.filters, false, result.error.message);
       logProxyOperation(body.action, body.table, userData.user.id, [...userRoles], false, result.error.message);
       auditLog({
         timestamp: new Date().toISOString(),
@@ -1159,6 +1321,8 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
     }
 
     // Log successful operation
+    logProxyOperation(userId, body.action, body.table, body.filters, true);
+
     await logProxyOperation({
       timestamp: new Date().toISOString(),
       user_id: userData.user.id,
