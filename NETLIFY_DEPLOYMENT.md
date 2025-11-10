@@ -44,6 +44,7 @@ icupa/
 3. Connect to GitHub and select the `icupa` repository
 4. Configure build settings:
    - **Build command**: `cd ../.. && pnpm install && pnpm --filter @icupa/client build`
+   - **Publish directory**: `apps/client/out`
    - **Publish directory**: `apps/client/.next`
    - **Base directory**: `apps/client`
 5. Note the **Site ID** (needed for GitHub Actions)
@@ -51,6 +52,7 @@ icupa/
 ### 1.2 Admin App
 
 Repeat the same process for the admin app:
+
 - **Build command**: `cd ../.. && pnpm install && pnpm --filter @icupa/admin build`
 - **Publish directory**: `apps/admin/.next`
 - **Base directory**: `apps/admin`
@@ -126,19 +128,20 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 pnpm install
 
 # Build client app
-pnpm build:client
+pnpm --filter @icupa/client build
 
 # Build admin app
-pnpm build:admin
+pnpm --filter @icupa/admin build
 
 # Deploy using Netlify CLI
-netlify deploy --prod --dir apps/client/.next --site $NETLIFY_CLIENT_SITE_ID
+netlify deploy --prod --dir apps/client/out --site $NETLIFY_CLIENT_SITE_ID
 netlify deploy --prod --dir apps/admin/.next --site $NETLIFY_ADMIN_SITE_ID
 ```
 
 ### Automatic Deployment via GitHub Actions
 
 The `.github/workflows/deploy-netlify.yml` workflow will automatically deploy on:
+
 - Push to `main` branch (production)
 - Push to `develop` branch (preview)
 - Pull requests (preview)
@@ -158,6 +161,7 @@ curl https://your-admin-site.netlify.app/.netlify/functions/health
 ```
 
 Expected response:
+
 ```json
 {
   "status": "healthy",
@@ -196,6 +200,7 @@ Expected response:
 ### HTTPS and Security
 
 Netlify automatically provisions SSL certificates. Verify:
+
 - SSL certificate is active
 - Force HTTPS is enabled
 - HSTS headers are configured (already in netlify.toml)
@@ -203,6 +208,7 @@ Netlify automatically provisions SSL certificates. Verify:
 ### Environment-Specific Configurations
 
 For staging environments:
+
 1. Create separate Netlify sites for staging
 2. Use environment-specific Supabase projects
 3. Update GitHub Actions workflow to deploy to staging sites
@@ -212,25 +218,31 @@ For staging environments:
 ### Build Failures
 
 **Error**: `pnpm: command not found`
+
 - **Solution**: Ensure `NODE_VERSION` is set in environment variables
 
 **Error**: `VITE_SUPABASE_URL is not defined`
+
 - **Solution**: Add environment variables in Netlify dashboard
 
 **Error**: `Build exceeded maximum allowed runtime`
+
 - **Solution**: Check build logs for unnecessary operations, consider splitting builds
 
 ### Runtime Errors
 
 **Error**: `Failed to fetch from Supabase`
+
 - **Solution**: Verify environment variables are correctly set and Supabase project is accessible
 
 **Error**: `Service Worker registration failed`
+
 - **Solution**: Check PWA configuration in vite.config.ts, ensure HTTPS is enabled
 
 ### Function Errors
 
 **Error**: `Function invocation failed`
+
 - **Solution**: Check function logs in Netlify dashboard, verify dependencies are installed
 
 ## Monitoring and Observability
@@ -242,6 +254,7 @@ Enable Netlify Analytics in Site settings → Analytics & logs
 ### External Monitoring
 
 Configure external monitoring services:
+
 - **Uptime**: Use services like UptimeRobot, Pingdom
 - **Performance**: Use Lighthouse CI, WebPageTest
 - **Errors**: Use Sentry (already configured in admin app)
@@ -264,6 +277,7 @@ If deployment fails or introduces issues:
 ## Support
 
 For issues or questions:
+
 - Create an issue in the GitHub repository
 - Contact the development team
 - Check SUPPORT.md for additional help
