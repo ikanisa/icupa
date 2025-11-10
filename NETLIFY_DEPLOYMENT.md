@@ -44,6 +44,7 @@ icupa/
 3. Connect to GitHub and select the `icupa` repository
 4. Configure build settings:
    - **Build command**: `cd ../.. && pnpm install && pnpm --filter @icupa/client build`
+   - **Publish directory**: `apps/client/out`
    - **Publish directory**: `apps/client/.next`
    - **Base directory**: `apps/client`
 5. Note the **Site ID** (needed for GitHub Actions)
@@ -133,7 +134,7 @@ pnpm --filter @icupa/client build
 pnpm --filter @icupa/admin build
 
 # Deploy using Netlify CLI
-netlify deploy --prod --dir apps/client/.next --site $NETLIFY_CLIENT_SITE_ID
+netlify deploy --prod --dir apps/client/out --site $NETLIFY_CLIENT_SITE_ID
 netlify deploy --prod --dir apps/admin/.next --site $NETLIFY_ADMIN_SITE_ID
 ```
 
