@@ -5,6 +5,8 @@ type ProxyAction = 'select' | 'insert' | 'update' | 'delete';
 
 type Allowlist = Record<string, Set<ProxyAction>>;
 
+type ColumnAllowlist = Record<string, Set<string>>;
+
 type ProxyRequestBody = {
   action: ProxyAction;
   table: string;
@@ -53,6 +55,100 @@ const parseAllowlist = (rawConfig: string | undefined): Allowlist => {
   }
 };
 
+const parseColumnAllowlist = (rawConfig: string | undefined): ColumnAllowlist => {
+  if (!rawConfig) {
+    return {};
+  }
+
+  try {
+    const parsed = JSON.parse(rawConfig) as Record<string, unknown>;
+    return Object.entries(parsed).reduce<ColumnAllowlist>((acc, [table, columns]) => {
+      if (!Array.isArray(columns)) {
+        return acc;
+      }
+
+      const normalizedTable = table.trim();
+      if (!normalizedTable) {
+        return acc;
+      }
+
+      const allowedColumns = columns
+        .map((col) => (typeof col === 'string' ? col.trim() : ''))
+        .filter(Boolean);
+
+      if (allowedColumns.length > 0) {
+        acc[normalizedTable] = new Set(allowedColumns);
+      }
+
+      return acc;
+    }, {});
+  } catch (error) {
+    console.error('Failed to parse SUPABASE_PROXY_COLUMN_ALLOWLIST:', error);
+    return {};
+  }
+};
+
+const validateFilters = (
+  filters: Record<string, unknown>,
+  allowedColumns: Set<string> | undefined,
+  tableName: string,
+): { valid: boolean; error?: string } => {
+  if (!allowedColumns) {
+    return { valid: false, error: `No column allowlist configured for table: ${tableName}` };
+  }
+
+  for (const key of Object.keys(filters)) {
+    if (!allowedColumns.has(key)) {
+      return { valid: false, error: `Filter column not allowed: ${key}` };
+    }
+  }
+
+  return { valid: true };
+};
+
+const logProxyOperation = (
+  operation: string,
+  table: string,
+  userId: string,
+  userRoles: string[],
+  success: boolean,
+  error?: string,
+): void => {
+  const logEntry = {
+    timestamp: new Date().toISOString(),
+    operation,
+    table,
+    userId,
+    userRoles,
+    success,
+    error,
+  };
+  console.log('[PROXY_AUDIT]', JSON.stringify(logEntry));
+};
+
+// Simple in-memory rate limiter (for serverless, consider using Redis/KV in production)
+const rateLimiter = new Map<string, { count: number; resetTime: number }>();
+
+const checkRateLimit = (userId: string): { allowed: boolean; error?: string } => {
+  const rateLimitWindow = 60000; // 1 minute window
+  const maxRequests = parseInt(process.env.SUPABASE_PROXY_RATE_LIMIT ?? '100', 10);
+
+  const now = Date.now();
+  const userLimit = rateLimiter.get(userId);
+
+  if (!userLimit || userLimit.resetTime < now) {
+    rateLimiter.set(userId, { count: 1, resetTime: now + rateLimitWindow });
+    return { allowed: true };
+  }
+
+  if (userLimit.count >= maxRequests) {
+    return { allowed: false, error: 'Rate limit exceeded. Please try again later.' };
+  }
+
+  userLimit.count += 1;
+  return { allowed: true };
+};
+
 const isRecord = (value: unknown): value is Record<string, unknown> => {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 };
@@ -86,6 +182,7 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
   const supabaseUrl = process.env.VITE_SUPABASE_URL;
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const allowlist = parseAllowlist(process.env.SUPABASE_PROXY_TABLE_ALLOWLIST);
+  const columnAllowlist = parseColumnAllowlist(process.env.SUPABASE_PROXY_COLUMN_ALLOWLIST);
 
   if (!supabaseUrl || !supabaseServiceKey) {
     return {
@@ -186,6 +283,17 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
       };
     }
 
+    // Validate filters against column allowlist
+    if (payload.filters && Object.keys(payload.filters).length > 0) {
+      const filterValidation = validateFilters(payload.filters, columnAllowlist[normalizedTable], normalizedTable);
+      if (!filterValidation.valid) {
+        return {
+          statusCode: 403,
+          body: JSON.stringify({ error: filterValidation.error }),
+        };
+      }
+    }
+
     body = payload;
   } catch (error) {
     console.error('Failed to parse request body:', error);
@@ -220,11 +328,22 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
     if (allowedRoles.size > 0) {
       const hasAllowedRole = [...userRoles].some((role) => allowedRoles.has(role));
       if (!hasAllowedRole) {
+        logProxyOperation(body.action, body.table, userData.user.id, [...userRoles], false, 'User does not have required role');
         return {
           statusCode: 403,
           body: JSON.stringify({ error: 'Forbidden' }),
         };
       }
+    }
+
+    // Apply rate limiting
+    const rateLimitCheck = checkRateLimit(userData.user.id);
+    if (!rateLimitCheck.allowed) {
+      logProxyOperation(body.action, body.table, userData.user.id, [...userRoles], false, rateLimitCheck.error);
+      return {
+        statusCode: 429,
+        body: JSON.stringify({ error: rateLimitCheck.error }),
+      };
     }
 
     const tableQuery = supabase.from(body.table);
@@ -262,11 +381,15 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
 
     if (result.error) {
       console.error('Supabase proxy error:', result.error);
+      logProxyOperation(body.action, body.table, userData.user.id, [...userRoles], false, result.error.message);
       return {
         statusCode: result.status ?? 400,
         body: JSON.stringify({ error: result.error.message }),
       };
     }
+
+    // Log successful operation
+    logProxyOperation(body.action, body.table, userData.user.id, [...userRoles], true);
 
     return {
       statusCode: 200,
@@ -277,6 +400,27 @@ export const handler: Handler = async (event: HandlerEvent, _context: HandlerCon
     };
   } catch (error) {
     console.error('API proxy error:', error);
+    // Log failed operation if we have user context
+    if (body) {
+      try {
+        const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false,
+          },
+        });
+        const { data: userData } = await supabase.auth.getUser(accessToken);
+        if (userData?.user) {
+          const userRoles = new Set<string>([
+            ...normalizeRoles(userData.user.app_metadata?.roles),
+            ...normalizeRoles(userData.user.user_metadata?.roles),
+          ]);
+          logProxyOperation(body.action, body.table, userData.user.id, [...userRoles], false, String(error));
+        }
+      } catch {
+        // Ignore logging errors
+      }
+    }
     return {
       statusCode: 500,
       body: JSON.stringify({ error: 'Internal server error' }),
