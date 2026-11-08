@@ -8,3 +8,8 @@ major_version = 15
 [db.seed]
 enabled = true
 sql_paths = ["./seed.sql"]
+
+# Only the dedicated Meta-signed callback is externally accessible.
+# Do NOT disable JWT verification on the multiplexed auth function.
+[functions.meta-wa-webhook]
+verify_jwt = false
