@@ -1,133 +1,60 @@
-/**
- * WhatsApp webhook handler
- * Receives incoming messages and verification challenges from WhatsApp Cloud API
- */
-import { respond, extractTextResponse } from "../../../ai/responses/router";
-import { WHATSAPP_SYSTEM_PROMPT } from "../../../ai/responses/prompts";
+/** Recovery-period adapter: no AI invocation or direct outbound send on receipt. */
+import { createMetaWebhookHandler, verifySubscription } from "../../../supabase/functions/_shared/metaWebhookGuard";
+import { sendTextMessage } from "./send";
 
-// Simple in-memory cache for idempotency (in production, use Redis or database)
-const processedMessages = new Set<string>();
+const readEnv = (key: string) => process.env[key];
+const guarded = createMetaWebhookHandler(readEnv);
 
-/**
- * Verify webhook token (GET request)
- */
-function verifyWebhook(query: any): { challenge?: string; error?: string } {
-  const token = process.env.WA_VERIFY_TOKEN!;
-  const mode = query["hub.mode"];
-  const challenge = query["hub.challenge"];
-  const verifyToken = query["hub.verify_token"];
+export function verifyWebhook(query: Record<string, unknown>): { challenge?: string; error?: string } {
+  return verifySubscription(query, readEnv);
+}
 
-  if (mode === "subscribe" && verifyToken === token) {
-    return { challenge };
-  }
+// Kept for compatibility, but it can no longer bypass the guarded transport.
+export async function sendWhatsapp(to: string, text: string): Promise<void> {
+  await sendTextMessage(to, text);
+}
 
-  return { error: "Verification failed" };
+// Legacy callers must not bypass authenticated, durable ingestion and a worker.
+export async function processMessage(_message: unknown): Promise<void> {
+  throw new Error("Webhook processing unavailable until durable worker integration is verified");
+}
+
+export async function handleWebhookRequest(req: Request): Promise<Response> {
+  return guarded(req);
+}
+
+export interface RawWebhookContext {
+  headers: HeadersInit;
+  rawBody: Uint8Array;
 }
 
 /**
- * Send WhatsApp message
- */
-async function sendWhatsapp(to: string, text: string): Promise<void> {
-  const url = `${process.env.WA_API_BASE}/${process.env.WA_PHONE_NUMBER_ID}/messages`;
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.WA_ACCESS_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      messaging_product: "whatsapp",
-      to,
-      type: "text",
-      text: { body: text },
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      `WhatsApp API error: ${response.status} ${await response.text()}`
-    );
-  }
-}
-
-/**
- * Process incoming WhatsApp message
- */
-async function processMessage(message: any): Promise<void> {
-  const messageId = message.id;
-  const text = message.text?.body ?? "";
-  const from = message.from;
-
-  // Idempotency check
-  if (processedMessages.has(messageId)) {
-    console.log(`Skipping duplicate message: ${messageId}`);
-    return;
-  }
-
-  // Mark as processed
-  processedMessages.add(messageId);
-
-  // Clean up old messages (keep last 1000)
-  if (processedMessages.size > 1000) {
-    const firstKey = processedMessages.values().next().value;
-    processedMessages.delete(firstKey);
-  }
-
-  try {
-    // Build input for AI
-    const input = [
-      { role: "system" as const, content: WHATSAPP_SYSTEM_PROMPT },
-      { role: "user" as const, content: text },
-    ];
-
-    // Get AI response
-    const response = await respond(input);
-    const reply = extractTextResponse(response);
-
-    // Send reply
-    await sendWhatsapp(from, reply);
-  } catch (error) {
-    console.error(`Error processing message ${messageId}:`, error);
-    // Send error message to user
-    await sendWhatsapp(
-      from,
-      "Sorry, I encountered an error processing your request. Please try again."
-    );
-  }
-}
-
-/**
- * Main webhook handler
- * This would be integrated into your API framework (Express, Fastify, etc.)
+ * Backward-compatible signature; parsedBody is intentionally ignored for POST.
+ * A framework MUST capture exact wire bytes before its JSON parser. Supplying
+ * JSON.stringify(parsedBody) is not an acceptable substitute for rawBody.
  */
 export async function handleWebhook(
   method: string,
-  query: any,
-  body: any
-): Promise<{ status: number; body: any }> {
-  // GET: Webhook verification
+  query: Record<string, unknown>,
+  _parsedBody: unknown,
+  context?: RawWebhookContext,
+): Promise<{ status: number; body: unknown; headers: Record<string, string> }> {
+  const headers = { "Cache-Control": "no-store" };
   if (method === "GET") {
     const result = verifyWebhook(query);
-    if (result.challenge) {
-      return { status: 200, body: result.challenge };
-    }
-    return { status: 403, body: { error: result.error } };
+    return result.challenge !== undefined
+      ? { status: 200, body: result.challenge, headers: { ...headers, "Content-Type": "text/plain; charset=utf-8", "X-Content-Type-Options": "nosniff" } }
+      : { status: result.error === "verification_unconfigured" ? 503 : 403, body: { error: result.error }, headers };
   }
-
-  // POST: Incoming messages
-  if (method === "POST") {
-    const payload = body;
-    const messages = payload.entry?.[0]?.changes?.[0]?.value?.messages ?? [];
-
-    // Process messages in parallel
-    await Promise.all(messages.map(processMessage));
-
-    return { status: 200, body: { received: true } };
+  if (method !== "POST") return { status: 405, body: { error: "method_not_allowed" }, headers: { ...headers, Allow: "GET, POST" } };
+  if (!context || !(context.rawBody instanceof Uint8Array)) return { status: 400, body: { error: "raw_body_required" }, headers };
+  try {
+    const request = new Request("https://webhook.invalid/", {
+      method: "POST", headers: context.headers, body: new Uint8Array(context.rawBody),
+    });
+    const response = await guarded(request);
+    return { status: response.status, body: await response.json(), headers: Object.fromEntries(response.headers) };
+  } catch {
+    return { status: 400, body: { error: "request_invalid" }, headers };
   }
-
-  return { status: 405, body: { error: "Method not allowed" } };
 }
-
-// Export individual functions for testing
-export { verifyWebhook, sendWhatsapp, processMessage };

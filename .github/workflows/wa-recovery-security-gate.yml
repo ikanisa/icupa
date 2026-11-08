@@ -1,0 +1,46 @@
+name: WhatsApp Recovery Security Gate (review only)
+on:
+  push:
+    branches: [recovery/whatsapp-developer-hardening-20261108]
+  pull_request:
+    paths:
+      - "supabase/functions/meta-wa-webhook/**"
+      - "supabase/functions/_shared/metaWebhookGuard.ts"
+      - "supabase/functions/_shared/waOtpCore.ts"
+      - "supabase/functions/auth/whatsapp_*/**"
+      - "apps/api/whatsapp/**"
+      - "docs/security/wa-*-review.sql"
+      - "public/data-deletion.html"
+      - "tests/security/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wa-recovery-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  security-regression:
+    name: Run isolated recovery security tests (no deployment)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "10.0.0"
+      - name: Install pinned dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Validate static recovery boundaries
+        run: node --test tests/security/meta-recovery-static.test.mjs
+      - name: Test isolated encrypted inbox and OTP core
+        run: pnpm exec vitest run tests/security/metaWebhookDurableInbox.test.ts tests/security/waOtpCore.test.ts
+      - name: Scope and safety warning
+        run: |
+          echo "Not a Meta unlock, Supabase migration, Twilio registration,"
+          echo "OTP release or hosted production acceptance."
